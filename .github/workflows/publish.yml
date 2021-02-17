@@ -19,7 +19,7 @@ jobs:
       - name: Build Project
         run: npm run compile
       - name: Install VSCE
-        run: npm install -g vsce
+        run: sudo npm install -g vsce
       - name: Semantic Release
         uses: cycjimmy/semantic-release-action@v2
         env:
