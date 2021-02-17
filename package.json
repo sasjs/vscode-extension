@@ -2,6 +2,7 @@
   "name": "sasjs-for-vscode",
   "displayName": "SASjs for VS Code",
   "publisher": "SASjs",
+  "icon": "logo.png",
   "description": "Execute SAS code on your server from VS Code",
   "engines": {
     "vscode": "^1.53.0"
@@ -46,7 +47,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/sasjs/vscode-extension.git"
+    "url": "https://github.com/sasjs/vscode-extension.git"
   },
   "bugs": {
     "url": "https://github.com/sasjs/vscode-extension/issues"
