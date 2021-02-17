@@ -1,8 +1,8 @@
 {
   "name": "@sasjs/vscode-extension",
   "displayName": "SASjs for VS Code",
+  "publisher": "SASjs",
   "description": "Execute SAS code on your server from VS Code",
-  "version": "0.0.1",
   "engines": {
     "vscode": "^1.53.0"
   },
@@ -21,24 +21,61 @@
       }
     ]
   },
+  "publishConfig": {
+    "access": "public"
+  },
+  "release": {
+    "branches": [
+      "main"
+    ],
+    "verifyConditions": [
+      "semantic-release-vsce",
+      "@semantic-release/github"
+    ],
+    "prepare": {
+      "path": "semantic-release-vsce",
+      "packageVsix": true
+    },
+    "publish": [
+      "semantic-release-vsce",
+      {
+        "path": "@semantic-release/github",
+        "assets": "*.vsix"
+      }
+    ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sasjs/vscode-extension.git"
+  },
+  "bugs": {
+    "url": "https://github.com/sasjs/vscode-extension/issues"
+  },
+  "keywords": [
+    "SAS",
+    "Viya",
+    "SASjs"
+  ],
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src --ext ts",
-    "test": "node ./out/test/runTest.js"
+    "test": "node ./out/test/runTest.js",
+    "semantic-release": "semantic-release -d"
   },
   "devDependencies": {
-    "@types/vscode": "^1.53.0",
     "@types/glob": "^7.1.3",
     "@types/mocha": "^8.0.4",
     "@types/node": "^12.11.7",
-    "eslint": "^7.19.0",
+    "@types/vscode": "^1.53.0",
     "@typescript-eslint/eslint-plugin": "^4.14.1",
     "@typescript-eslint/parser": "^4.14.1",
+    "eslint": "^7.19.0",
     "glob": "^7.1.6",
     "mocha": "^8.2.1",
+    "semantic-release": "^17.3.9",
     "typescript": "^4.1.3",
     "vscode-test": "^1.5.0"
   },
