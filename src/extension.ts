@@ -14,7 +14,7 @@ export function activate(context: vscode.ExtensionContext) {
   })
 
   const executeCodeCommand = vscode.commands.registerCommand(
-    'sasjs-vscode-extension.executeCode',
+    'sasjs-for-vscode.executeCode',
     () => executeCode(adapter, outputChannel)
   )
 

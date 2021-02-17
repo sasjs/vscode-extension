@@ -1,5 +1,5 @@
 {
-  "name": "@sasjs/vscode-extension",
+  "name": "sasjs-for-vscode",
   "displayName": "SASjs for VS Code",
   "publisher": "SASjs",
   "description": "Execute SAS code on your server from VS Code",
@@ -10,13 +10,13 @@
     "Other"
   ],
   "activationEvents": [
-    "onCommand:sasjs-vscode-extension.executeCode"
+    "onCommand:sasjs-for-vscode.executeCode"
   ],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
       {
-        "command": "sasjs-vscode-extension.executeCode",
+        "command": "sasjs-for-vscode.executeCode",
         "title": "SASjs: Run SAS Code"
       }
     ]
