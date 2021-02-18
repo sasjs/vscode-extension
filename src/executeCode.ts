@@ -4,11 +4,9 @@ import * as os from 'os'
 
 import SASjs from '@sasjs/adapter/node'
 import { ServerType, Target } from '@sasjs/utils/types'
+import { createFile, readFile } from './utils/file'
 
-export const executeCode = async (
-  adapter: SASjs,
-  outputChannel: vscode.OutputChannel
-) => {
+export const executeCode = async (outputChannel: vscode.OutputChannel) => {
   outputChannel.appendLine('Initialising SASjs.')
   const target = await selectTarget(outputChannel)
   const accessToken = await getAccessToken(target)
@@ -17,6 +15,15 @@ export const executeCode = async (
         vscode.window.activeTextEditor?.selection
       )
     : await vscode.window.activeTextEditor?.document.getText()
+
+  const adapter = new SASjs({
+    serverUrl: target.serverUrl,
+    serverType: target.serverType,
+    appLoc: target.appLoc,
+    contextName: target.contextName,
+    useComputeApi: true,
+    debug: true
+  })
 
   adapter
     .executeScriptSASViya(
@@ -31,10 +38,7 @@ export const executeCode = async (
         'results',
         'test.log'
       )
-      await vscode.workspace.fs.writeFile(
-        vscode.Uri.parse(resultsPath),
-        Buffer.from(res.log)
-      )
+      await createFile(resultsPath, res.log)
       const document = await vscode.workspace.openTextDocument(resultsPath)
       vscode.window.showTextDocument(document, {
         viewColumn: vscode.ViewColumn.Beside
@@ -54,11 +58,11 @@ export const executeCode = async (
 }
 
 const getGlobalConfiguration = async (outputChannel: vscode.OutputChannel) => {
-  const sasjsConfigPath = vscode.Uri.parse(path.join(os.homedir(), '.sasjsrc'))
+  const sasjsConfigPath = path.join(os.homedir(), '.sasjsrc')
   let configFile
 
   try {
-    configFile = await vscode.workspace.fs.readFile(sasjsConfigPath)
+    configFile = await readFile(sasjsConfigPath)
   } catch {
     outputChannel.appendLine(
       'A global SASjs config file was not found in your home directory.'
@@ -67,7 +71,7 @@ const getGlobalConfiguration = async (outputChannel: vscode.OutputChannel) => {
   }
 
   try {
-    const configJson = JSON.parse(Buffer.from(configFile).toString('utf8'))
+    const configJson = JSON.parse(configFile)
     return configJson
   } catch {
     outputChannel.appendLine(
@@ -108,12 +112,14 @@ const selectTarget = async (outputChannel: vscode.OutputChannel) => {
       ['SAS Viya', 'SAS 9'],
       { placeHolder: 'Please select a server type' }
     )
-    return new Target({
+    const target = new Target({
       name,
       serverUrl,
       serverType:
         serverType === 'SAS Viya' ? ServerType.SasViya : ServerType.Sas9
     })
+
+    return target
   }
 }
 
