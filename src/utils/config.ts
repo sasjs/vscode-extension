@@ -1,10 +1,14 @@
 import * as path from 'path'
+import { OutputChannel, window, workspace } from 'vscode'
 import * as os from 'os'
 import { Target } from '@sasjs/utils/types/target'
 import { createFile, readFile } from './file'
 
-export async function saveToGlobalConfig(buildTarget: Target) {
-  let globalConfig = await getGlobalRcFile()
+export async function saveToGlobalConfig(
+  buildTarget: Target,
+  outputChannel: OutputChannel
+) {
+  let globalConfig = await getGlobalConfiguration(outputChannel)
   const targetJson = buildTarget.toJson()
   if (globalConfig) {
     if (globalConfig.targets && globalConfig.targets.length) {
@@ -34,12 +38,33 @@ export async function saveGlobalRcFile(content: string) {
   return rcFilePath
 }
 
-export async function getGlobalRcFile() {
-  const homeDir = os.homedir()
-  const sasjsRcFileContent = await readFile(
-    path.join(homeDir, '.sasjsrc')
-  ).catch(() => null)
-  return sasjsRcFileContent
-    ? JSON.parse(sasjsRcFileContent)
-    : sasjsRcFileContent
+export const getGlobalConfiguration = async (outputChannel: OutputChannel) => {
+  const sasjsConfigPath = path.join(os.homedir(), '.sasjsrc')
+  let configFile
+
+  try {
+    configFile = await readFile(sasjsConfigPath)
+  } catch {
+    outputChannel.appendLine(
+      'A global SASjs config file was not found in your home directory.'
+    )
+    return null
+  }
+
+  try {
+    const configJson = JSON.parse(configFile)
+    return configJson
+  } catch {
+    outputChannel.appendLine(
+      'There was an error parsing your global SASjs config file.'
+    )
+    window.showErrorMessage(
+      'There was an error parsing your global SASjs config file. Please ensure that the file is valid JSON.',
+      { modal: true }
+    )
+
+    const document = await workspace.openTextDocument(sasjsConfigPath)
+    await window.showTextDocument(document)
+    return null
+  }
 }

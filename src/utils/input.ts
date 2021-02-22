@@ -11,6 +11,15 @@ export const getTargetName = async () => {
   return targetName
 }
 
+export const getTarget = async () => {
+  const targetName = await getTextInput(
+    'Please enter a name for your target',
+    (value: string) => (value ? null : 'Target name can not be empty')
+  )
+
+  return targetName
+}
+
 export const getServerUrl = async () => {
   const serverUrl = await getTextInput(
     'Please enter your SAS server URL',
@@ -61,7 +70,7 @@ export const getAuthCode = async () => {
   return authCode
 }
 
-const getTextInput = async (
+export const getTextInput = async (
   placeHolder: string,
   validator: (value: string) => string | null
 ) => {
@@ -78,7 +87,10 @@ const getTextInput = async (
   return input
 }
 
-const getChoiceInput = async (choices: string[], placeHolder: string) => {
+export const getChoiceInput = async (
+  choices: string[],
+  placeHolder: string
+) => {
   const input = await window.showQuickPick(choices, {
     placeHolder,
     ignoreFocusOut: true
