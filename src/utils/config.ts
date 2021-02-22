@@ -35,7 +35,7 @@ export async function saveGlobalRcFile(content: string) {
 }
 
 export async function getGlobalRcFile() {
-  const homeDir = require('os').homedir()
+  const homeDir = os.homedir()
   const sasjsRcFileContent = await readFile(
     path.join(homeDir, '.sasjsrc')
   ).catch(() => null)

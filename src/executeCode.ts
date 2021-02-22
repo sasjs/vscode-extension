@@ -1,20 +1,27 @@
-import * as vscode from 'vscode'
+import { OutputChannel, window, workspace, env, Uri, ViewColumn } from 'vscode'
 import * as path from 'path'
 import * as os from 'os'
 
 import SASjs from '@sasjs/adapter/node'
-import { ServerType, Target } from '@sasjs/utils/types'
+import { Target } from '@sasjs/utils/types'
 import { createFile, readFile } from './utils/file'
+import {
+  getAuthCode,
+  getClientId,
+  getClientSecret,
+  getServerType,
+  getServerUrl,
+  getTargetName
+} from './utils/input'
+import { getAuthUrl, getTokens } from './utils/auth'
+import { getEditorContent } from './utils/editor'
+import { saveToGlobalConfig } from './utils/config'
 
-export const executeCode = async (outputChannel: vscode.OutputChannel) => {
+export const executeCode = async (outputChannel: OutputChannel) => {
   outputChannel.appendLine('Initialising SASjs.')
   const target = await selectTarget(outputChannel)
   const accessToken = await getAccessToken(target)
-  const currentFileContent = isTextSelected()
-    ? await vscode.window.activeTextEditor?.document.getText(
-        vscode.window.activeTextEditor?.selection
-      )
-    : await vscode.window.activeTextEditor?.document.getText()
+  const currentFileContent = getEditorContent()
 
   const adapter = new SASjs({
     serverUrl: target.serverUrl,
@@ -34,20 +41,20 @@ export const executeCode = async (outputChannel: vscode.OutputChannel) => {
     )
     .then(async (res) => {
       const resultsPath = path.join(
-        vscode.workspace.workspaceFolders![0].uri.fsPath,
+        workspace.workspaceFolders![0].uri.fsPath,
         'results',
         'test.log'
       )
       await createFile(resultsPath, res.log)
-      const document = await vscode.workspace.openTextDocument(resultsPath)
-      vscode.window.showTextDocument(document, {
-        viewColumn: vscode.ViewColumn.Beside
+      const document = await workspace.openTextDocument(resultsPath)
+      window.showTextDocument(document, {
+        viewColumn: ViewColumn.Beside
       })
 
       outputChannel.append(JSON.stringify(res, null, 2))
-      vscode.window.showInformationMessage(
+      window.showInformationMessage(
         `Your request has executed successfully! The log is available in ${
-          vscode.workspace.workspaceFolders![0].uri.path
+          workspace.workspaceFolders![0].uri.path
         }/results/test.log`,
         { modal: true }
       )
@@ -57,7 +64,7 @@ export const executeCode = async (outputChannel: vscode.OutputChannel) => {
     })
 }
 
-const getGlobalConfiguration = async (outputChannel: vscode.OutputChannel) => {
+const getGlobalConfiguration = async (outputChannel: OutputChannel) => {
   const sasjsConfigPath = path.join(os.homedir(), '.sasjsrc')
   let configFile
 
@@ -77,23 +84,23 @@ const getGlobalConfiguration = async (outputChannel: vscode.OutputChannel) => {
     outputChannel.appendLine(
       'There was an error parsing your global SASjs config file.'
     )
-    vscode.window.showErrorMessage(
+    window.showErrorMessage(
       'There was an error parsing your global SASjs config file. Please ensure that the file is valid JSON.',
       { modal: true }
     )
 
-    const document = await vscode.workspace.openTextDocument(sasjsConfigPath)
-    await vscode.window.showTextDocument(document)
+    const document = await workspace.openTextDocument(sasjsConfigPath)
+    await window.showTextDocument(document)
     return null
   }
 }
 
-const selectTarget = async (outputChannel: vscode.OutputChannel) => {
+const selectTarget = async (outputChannel: OutputChannel) => {
   const config = await getGlobalConfiguration(outputChannel)
 
   if (config?.targets?.length) {
     const targetNames = (config?.targets || []).map((t: any) => t.name)
-    const targetName = await vscode.window.showQuickPick(targetNames, {
+    const targetName = await window.showQuickPick(targetNames, {
       placeHolder: 'Please select a target'
     })
 
@@ -102,22 +109,46 @@ const selectTarget = async (outputChannel: vscode.OutputChannel) => {
     )
     return new Target(selectedTarget)
   } else {
-    const name = await vscode.window.showInputBox({
-      placeHolder: 'Please enter a name for your target'
+    const name = await getTargetName()
+    const serverUrl = await getServerUrl()
+    const serverType = await getServerType()
+    const clientId = await getClientId()
+
+    const clientSecret = await getClientSecret()
+
+    env.openExternal(Uri.parse(getAuthUrl(serverUrl, clientId)))
+
+    const authCode = await getAuthCode()
+
+    const adapter = new SASjs({
+      serverUrl: serverUrl,
+      serverType: serverType,
+      appLoc: '/Public/app',
+      useComputeApi: true,
+      debug: true
     })
-    const serverUrl = await vscode.window.showInputBox({
-      placeHolder: 'Please enter your SAS server URL'
-    })
-    const serverType = await vscode.window.showQuickPick(
-      ['SAS Viya', 'SAS 9'],
-      { placeHolder: 'Please select a server type' }
+
+    const authResponse = await getTokens(
+      adapter,
+      clientId,
+      clientSecret,
+      authCode
     )
+
     const target = new Target({
       name,
       serverUrl,
-      serverType:
-        serverType === 'SAS Viya' ? ServerType.SasViya : ServerType.Sas9
+      serverType,
+      appLoc: '/Public/app',
+      authConfig: {
+        // eslint-disable-next-line @typescript-eslint/naming-convention
+        access_token: authResponse.access_token,
+        // eslint-disable-next-line @typescript-eslint/naming-convention
+        refresh_token: authResponse.refresh_token
+      }
     })
+
+    await saveToGlobalConfig(target)
 
     return target
   }
@@ -125,13 +156,4 @@ const selectTarget = async (outputChannel: vscode.OutputChannel) => {
 
 const getAccessToken = async (target: Target) => {
   return target.authConfig?.access_token
-}
-
-const isTextSelected = () => {
-  const selection = vscode.window.activeTextEditor?.selection
-  return (
-    selection &&
-    (selection.start.character !== selection.end.character ||
-      selection.start.line !== selection.end.line)
-  )
 }

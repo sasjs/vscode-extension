@@ -1,14 +1,11 @@
-import * as vscode from 'vscode'
+import { workspace, Uri } from 'vscode'
 
 export async function createFile(filePath: string, content: string) {
-  return await vscode.workspace.fs.writeFile(
-    vscode.Uri.parse(filePath),
-    Buffer.from(content)
-  )
+  return await workspace.fs.writeFile(Uri.parse(filePath), Buffer.from(content))
 }
 
 export async function readFile(filePath: string) {
-  return await vscode.workspace.fs
-    .readFile(vscode.Uri.parse(filePath))
+  return await workspace.fs
+    .readFile(Uri.parse(filePath))
     .then((content) => Buffer.from(content).toString('utf8'))
 }
