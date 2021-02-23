@@ -41,10 +41,14 @@ export const executeCode = async (outputChannel: OutputChannel) => {
       accessToken
     )
     .then(async (res) => {
+      const timestamp = timestampToYYYYMMDDHHMMSS()
+        .replace(/ /g, '')
+        .replace(/\//g, '')
+        .replace(/:/g, '')
       const resultsPath = path.join(
         workspace.workspaceFolders![0].uri.fsPath,
         'results',
-        `${timestampToYYYYMMDDHHMMSS()}.log`
+        `${timestamp}.log`
       )
       await createFile(resultsPath, res.log)
       const document = await workspace.openTextDocument(resultsPath)
