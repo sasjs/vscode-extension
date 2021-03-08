@@ -1,7 +1,7 @@
 import { OutputChannel, env, Uri } from 'vscode'
 
 import SASjs from '@sasjs/adapter/node'
-import { Target } from '@sasjs/utils/types'
+import { Target, Configuration } from '@sasjs/utils/types'
 import {
   getAuthCode,
   getChoiceInput,
@@ -15,14 +15,15 @@ import {
 import { getAuthUrl, getTokens } from '../../../utils/auth'
 import {
   getGlobalConfiguration,
+  saveGlobalRcFile,
   saveToGlobalConfig
 } from '../../../utils/config'
 
 export const selectTarget = async (outputChannel: OutputChannel) => {
-  const config = await getGlobalConfiguration(outputChannel)
+  const config = await getGlobalConfiguration(outputChannel) as Configuration
 
   if (config?.targets?.length) {
-    let targetName = config.targets.find((t: Target) => t.isDefault)?.name
+    let targetName = config.targets.find((t) => t.name === config.defaultTarget)?.name
     if (!targetName) {
       const targetNames = (config?.targets || []).map((t: any) => t.name)
       targetName = await getChoiceInput(targetNames, 'Please select a target')
@@ -80,9 +81,18 @@ export const createTarget = async (outputChannel: OutputChannel) => {
 
   await saveToGlobalConfig(target, outputChannel)
 
+  if (isDefault) {
+    await setTargetAsDefault(name, outputChannel)
+  }
   return target
 }
 
 export const getAccessToken = async (target: Target) => {
   return target.authConfig?.access_token
+}
+
+const setTargetAsDefault = async (targetName: string, outputChannel: OutputChannel) => {
+  const globalConfig = await getGlobalConfiguration(outputChannel)
+  globalConfig.defaultTarget = targetName
+  await saveGlobalRcFile(JSON.stringify(globalConfig, null, 2))
 }
