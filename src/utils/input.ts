@@ -96,9 +96,14 @@ export const getChoiceInput = async (
     ignoreFocusOut: true
   })
 
-  if (!input) {
-    throw new Error('Input is invalid.')
-  }
-
   return input
+}
+
+export const getIsDefault = async () => {
+  const isDefault = await window.showQuickPick(['Yes', 'No'], {
+    placeHolder: 'Would you like to set this as the default target?',
+    ignoreFocusOut: true
+  })
+
+  return isDefault === 'Yes'
 }

@@ -12,7 +12,7 @@
     "Other"
   ],
   "activationEvents": [
-    "onCommand:sasjs-for-vscode.executeCode"
+    "*"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -86,7 +86,7 @@
   },
   "dependencies": {
     "@sasjs/adapter": "^2.1.0",
-    "@sasjs/utils": "^2.3.0",
+    "@sasjs/utils": "^2.6.3",
     "valid-url": "^1.0.9"
   }
 }

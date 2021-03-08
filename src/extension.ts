@@ -1,15 +1,9 @@
 import * as vscode from 'vscode'
-import { executeCode } from './executeCode'
+import { ExecuteCodeCommand } from './commands/execute-code/ExecuteCodeCommand'
 
 export function activate(context: vscode.ExtensionContext) {
-  const outputChannel = vscode.window.createOutputChannel('SASjs')
-
-  const executeCodeCommand = vscode.commands.registerCommand(
-    'sasjs-for-vscode.executeCode',
-    () => executeCode(outputChannel)
-  )
-
-  context.subscriptions.push(executeCodeCommand)
+  const executeCodeCommand = new ExecuteCodeCommand(context)
+  executeCodeCommand.initialise()
 }
 
 export function deactivate() {}
