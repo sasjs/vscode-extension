@@ -51,7 +51,7 @@ export class ExecuteCodeCommand {
     if (!target) {
       return
     }
-    const accessToken = await getAccessToken(target)
+    const accessToken = await getAccessToken(target, this.outputChannel)
     const currentFileContent = getEditorContent()
 
     const adapter = new SASjs({

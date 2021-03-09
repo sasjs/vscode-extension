@@ -87,8 +87,39 @@ export const createTarget = async (outputChannel: OutputChannel) => {
   return target
 }
 
-export const getAccessToken = async (target: Target) => {
-  return target.authConfig?.access_token
+export const getAccessToken = async (target: Target, outputChannel: OutputChannel) => {
+  const accessToken = target.authConfig?.access_token
+  if (accessToken) {
+    return accessToken
+  }
+
+  const adapter = new SASjs({
+    serverUrl: target.serverUrl,
+    serverType: target.serverType,
+    appLoc: '/Public/app',
+    useComputeApi: true,
+    debug: true
+  })
+  const clientId = await getClientId()
+  const clientSecret = await getClientSecret()
+  env.openExternal(Uri.parse(getAuthUrl(target.serverUrl, clientId)))
+  const authCode = await getAuthCode()
+
+  const authResponse = await getTokens(
+    adapter,
+    clientId,
+    clientSecret,
+    authCode
+  )
+
+  const updatedTarget = new Target({
+    ...target.toJson(),
+    authConfig: authResponse
+  })
+
+  await saveToGlobalConfig(updatedTarget, outputChannel)
+
+  return authResponse.access_token
 }
 
 const setTargetAsDefault = async (targetName: string, outputChannel: OutputChannel) => {
