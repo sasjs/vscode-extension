@@ -79,23 +79,14 @@ export class ExecuteCodeCommand {
           this.runSasCodeButton.text = '$(notebook-execute) Run SAS code'
           clearTimeout(timeout)
         }, 3000)
-        const timestamp = getTimestamp()
-        const resultsPath = workspace.workspaceFolders?.length
-          ? path.join(
-              workspace.workspaceFolders![0].uri.fsPath,
-              'sasjsresults',
-              `${timestamp}.log`
-            )
-          : path.join(os.homedir(), 'sasjsresults', `${timestamp}.log`)
-        await createFile(resultsPath, res.log)
-        const document = await workspace.openTextDocument(resultsPath)
-        window.showTextDocument(document, {
-          viewColumn: ViewColumn.Beside
-        })
+        await createAndOpenLogFile(res.log)
 
         this.outputChannel.append(JSON.stringify(res, null, 2))
       })
-      .catch((e) => {
+      .catch(async (e) => {
+        const { log } = e
+        await createAndOpenLogFile(log)
+
         this.runSasCodeButton.text =
           '$(notebook-state-error) SAS code execution failed'
         const timeout = setTimeout(() => {
@@ -105,4 +96,20 @@ export class ExecuteCodeCommand {
         this.outputChannel.append(JSON.stringify(e, null, 2))
       })
   }
+}
+
+const createAndOpenLogFile = async (log: string) => {
+  const timestamp = getTimestamp()
+  const resultsPath = workspace.workspaceFolders?.length
+    ? path.join(
+        workspace.workspaceFolders![0].uri.fsPath,
+        'sasjsresults',
+        `${timestamp}.log`
+      )
+    : path.join(os.homedir(), 'sasjsresults', `${timestamp}.log`)
+  await createFile(resultsPath, log)
+  const document = await workspace.openTextDocument(resultsPath)
+  window.showTextDocument(document, {
+    viewColumn: ViewColumn.Beside
+  })
 }
