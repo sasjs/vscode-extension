@@ -1,0 +1,10 @@
+{
+    "iconDefinitions": {
+        "sasjs": {
+            "iconPath": "./sasjs-icon-round.png"
+        }
+    },
+    "fileExtensions": {
+        "sas": "sasjs"
+    }
+}
