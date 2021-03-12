@@ -21,6 +21,32 @@
         "command": "sasjs-for-vscode.executeCode",
         "title": "SASjs: Run SAS Code"
       }
+    ],
+    "languages": [
+      {
+        "id": "sas",
+        "aliases": [
+          "SAS"
+        ],
+        "extensions": [
+          ".sas"
+        ],
+        "configuration": "./src/languages/sas.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "sas",
+        "scopeName": "source.sas",
+        "path": "./src/syntaxes/sas.tmLanguage.json"
+      }
+    ],
+    "iconThemes": [
+      {
+        "id": "sasjs-code",
+        "label": "sasjs-code",
+        "path": "./sasjs-icon-theme.json"
+      }
     ]
   },
   "publishConfig": {
