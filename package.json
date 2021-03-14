@@ -46,19 +46,19 @@
       {
         "id": "sasjs-code",
         "label": "sasjs-code",
-        "path": "./src/themes/sasjs-icon-theme.json"
+        "path": "./themes/sasjs-icon-theme.json"
       }
     ],
     "themes": [
       {
         "label": "SASjs Light",
         "uiTheme": "vs",
-        "path": "./src/themes/sasjs-theme-light.json"
+        "path": "./themes/sasjs-theme-light.json"
       },
       {
         "label": "SASjs Dark",
         "uiTheme": "vs",
-        "path": "./src/themes/sasjs-theme-dark.json"
+        "path": "./themes/sasjs-theme-dark.json"
       }
     ]
   },
@@ -99,7 +99,7 @@
   ],
   "scripts": {
     "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p ./ && cp -r ./src/themes/ ./out/themes/",
+    "compile": "tsc -p ./ && cp -r ./themes/ ./out/themes/",
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src --ext ts",
