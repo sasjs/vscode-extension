@@ -25,6 +25,7 @@
     "languages": [
       {
         "id": "sas",
+        "icon": "./themes/sasjs-icon-round.png",
         "aliases": [
           "SAS"
         ],
@@ -45,7 +46,19 @@
       {
         "id": "sasjs-code",
         "label": "sasjs-code",
-        "path": "./sasjs-icon-theme.json"
+        "path": "./src/themes/sasjs-icon-theme.json"
+      }
+    ],
+    "themes": [
+      {
+        "label": "SASjs Light",
+        "uiTheme": "vs",
+        "path": "./src/themes/sasjs-theme-light.json"
+      },
+      {
+        "label": "SASjs Dark",
+        "uiTheme": "vs",
+        "path": "./src/themes/sasjs-theme-dark.json"
       }
     ]
   },
