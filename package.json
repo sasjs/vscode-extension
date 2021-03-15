@@ -32,14 +32,14 @@
         "extensions": [
           ".sas"
         ],
-        "configuration": "./src/languages/sas.json"
+        "configuration": "./languages/sas.json"
       }
     ],
     "grammars": [
       {
         "language": "sas",
         "scopeName": "source.sas",
-        "path": "./src/syntaxes/sas.tmLanguage.json"
+        "path": "./syntaxes/sas.tmLanguage.json"
       }
     ],
     "iconThemes": [
@@ -99,12 +99,13 @@
   ],
   "scripts": {
     "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p ./ && cp -r ./themes/ ./out/themes/",
+    "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src --ext ts",
     "test": "node ./out/test/runTest.js",
-    "semantic-release": "semantic-release -d"
+    "semantic-release": "semantic-release -d",
+    "package:lib": "vsce package"
   },
   "devDependencies": {
     "@types/glob": "^7.1.3",
