@@ -22,7 +22,11 @@
     "commands": [
       {
         "command": "sasjs-for-vscode.executeCode",
-        "title": "SASjs: Run SAS Code"
+        "title": "SASjs: Run SAS Code",
+        "icon": {
+          "dark": "./assets/images/play-dark.svg",
+          "light": "./assets/images/play-light.svg"
+        }
       }
     ],
     "languages": [
@@ -63,7 +67,16 @@
         "uiTheme": "vs",
         "path": "./themes/sasjs-theme-dark.json"
       }
-    ]
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "sasjs-for-vscode.executeCode",
+          "group": "navigation",
+          "when": "editorLangId == sas"
+        }
+      ]
+    }
   },
   "publishConfig": {
     "access": "public"
