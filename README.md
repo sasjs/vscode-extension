@@ -1,6 +1,6 @@
 # Visual Studio Code Extension for SASjs
 
-This project contains the source code for the SASjs VS Code extension. The extension is deployed in the following locations:
+This project contains the source code for the SASjs VS Code extension, available in the following locations:
 
 * Visual Studio Code Marketplace (suitable for VS Code):  https://marketplace.visualstudio.com/items?itemName=SASjs.sasjs-for-vscode
 * Open VSX (Suitable for VSCodium and Theia): https://open-vsx.org/extension/sasjs/sasjs-for-vscode
