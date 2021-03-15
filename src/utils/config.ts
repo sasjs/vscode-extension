@@ -59,7 +59,7 @@ export const getGlobalConfiguration = async (outputChannel: OutputChannel) => {
       'There was an error parsing your global SASjs config file.'
     )
     window.showErrorMessage(
-      'There was an error parsing your global SASjs config file. Please ensure that the file is valid JSON.',
+      'There was an error parsing your global SASjs config file (~/.sasjsrc). Please ensure that the file is valid JSON.',
       { modal: true }
     )
 
