@@ -14,7 +14,7 @@ When a SAS program is selected, you can click the running man icon to execute th
 
 ![snippet](https://user-images.githubusercontent.com/4420615/111214809-aacb2b00-85d2-11eb-95ab-8832c9d13afb.gif)
 
-The first time you do this, you will receive a series of prompts:
+The first time you do this, you will [receive a series of prompts](https://youtu.be/lNWS2lCRX4I):
 
  - Name of Target.  This is an alias relating to the server on which you intend to run the code.  It will be added as a GLOBAL target, located at `~/.sasjsrc`. More info [here](https://cli.sasjs.io/faq/#what-is-the-difference-between-local-and-global-targets)).
  - Server Url.  The full URL (including port if needed) of your SAS Viya server.
