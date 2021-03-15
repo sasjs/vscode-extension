@@ -1,11 +1,30 @@
 # Visual Studio Code Extension for SASjs
 
-This project contains the source code for the SASjs VS Code extension.
+This project contains the source code for the SASjs VS Code extension. The extension is deployed in the following locations:
+
+* Visual Studio Code Marketplace (suitable for VS Code):  https://marketplace.visualstudio.com/items?itemName=SASjs.sasjs-for-vscode
+* Open VSX (Suitable for VSCodium and Theia): https://open-vsx.org/extension/sasjs/sasjs-for-vscode
 
 ## Features
 
-### Execute code on your SAS server
+### Syntax Highlighting
 
-You can run the `SASjs: Execute Code` command from the command palette(`Cmd+Shift+P`) to execute code from the currently open file against a specified server.
+Two themes are provided with SAS Code formatting - a Light Theme and a Dark Theme
 
-The extension uses the global SASjs configuration located at `~/.sasjsrc` to identify available server targets. If there are none available, it will prompt you to create one.
+![](https://i.imgur.com/dbCD6rg.png)![](https://i.imgur.com/BrPmat4.png)
+
+
+### Execute code on SAS Viya
+
+When a SAS program is selected, you can click the running man icon to execute that code on SAS Viya.  The first time you do this, you will receive a series of prompts:
+
+ - Name of Target.  This is an alias relating to the server on which you intend to run the code.  It will be added as a GLOBAL target, located at `~/.sasjsrc`. More info [here](https://cli.sasjs.io/faq/#what-is-the-difference-between-local-and-global-targets)).
+ - Server Url.  The full URL (including port if needed) of your SAS Viya server.
+ - Server Type.  Currenly only SAS Viya is supported.
+ - CLIENT / SECRET.  You will need to ask your administrator for these, and they should have the `authorization_code` grant type.  More info [here](https://cli.sasjs.io/faq/#how-can-i-obtain-a-viya-client-and-secret.
+ - Select default.  Click 'yes' to avoid having to select your target each time.
+
+You can now execute code!  You can also highlight a section of code and run that. Each log returned will be stored in a `sasjsresults` folder.  You can also run the `SASjs: Execute Code` command from the command palette(`Cmd+Shift+P`).
+
+
+
