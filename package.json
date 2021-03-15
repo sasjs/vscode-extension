@@ -13,7 +13,7 @@
     "Data Science",
     "Formatters"
   ],
-  "homepage": "https://sasjs.io",
+  "homepage": "https://sasjs.io/vscode",
   "activationEvents": [
     "*"
   ],
