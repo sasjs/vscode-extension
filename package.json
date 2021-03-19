@@ -21,6 +21,14 @@
   "contributes": {
     "commands": [
       {
+        "command": "sasjs-for-vscode.executingCode",
+        "title": "SASjs: Running your SAS Code",
+        "icon": {
+          "dark": "./assets/images/running-man-dark.gif",
+          "light": "./assets/images/running-man-light.gif"
+        }
+      },
+      {
         "command": "sasjs-for-vscode.executeCode",
         "title": "SASjs: Run SAS Code",
         "icon": {
@@ -73,7 +81,12 @@
         {
           "command": "sasjs-for-vscode.executeCode",
           "group": "navigation",
-          "when": "editorLangId == sas"
+          "when": "editorLangId == sas && !isSasjsCodeExecuting"
+        },
+        {
+          "command": "sasjs-for-vscode.executingCode",
+          "group": "navigation",
+          "when": "editorLangId == sas && isSasjsCodeExecuting"
         }
       ]
     }
