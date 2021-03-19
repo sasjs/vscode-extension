@@ -5,11 +5,9 @@ import {
   window,
   ExtensionContext,
   commands,
-  StatusBarAlignment,
   OutputChannel,
   ViewColumn,
-  workspace,
-  StatusBarItem
+  workspace
 } from 'vscode'
 import { getEditorContent } from '../../utils/editor'
 import { createFile } from '../../utils/file'
@@ -49,6 +47,7 @@ export class ExecuteCodeCommand {
       debug: true
     })
 
+    await commands.executeCommand('setContext', 'isSasjsCodeExecuting', true)
     adapter
       .executeScriptSASViya(
         'vscode-test-exec',
@@ -60,12 +59,22 @@ export class ExecuteCodeCommand {
         await createAndOpenLogFile(res.log)
 
         this.outputChannel.append(JSON.stringify(res, null, 2))
+        await commands.executeCommand(
+          'setContext',
+          'isSasjsCodeExecuting',
+          false
+        )
       })
       .catch(async (e) => {
         const { log } = e
         await createAndOpenLogFile(log)
 
         this.outputChannel.append(JSON.stringify(e, null, 2))
+        await commands.executeCommand(
+          'setContext',
+          'isSasjsCodeExecuting',
+          false
+        )
       })
   }
 }
