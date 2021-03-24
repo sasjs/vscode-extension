@@ -48,6 +48,12 @@
           ".sas"
         ],
         "configuration": "./languages/sas.json"
+      },
+      {
+        "id": "json",
+        "extensions": [
+          ".sasjslint"
+        ]
       }
     ],
     "grammars": [
@@ -55,13 +61,6 @@
         "language": "sas",
         "scopeName": "source.sas",
         "path": "./syntaxes/sas.tmLanguage.json"
-      }
-    ],
-    "iconThemes": [
-      {
-        "id": "sasjs-code",
-        "label": "sasjs-code",
-        "path": "./themes/sasjs-icon-theme.json"
       }
     ],
     "themes": [
@@ -74,6 +73,12 @@
         "label": "SASjs Dark",
         "uiTheme": "vs",
         "path": "./themes/sasjs-theme-dark.json"
+      }
+    ],
+    "jsonValidation": [
+      {
+        "fileMatch": ".sasjslint",
+        "url": "https://raw.githubusercontent.com/sasjs/lint/main/sasjslint-schema.json"
       }
     ],
     "menus": {
@@ -155,7 +160,7 @@
   },
   "dependencies": {
     "@sasjs/adapter": "^2.1.0",
-    "@sasjs/lint": "^1.0.2",
+    "@sasjs/lint": "^1.1.1",
     "@sasjs/utils": "^2.6.3",
     "valid-url": "^1.0.9"
   }
