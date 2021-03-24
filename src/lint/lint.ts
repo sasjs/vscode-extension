@@ -1,16 +1,18 @@
 import * as vscode from 'vscode'
-import { lint, Diagnostic, Severity } from '@sasjs/lint'
+import { lintFile, Diagnostic, Severity } from '@sasjs/lint'
 
 let diagnosticCollection: vscode.DiagnosticCollection
 
-export const lintText = async (
-  textEditor?: vscode.TextEditor
-): Promise<void> => {
+export const lint = async (textEditor?: vscode.TextEditor): Promise<void> => {
   if (!textEditor) {
     return
   }
 
-  const sasjsDiagnostics = await lint(textEditor.document.getText())
+  if (vscode.workspace.workspaceFolders?.length) {
+    process.chdir(vscode.workspace.workspaceFolders[0].uri.fsPath)
+  }
+
+  const sasjsDiagnostics = await lintFile(textEditor.document.uri.fsPath)
 
   const diagnostics = mapDiagnostics(sasjsDiagnostics)
 
@@ -23,6 +25,12 @@ export const lintText = async (
   }
 
   diagnosticCollection.set(textEditor.document.uri, diagnostics)
+}
+
+export const clearLintIssues = () => {
+  if (diagnosticCollection) {
+    diagnosticCollection.clear()
+  }
 }
 
 const mapDiagnostics = (
