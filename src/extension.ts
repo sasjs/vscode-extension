@@ -1,7 +1,7 @@
 import * as vscode from 'vscode'
 import { ExecuteCodeCommand } from './commands/execute-code/ExecuteCodeCommand'
 import { ExecutingCodeCommand } from './commands/execute-code/ExecutingCodeCommand'
-import { lintText } from './lint/lint'
+import { lint, clearLintIssues } from './lint/lint'
 
 const eventListeners: vscode.Disposable[] = []
 
@@ -14,7 +14,13 @@ export function activate(context: vscode.ExtensionContext) {
 
   eventListeners.push(
     vscode.workspace.onDidChangeTextDocument(
-      (_) => lintText(vscode.window.activeTextEditor),
+      (e) => {
+        if (e.document.languageId === 'sas') {
+          lint(vscode.window.activeTextEditor)
+        } else {
+          clearLintIssues()
+        }
+      },
       null,
       context.subscriptions
     )
@@ -23,7 +29,11 @@ export function activate(context: vscode.ExtensionContext) {
   eventListeners.push(
     vscode.window.onDidChangeActiveTextEditor(
       (editor) => {
-        lintText(editor)
+        if (editor?.document.languageId === 'sas') {
+          lint(editor)
+        } else {
+          clearLintIssues()
+        }
       },
       null,
       context.subscriptions
