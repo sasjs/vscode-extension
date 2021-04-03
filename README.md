@@ -24,6 +24,26 @@ The first time you do this, you will [receive a series of prompts](https://youtu
 
 You can now execute code!  You can also highlight a section of code and run that. Each log returned will be stored in a `sasjsresults` folder.  You can also run the `SASjs: Execute Code` command from the command palette(`Cmd+Shift+P`).
 
+### SAS Lint
+Spend less time on code reviews and more time pushing code! Select VIEW->PROBLEMS (or ctrl+shift+M) to examine the currently opened SAS program for issues.
+
+![image](https://user-images.githubusercontent.com/4420615/113478713-800e1d00-9482-11eb-90c1-10a80a41be1a.png)
+
+Rules can be configured by creating a `.sasjslint` file in the root of your project as follows:
+
+```json
+{
+    "noTrailingSpaces": true,
+    "noEncodedPasswords": true,
+    "hasDoxygenHeader": true,
+    "noSpacesInFileNames": true,
+    "maxLineLength": 80,
+    "lowerCaseFileNames": true,
+    "noTabIndentation": true,
+    "indentationMultiple": 2
+}
+```
+
 ### Syntax Highlighting
 
 Two themes are provided with SAS Code formatting - a Light Theme and a Dark Theme
