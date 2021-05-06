@@ -1,6 +1,7 @@
 import * as vscode from 'vscode'
 import { ExecuteCodeCommand } from './commands/execute-code/ExecuteCodeCommand'
 import { ExecutingCodeCommand } from './commands/execute-code/ExecutingCodeCommand'
+import { FormatCommand } from './commands/format/FormatCommand'
 import { lint, clearLintIssues } from './lint/lint'
 
 const eventListeners: vscode.Disposable[] = []
@@ -11,6 +12,9 @@ export function activate(context: vscode.ExtensionContext) {
 
   const executingCodeCommand = new ExecutingCodeCommand(context)
   executingCodeCommand.initialise()
+
+  const formatCommand = new FormatCommand()
+  formatCommand.initialise()
 
   eventListeners.push(
     vscode.workspace.onDidChangeTextDocument(
