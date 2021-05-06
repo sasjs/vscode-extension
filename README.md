@@ -48,7 +48,7 @@ We've now added the ability to automatically fix certain problems within SAS fil
 You can use this feature in two ways:
 
 1. On demand - by selecting 'Format Document' either from the right click menu or from the command palette.
-![image](https://user-images.githubusercontent.com/2980428/117259758-4431f300-ae46-11eb-8e8d-9549481ef7a0.png)
+![format](https://user-images.githubusercontent.com/2980428/117260252-c9b5a300-ae46-11eb-9e7e-f70b9166fbbe.gif)
 
 2. By enabling automatic formatting of files on save/paste from the Settings menu.
 ![image](https://user-images.githubusercontent.com/2980428/117259572-15b41800-ae46-11eb-9c7f-b9700b77405b.png)
