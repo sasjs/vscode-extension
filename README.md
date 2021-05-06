@@ -24,7 +24,7 @@ The first time you do this, you will [receive a series of prompts](https://youtu
 
 You can now execute code!  You can also highlight a section of code and run that. Each log returned will be stored in a `sasjsresults` folder.  You can also run the `SASjs: Execute Code` command from the command palette(`Cmd+Shift+P`).
 
-### SAS Lint
+### SAS Lint and Format
 Spend less time on code reviews and more time pushing code! Select VIEW->PROBLEMS (or ctrl+shift+M) to examine the currently opened SAS program for issues.
 
 ![image](https://user-images.githubusercontent.com/4420615/113478713-800e1d00-9482-11eb-90c1-10a80a41be1a.png)
@@ -43,6 +43,16 @@ Rules can be configured by creating a `.sasjslint` file in the root of your proj
     "indentationMultiple": 2
 }
 ```
+
+We've now added the ability to automatically fix certain problems within SAS files, such as trailing spaces, missing Doxygen header blocks and missing macro names in `%mend` statements.
+You can use this feature in two ways:
+
+1. On demand - by selecting 'Format Document' either from the right click menu or from the command palette.
+![image](https://user-images.githubusercontent.com/2980428/117259758-4431f300-ae46-11eb-8e8d-9549481ef7a0.png)
+
+2. By enabling automatic formatting of files on save/paste from the Settings menu.
+![image](https://user-images.githubusercontent.com/2980428/117259572-15b41800-ae46-11eb-9c7f-b9700b77405b.png)
+
 
 ### Syntax Highlighting
 
