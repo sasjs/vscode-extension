@@ -146,7 +146,7 @@
     "@types/mocha": "^8.2.2",
     "@types/node": "^15.0.2",
     "@types/valid-url": "^1.0.3",
-    "@types/vscode": "^1.55.0",
+    "@types/vscode": "^1.56.0",
     "@typescript-eslint/eslint-plugin": "^4.22.1",
     "@typescript-eslint/parser": "^4.22.1",
     "eslint": "^7.25.0",
