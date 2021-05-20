@@ -139,7 +139,8 @@
     "lint": "eslint src --ext ts",
     "test": "node ./out/test/runTest.js",
     "semantic-release": "semantic-release -d",
-    "package:lib": "vsce package"
+    "package:lib": "vsce package",
+    "postinstall": "[ -d .git ] && git config core.hooksPath ./.git-hooks || true"
   },
   "devDependencies": {
     "@types/glob": "^7.1.3",
