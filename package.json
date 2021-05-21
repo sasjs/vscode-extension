@@ -161,7 +161,7 @@
   },
   "dependencies": {
     "@sasjs/adapter": "^2.2.15",
-    "@sasjs/lint": "^1.8.0",
+    "@sasjs/lint": "^1.10.0",
     "@sasjs/utils": "^2.12.1",
     "valid-url": "^1.0.9"
   }
