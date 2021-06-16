@@ -11,7 +11,9 @@
   "categories": [
     "Programming Languages",
     "Data Science",
-    "Formatters"
+    "Formatters",
+    "Linters",
+    "Debuggers"
   ],
   "homepage": "https://sasjs.io/vscode",
   "activationEvents": [
