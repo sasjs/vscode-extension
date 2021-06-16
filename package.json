@@ -6,7 +6,7 @@
   "icon": "logo.png",
   "description": "Execute SAS code on your server from VS Code",
   "engines": {
-    "vscode": "^1.56.0"
+    "vscode": "^1.57.0"
   },
   "categories": [
     "Programming Languages",
