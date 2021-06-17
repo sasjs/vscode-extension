@@ -158,7 +158,7 @@
     "mocha": "^9.0.0",
     "semantic-release": "^17.4.4",
     "semantic-release-vsce": "^3.4.1",
-    "typescript": "^4.3.2",
+    "typescript": "^4.3.3",
     "vsce": "^1.93.0",
     "vscode-test": "^1.5.2"
   },
