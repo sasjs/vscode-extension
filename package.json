@@ -151,7 +151,7 @@
     "@types/tough-cookie": "^4.0.0",
     "@types/valid-url": "^1.0.3",
     "@types/vscode": "^1.57.0",
-    "@typescript-eslint/eslint-plugin": "^4.27.0",
+    "@typescript-eslint/eslint-plugin": "^4.28.2",
     "@typescript-eslint/parser": "^4.27.0",
     "eslint": "^7.28.0",
     "glob": "^7.1.7",
