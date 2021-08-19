@@ -145,22 +145,22 @@
     "postinstall": "[ -d .git ] && git config core.hooksPath ./.git-hooks || true"
   },
   "devDependencies": {
-    "@types/glob": "^7.1.3",
-    "@types/mocha": "^8.2.2",
-    "@types/node": "^15.12.2",
-    "@types/tough-cookie": "^4.0.0",
+    "@types/glob": "^7.1.4",
+    "@types/mocha": "^8.2.3",
+    "@types/node": "^15.14.8",
+    "@types/tough-cookie": "^4.0.1",
     "@types/valid-url": "^1.0.3",
-    "@types/vscode": "^1.57.0",
+    "@types/vscode": "^1.59.0",
     "@typescript-eslint/eslint-plugin": "^4.27.0",
     "@typescript-eslint/parser": "^4.27.0",
-    "eslint": "^7.28.0",
+    "eslint": "^7.32.0",
     "glob": "^7.1.7",
     "mocha": "^9.0.0",
     "semantic-release": "^17.4.4",
     "semantic-release-vsce": "^3.4.1",
-    "typescript": "^4.3.2",
-    "vsce": "^1.93.0",
-    "vscode-test": "^1.5.2"
+    "typescript": "^4.3.5",
+    "vsce": "^1.96.1",
+    "vscode-test": "^1.6.1"
   },
   "dependencies": {
     "@sasjs/adapter": "^2.8.3",
