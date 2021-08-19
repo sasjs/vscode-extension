@@ -56,6 +56,7 @@ export class ExecuteCodeCommand {
         authConfig
       )
       .then(async (res) => {
+        this.outputChannel.append('SASjs: Code executed successfully!')
         await createAndOpenLogFile(res.log, this.outputChannel)
 
         this.outputChannel.append(JSON.stringify(res, null, 2))
