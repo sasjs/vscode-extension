@@ -56,7 +56,7 @@ export class ExecuteCodeCommand {
         authConfig
       )
       .then(async (res) => {
-        await createAndOpenLogFile(res.log)
+        await createAndOpenLogFile(res.log, this.outputChannel)
 
         this.outputChannel.append(JSON.stringify(res, null, 2))
         await commands.executeCommand(
@@ -72,7 +72,7 @@ export class ExecuteCodeCommand {
         this.outputChannel.append(JSON.stringify(e, null, 2))
 
         const { log } = e
-        await createAndOpenLogFile(log)
+        await createAndOpenLogFile(log, this.outputChannel)
 
         await commands.executeCommand(
           'setContext',
@@ -83,7 +83,10 @@ export class ExecuteCodeCommand {
   }
 }
 
-const createAndOpenLogFile = async (log: string) => {
+const createAndOpenLogFile = async (
+  log: string,
+  outputChannel: OutputChannel
+) => {
   const timestamp = getTimestamp()
   const resultsPath = workspace.workspaceFolders?.length
     ? path.join(
@@ -92,6 +95,13 @@ const createAndOpenLogFile = async (log: string) => {
         `${timestamp}.log`
       )
     : path.join(os.homedir(), 'sasjsresults', `${timestamp}.log`)
+
+  outputChannel.appendLine(
+    `SASjs: Attempting to create log file at ${resultsPath}.`
+  )
+
+  outputChannel.appendLine(`Log content: ${log}`)
+
   await createFile(resultsPath, log)
   const document = await workspace.openTextDocument(resultsPath)
   window.showTextDocument(document, {
