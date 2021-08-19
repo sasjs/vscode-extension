@@ -1,7 +1,7 @@
 import { OutputChannel, env, Uri } from 'vscode'
 
 import SASjs from '@sasjs/adapter/node'
-import { Target, Configuration } from '@sasjs/utils/types'
+import { Target, Configuration, AuthConfig } from '@sasjs/utils/types'
 import {
   getAuthCode,
   getChoiceInput,
@@ -20,10 +20,12 @@ import {
 } from '../../../utils/config'
 
 export const selectTarget = async (outputChannel: OutputChannel) => {
-  const config = await getGlobalConfiguration(outputChannel) as Configuration
+  const config = (await getGlobalConfiguration(outputChannel)) as Configuration
 
   if (config?.targets?.length) {
-    let targetName = config.targets.find((t) => t.name === config.defaultTarget)?.name
+    let targetName = config.targets.find(
+      (t) => t.name === config.defaultTarget
+    )?.name
     if (!targetName) {
       const targetNames = (config?.targets || []).map((t: any) => t.name)
       targetName = await getChoiceInput(targetNames, 'Please select a target')
@@ -87,10 +89,13 @@ export const createTarget = async (outputChannel: OutputChannel) => {
   return target
 }
 
-export const getAccessToken = async (target: Target, outputChannel: OutputChannel) => {
-  const accessToken = target.authConfig?.access_token
-  if (accessToken) {
-    return accessToken
+export const getAuthConfig = async (
+  target: Target,
+  outputChannel: OutputChannel
+) => {
+  const authConfig = target.authConfig
+  if (authConfig) {
+    return authConfig
   }
 
   const adapter = new SASjs({
@@ -119,10 +124,18 @@ export const getAccessToken = async (target: Target, outputChannel: OutputChanne
 
   await saveToGlobalConfig(updatedTarget, outputChannel)
 
-  return authResponse.access_token
+  return {
+    client: clientId,
+    secret: clientSecret,
+    access_token: authResponse.access_token,
+    refresh_token: authResponse.refresh_token
+  } as AuthConfig
 }
 
-const setTargetAsDefault = async (targetName: string, outputChannel: OutputChannel) => {
+const setTargetAsDefault = async (
+  targetName: string,
+  outputChannel: OutputChannel
+) => {
   const globalConfig = await getGlobalConfiguration(outputChannel)
   globalConfig.defaultTarget = targetName
   await saveGlobalRcFile(JSON.stringify(globalConfig, null, 2))

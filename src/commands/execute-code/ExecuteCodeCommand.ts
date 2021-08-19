@@ -11,7 +11,7 @@ import {
 } from 'vscode'
 import { getEditorContent } from '../../utils/editor'
 import { createFile } from '../../utils/file'
-import { selectTarget, getAccessToken } from './internal/configuration'
+import { selectTarget, getAuthConfig } from './internal/configuration'
 import { getTimestamp } from './internal/utils'
 
 export class ExecuteCodeCommand {
@@ -35,7 +35,7 @@ export class ExecuteCodeCommand {
     if (!target) {
       return
     }
-    const accessToken = await getAccessToken(target, this.outputChannel)
+    const authConfig = await getAuthConfig(target, this.outputChannel)
     const currentFileContent = getEditorContent()
 
     const adapter = new SASjs({
@@ -53,7 +53,7 @@ export class ExecuteCodeCommand {
         'vscode-test-exec',
         (currentFileContent || '').split('\n'),
         '',
-        accessToken
+        authConfig
       )
       .then(async (res) => {
         await createAndOpenLogFile(res.log)
@@ -66,10 +66,14 @@ export class ExecuteCodeCommand {
         )
       })
       .catch(async (e) => {
+        this.outputChannel.append('SASjs: Error executing code: ')
+        this.outputChannel.append(e)
+        this.outputChannel.append(e.message)
+        this.outputChannel.append(JSON.stringify(e, null, 2))
+
         const { log } = e
         await createAndOpenLogFile(log)
 
-        this.outputChannel.append(JSON.stringify(e, null, 2))
         await commands.executeCommand(
           'setContext',
           'isSasjsCodeExecuting',
