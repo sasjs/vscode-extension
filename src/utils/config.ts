@@ -26,6 +26,10 @@ export async function saveToGlobalConfig(
   } else {
     globalConfig = { targets: [targetJson] }
   }
+  const rcFilePath = path.join(os.homedir(), '.sasjsrc')
+  outputChannel.appendLine(
+    `SASjs: Saving global configuration to ${rcFilePath}`
+  )
   return await saveGlobalRcFile(JSON.stringify(globalConfig, null, 2))
 }
 

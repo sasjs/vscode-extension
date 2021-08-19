@@ -115,7 +115,11 @@ export const getAuthConfig = async (
     clientId,
     clientSecret,
     authCode
-  )
+  ).catch((e) => {
+    outputChannel.appendLine('SASjs: Error obtaining access token.')
+    outputChannel.appendLine(e.message)
+    throw e
+  })
 
   const updatedTarget = new Target({
     ...target.toJson(),
