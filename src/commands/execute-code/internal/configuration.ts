@@ -68,7 +68,8 @@ export const createTarget = async (outputChannel: OutputChannel) => {
     adapter,
     clientId,
     clientSecret,
-    authCode
+    authCode,
+    outputChannel
   )
 
   const isDefault = await getIsDefault()
@@ -114,12 +115,9 @@ export const getAuthConfig = async (
     adapter,
     clientId,
     clientSecret,
-    authCode
-  ).catch((e) => {
-    outputChannel.appendLine('SASjs: Error obtaining access token.')
-    outputChannel.appendLine(e.message)
-    throw e
-  })
+    authCode,
+    outputChannel
+  )
 
   const updatedTarget = new Target({
     ...target.toJson(),
