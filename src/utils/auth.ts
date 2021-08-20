@@ -1,16 +1,25 @@
 import SASjs from '@sasjs/adapter/node'
+import { OutputChannel } from 'vscode'
 
 export const getTokens = async (
   sasjsInstance: SASjs,
   clientId: string,
   clientSecret: string,
-  authCode: string
+  authCode: string,
+  outputChannel: OutputChannel
 ) => {
-  const authResponse = await sasjsInstance.getAccessToken(
-    clientId,
-    clientSecret,
-    authCode
+  outputChannel.appendLine(
+    `Attempting to get access token with client ${clientId} and auth code ${authCode}`
   )
+  const authResponse = await sasjsInstance
+    .getAccessToken(clientId, clientSecret, authCode)
+    .catch((e) => {
+      outputChannel.appendLine(
+        `Error getting access tokens: ${e?.message || e}`
+      )
+
+      throw e
+    })
 
   return authResponse
 }
