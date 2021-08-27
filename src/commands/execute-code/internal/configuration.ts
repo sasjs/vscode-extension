@@ -107,6 +107,7 @@ export const getAuthConfig = async (
     serverType: target.serverType,
     appLoc: '/Public/app',
     useComputeApi: true,
+    allowInsecureRequests: target.allowInsecureRequests,
     debug: true
   })
   const clientId = await getClientId()

@@ -43,6 +43,7 @@ export class ExecuteCodeCommand {
       serverType: target.serverType,
       appLoc: target.appLoc,
       contextName: target.contextName,
+      allowInsecureRequests: target.allowInsecureRequests,
       useComputeApi: true,
       debug: true
     })
