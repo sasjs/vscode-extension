@@ -147,7 +147,7 @@
   "devDependencies": {
     "@types/glob": "^7.1.4",
     "@types/mocha": "^9.0.0",
-    "@types/node": "^16.7.2",
+    "@types/node": "^16.7.9",
     "@types/tough-cookie": "^4.0.1",
     "@types/valid-url": "^1.0.3",
     "@types/vscode": "^1.59.0",
