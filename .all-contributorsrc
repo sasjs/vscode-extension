@@ -35,6 +35,21 @@
         "video",
         "doc"
       ]
+    },
+    {
+      "login": "krishna-acondy",
+      "name": "Krishna Acondy",
+      "avatar_url": "https://avatars.githubusercontent.com/u/2980428?v=4",
+      "profile": "https://krishna-acondy.io/",
+      "contributions": [
+        "code",
+        "test",
+        "review",
+        "infra",
+        "platform",
+        "maintenance",
+        "content"
+      ]
     }
   ],
   "contributorsPerLine": 7
