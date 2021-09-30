@@ -75,6 +75,18 @@
         "review",
         "ideas"
       ]
+    },
+    {
+      "login": "medjedovicm",
+      "name": "Mihajlo Medjedovic",
+      "avatar_url": "https://avatars.githubusercontent.com/u/18329105?v=4",
+      "profile": "https://github.com/medjedovicm",
+      "contributions": [
+        "code",
+        "test",
+        "review",
+        "infra"
+      ]
     }
   ],
   "contributorsPerLine": 7
