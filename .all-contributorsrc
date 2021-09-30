@@ -1,0 +1,28 @@
+{
+  "projectName": "vscode-extension",
+  "projectOwner": "sasjs",
+  "repoType": "github",
+  "repoHost": "https://github.com",
+  "files": [
+    "README.md"
+  ],
+  "imageSize": 100,
+  "commit": true,
+  "commitConvention": "none",
+  "contributors": [
+    {
+      "login": "allanbowe",
+      "name": "Allan Bowe",
+      "avatar_url": "https://avatars.githubusercontent.com/u/4420615?v=4",
+      "profile": "https://github.com/allanbowe",
+      "contributions": [
+        "code",
+        "test",
+        "review",
+        "video",
+        "doc"
+      ]
+    }
+  ],
+  "contributorsPerLine": 7
+}
