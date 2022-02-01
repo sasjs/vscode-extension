@@ -160,7 +160,7 @@
     "semantic-release": "^17.4.7",
     "semantic-release-vsce": "^3.4.1",
     "typescript": "^4.3.5",
-    "vsce": "^1.96.1",
+    "vsce": "^2.6.6",
     "vscode-test": "^1.6.1"
   },
   "dependencies": {
