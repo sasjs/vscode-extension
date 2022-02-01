@@ -164,7 +164,7 @@
     "vscode-test": "^1.6.1"
   },
   "dependencies": {
-    "@sasjs/adapter": "^2.8.3",
+    "@sasjs/adapter": "^3.4.1",
     "@sasjs/lint": "^1.11.1",
     "@sasjs/utils": "^2.29.0",
     "valid-url": "^1.0.9"
