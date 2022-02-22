@@ -42,7 +42,10 @@
     "languages": [
       {
         "id": "sas",
-        "icon": "./themes/sasjs-icon-round.png",
+        "icon": {
+          "dark": "./themes/sasjs-icon-round.png",
+          "light": "./themes/sasjs-icon-round.png"
+        },
         "aliases": [
           "SAS"
         ],
