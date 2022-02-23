@@ -48,7 +48,9 @@ export const selectTarget = async (outputChannel: OutputChannel) => {
 export const createTarget = async (outputChannel: OutputChannel) => {
   const name = await getTargetName()
   const serverUrl = await getServerUrl()
-  const allowInsecureRequests = await getAllowInsecure()
+  const httpsAgentOptions = (await getAllowInsecure())
+    ? { rejectUnauthorized: false }
+    : undefined
   const serverType = await getServerType()
   const clientId = await getClientId()
   const clientSecret = await getClientSecret()
@@ -62,7 +64,7 @@ export const createTarget = async (outputChannel: OutputChannel) => {
     serverType: serverType,
     appLoc: '/Public/app',
     useComputeApi: true,
-    allowInsecureRequests,
+    httpsAgentOptions,
     debug: true
   })
 
@@ -80,7 +82,7 @@ export const createTarget = async (outputChannel: OutputChannel) => {
     serverUrl,
     serverType,
     appLoc: '/Public/app',
-    allowInsecureRequests,
+    httpsAgentOptions,
     authConfig: authResponse,
     isDefault
   })
@@ -107,7 +109,7 @@ export const getAuthConfig = async (
     serverType: target.serverType,
     appLoc: '/Public/app',
     useComputeApi: true,
-    allowInsecureRequests: target.allowInsecureRequests,
+    httpsAgentOptions: target.httpsAgentOptions,
     debug: true
   })
   const clientId = await getClientId()
