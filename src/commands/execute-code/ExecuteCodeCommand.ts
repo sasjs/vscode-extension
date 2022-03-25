@@ -66,7 +66,11 @@ export class ExecuteCodeCommand {
         )
         .then(async (res) => {
           this.outputChannel.append('SASjs: Code executed successfully!')
-          await createAndOpenLogFile(res.log, this.outputChannel)
+          if (typeof res === 'object' && res.log) {
+            await createAndOpenLogFile(res.log, this.outputChannel)
+          } else if (typeof res === 'string') {
+            await createAndOpenLogFile(res, this.outputChannel)
+          }
 
           this.outputChannel.append(JSON.stringify(res, null, 2))
           await commands.executeCommand(
@@ -91,7 +95,9 @@ export class ExecuteCodeCommand {
         )
         .then(async (res) => {
           this.outputChannel.append('SASjs: Code executed successfully!')
-          if (res) {
+          if (typeof res === 'object') {
+            await createAndOpenLogFile(JSON.stringify(res), this.outputChannel)
+          } else if (typeof res === 'string') {
             await createAndOpenLogFile(res, this.outputChannel)
           }
           this.outputChannel.append(JSON.stringify(res, null, 2))
@@ -141,6 +147,8 @@ const handleErrorResponse = async (e: any, outputChannel: OutputChannel) => {
   const { log } = e
   if (log) {
     await createAndOpenLogFile(log, outputChannel)
+  } else if (e.message) {
+    await createAndOpenLogFile(e.message, outputChannel)
   }
 
   await commands.executeCommand('setContext', 'isSasjsCodeExecuting', false)
