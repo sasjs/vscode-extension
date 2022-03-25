@@ -45,7 +45,7 @@ export const getAllowInsecure = async () => {
 
 export const getServerType = async () => {
   const serverType = await getChoiceInput(
-    ['SAS Viya'],
+    ['SAS Viya', 'SAS9'],
     'Please select a SAS server type'
   )
 
@@ -74,6 +74,22 @@ export const getAuthCode = async () => {
   const authCode = await getTextInput(
     'Please enter your authorization code',
     (value: string) => (value ? null : 'Authorization code can not be empty')
+  )
+
+  return authCode
+}
+
+export const getUserName = async () => {
+  const authCode = await getTextInput('Enter UserName', (value: string) =>
+    value ? null : 'UserName can not be empty'
+  )
+
+  return authCode
+}
+
+export const getPassword = async () => {
+  const authCode = await getTextInput('Enter Password', (value: string) =>
+    value ? null : 'Password can not be empty'
   )
 
   return authCode
