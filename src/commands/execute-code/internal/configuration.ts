@@ -122,29 +122,29 @@ export const createTarget = async (outputChannel: OutputChannel) => {
     targetJson.authConfigSas9 = { userName, password }
   } else if (serverType === ServerType.Sasjs) {
     const res = await axios.get(`${serverUrl}/SASjsApi/info`)
-    const clientId = await getClientId()
-    env.openExternal(Uri.parse(getAuthUrl(serverType, serverUrl, clientId)))
+    if (res.data.mode === 'server') {
+      const clientId = await getClientId()
+      env.openExternal(Uri.parse(getAuthUrl(serverType, serverUrl, clientId)))
 
-    const authCode = await getAuthCode()
+      const authCode = await getAuthCode()
 
-    const adapter = new SASjs({
-      serverUrl: serverUrl,
-      serverType: serverType,
-      appLoc: '/Public/app',
-      useComputeApi: true,
-      httpsAgentOptions,
-      debug: true
-    })
+      const adapter = new SASjs({
+        serverUrl: serverUrl,
+        serverType: serverType,
+        httpsAgentOptions,
+        debug: true
+      })
 
-    const authResponse = await getTokens(
-      adapter,
-      clientId,
-      '',
-      authCode,
-      outputChannel
-    )
+      const authResponse = await getTokens(
+        adapter,
+        clientId,
+        '',
+        authCode,
+        outputChannel
+      )
 
-    targetJson.authConfig = authResponse
+      targetJson.authConfig = authResponse
+    }
   }
 
   const target = new Target(targetJson)
