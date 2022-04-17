@@ -1,4 +1,5 @@
-import { OutputChannel, env, Uri } from 'vscode'
+import { OutputChannel, env, Uri, workspace } from 'vscode'
+import axios from 'axios'
 
 import SASjs from '@sasjs/adapter/node'
 import {
@@ -32,22 +33,44 @@ export const selectTarget = async (outputChannel: OutputChannel) => {
   const config = (await getGlobalConfiguration(outputChannel)) as Configuration
 
   if (config?.targets?.length) {
-    let targetName = config.targets.find(
-      (t) => t.name === config.defaultTarget
-    )?.name
-    if (!targetName) {
-      const targetNames = (config?.targets || []).map((t: any) => t.name)
-      targetName = await getChoiceInput(targetNames, 'Please select a target')
+    const extConfig = workspace.getConfiguration('sasjs-for-vscode')
+    const targetFromExt = extConfig.get('target')
+    let inputMessage =
+      'Target specified in extension setting is not available in global .sasjsrc file. Please select a target from following list.'
+    if (!!targetFromExt) {
+      const selectedTarget = config.targets.find(
+        (t: any) => t.name === targetFromExt
+      )
+      if (selectedTarget) {
+        return new Target(selectedTarget)
+      }
+    } else {
+      inputMessage =
+        'No target is specified in extension setting. Please select a target from following list.'
     }
 
-    if (!targetName) {
-      return
-    }
-
-    const selectedTarget = config.targets.find(
-      (t: any) => t.name === targetName
+    const targetNames = (config?.targets || []).map((t: any) => t.name)
+    const targetName = await getChoiceInput(
+      [...targetNames, 'add and select new target'],
+      inputMessage
     )
-    return new Target(selectedTarget)
+    if (targetName === 'add and select new target') {
+      const target = await createTarget(outputChannel)
+      const isDefault = await getIsDefault()
+      if (isDefault) {
+        await extConfig.update('target', target.name, true)
+      }
+      return target
+    } else if (!!targetName) {
+      const isDefault = await getIsDefault()
+      if (isDefault) {
+        await extConfig.update('target', targetName, true)
+      }
+      const selectedTarget = config.targets.find(
+        (t: any) => t.name === targetName
+      )
+      return new Target(selectedTarget)
+    }
   } else {
     return await createTarget(outputChannel)
   }
@@ -71,7 +94,7 @@ export const createTarget = async (outputChannel: OutputChannel) => {
     const clientId = await getClientId()
     const clientSecret = await getClientSecret()
 
-    env.openExternal(Uri.parse(getAuthUrl(serverUrl, clientId)))
+    env.openExternal(Uri.parse(getAuthUrl(serverType, serverUrl, clientId)))
 
     const authCode = await getAuthCode()
 
@@ -97,17 +120,37 @@ export const createTarget = async (outputChannel: OutputChannel) => {
     const userName = await getUserName()
     const password = await getPassword()
     targetJson.authConfigSas9 = { userName, password }
+  } else if (serverType === ServerType.Sasjs) {
+    const res = await axios.get(`${serverUrl}/SASjsApi/info`)
+    const clientId = await getClientId()
+    env.openExternal(Uri.parse(getAuthUrl(serverType, serverUrl, clientId)))
+
+    const authCode = await getAuthCode()
+
+    const adapter = new SASjs({
+      serverUrl: serverUrl,
+      serverType: serverType,
+      appLoc: '/Public/app',
+      useComputeApi: true,
+      httpsAgentOptions,
+      debug: true
+    })
+
+    const authResponse = await getTokens(
+      adapter,
+      clientId,
+      '',
+      authCode,
+      outputChannel
+    )
+
+    targetJson.authConfig = authResponse
   }
 
-  const isDefault = await getIsDefault()
-  targetJson.isDefault = isDefault
   const target = new Target(targetJson)
 
   await saveToGlobalConfig(target, outputChannel)
 
-  if (isDefault) {
-    await setTargetAsDefault(name, outputChannel)
-  }
   return target
 }
 
@@ -115,6 +158,12 @@ export const getAuthConfig = async (
   target: Target,
   outputChannel: OutputChannel
 ) => {
+  if (target.serverType === ServerType.Sasjs) {
+    const res = await axios.get(`${target.serverUrl}/SASjsApi/info`)
+    if (res.data.mode === 'desktop') {
+      return
+    }
+  }
   const authConfig = target.authConfig
   if (authConfig) {
     return authConfig
@@ -128,9 +177,15 @@ export const getAuthConfig = async (
     httpsAgentOptions: target.httpsAgentOptions,
     debug: true
   })
+
   const clientId = await getClientId()
-  const clientSecret = await getClientSecret()
-  env.openExternal(Uri.parse(getAuthUrl(target.serverUrl, clientId)))
+  let clientSecret = ''
+  if (target.serverType === ServerType.SasViya) {
+    clientSecret = await getClientSecret()
+  }
+  env.openExternal(
+    Uri.parse(getAuthUrl(target.serverType, target.serverUrl, clientId))
+  )
   const authCode = await getAuthCode()
 
   const authResponse = await getTokens(
@@ -179,13 +234,4 @@ export const getAuthConfigSas9 = async (
     userName,
     password
   } as AuthConfigSas9
-}
-
-const setTargetAsDefault = async (
-  targetName: string,
-  outputChannel: OutputChannel
-) => {
-  const globalConfig = await getGlobalConfiguration(outputChannel)
-  globalConfig.defaultTarget = targetName
-  await saveGlobalRcFile(JSON.stringify(globalConfig, null, 2))
 }

@@ -45,11 +45,11 @@ export const getAllowInsecure = async () => {
 
 export const getServerType = async () => {
   const serverType = await getChoiceInput(
-    ['SAS Viya', 'SAS9'],
+    [ServerType.SasViya, ServerType.Sas9, ServerType.Sasjs],
     'Please select a SAS server type'
   )
 
-  return serverType === 'SAS Viya' ? ServerType.SasViya : ServerType.Sas9
+  return serverType
 }
 
 export const getClientId = async () => {

@@ -39,6 +39,15 @@
         }
       }
     ],
+    "configuration": {
+      "title": "SASJS",
+      "properties": {
+        "sasjs-for-vscode.target": {
+          "type": "string",
+          "description": "a sasjs target which contains configuration for running sas code."
+        }
+      }
+    },
     "languages": [
       {
         "id": "sas",
@@ -167,9 +176,10 @@
     "vscode-test": "^1.6.1"
   },
   "dependencies": {
-    "@sasjs/adapter": "3.8.0",
+    "@sasjs/adapter": "^3.9.0",
     "@sasjs/lint": "1.11.2",
     "@sasjs/utils": "2.40.1",
+    "axios": "0.26.1",
     "valid-url": "^1.0.9"
   }
 }
