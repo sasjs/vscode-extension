@@ -108,6 +108,29 @@ export class ExecuteCodeCommand {
           )
         })
         .catch(async (e) => handleErrorResponse(e, this.outputChannel))
+    } else if (target.serverType === ServerType.Sasjs) {
+      const authConfig = await getAuthConfig(target, this.outputChannel)
+      await commands.executeCommand('setContext', 'isSasjsCodeExecuting', true)
+      adapter
+        .executeScriptSASjs(currentFileContent || '', authConfig)
+        .then(async (res) => {
+          this.outputChannel.append('SASjs: Code executed successfully!')
+          if (typeof res === 'object') {
+            await createAndOpenLogFile(
+              JSON.stringify(res, null, 2),
+              this.outputChannel
+            )
+          } else if (typeof res === 'string') {
+            await createAndOpenLogFile(res, this.outputChannel)
+          }
+          this.outputChannel.append(JSON.stringify(res, null, 2))
+          await commands.executeCommand(
+            'setContext',
+            'isSasjsCodeExecuting',
+            false
+          )
+        })
+        .catch(async (e) => handleErrorResponse(e, this.outputChannel))
     }
   }
 }

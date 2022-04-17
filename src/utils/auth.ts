@@ -1,4 +1,6 @@
 import SASjs from '@sasjs/adapter/node'
+import { ServerType } from '@sasjs/utils'
+
 import { OutputChannel } from 'vscode'
 
 export const getTokens = async (
@@ -24,6 +26,11 @@ export const getTokens = async (
   return authResponse
 }
 
-export const getAuthUrl = (serverUrl: string, clientId: string) => {
-  return `${serverUrl}/SASLogon/oauth/authorize?client_id=${clientId}&response_type=code`
-}
+export const getAuthUrl = (
+  serverType: ServerType,
+  serverUrl: string,
+  clientId: string
+) =>
+  serverType === ServerType.Sasjs
+    ? `${serverUrl}/#/SASjsLogon?client_id=${clientId}&response_type=code`
+    : `${serverUrl}/SASLogon/oauth/authorize?client_id=${clientId}&response_type=code`

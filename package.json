@@ -1,10 +1,10 @@
 {
   "name": "sasjs-for-vscode",
   "version": "1.0.0",
-  "displayName": "SASjs for VS Code",
+  "displayName": "SASjs - DevOps for SAS Solutions",
   "publisher": "SASjs",
   "icon": "logo.png",
-  "description": "Execute SAS code on your server from VS Code",
+  "description": "Execute code on any SAS server, also perform SAS linting and syntax highlighting",
   "engines": {
     "vscode": "^1.59.0"
   },
@@ -39,6 +39,15 @@
         }
       }
     ],
+    "configuration": {
+      "title": "SASJS",
+      "properties": {
+        "sasjs-for-vscode.target": {
+          "type": "string",
+          "description": "A SASjs target represents a SAS server, configured in a project (sasjs/sasjsconfig.json) or globally (~/.sasjsrc)"
+        }
+      }
+    },
     "languages": [
       {
         "id": "sas",
@@ -167,9 +176,10 @@
     "vscode-test": "^1.6.1"
   },
   "dependencies": {
-    "@sasjs/adapter": "3.8.0",
+    "@sasjs/adapter": "^3.9.0",
     "@sasjs/lint": "1.11.2",
     "@sasjs/utils": "2.40.1",
+    "axios": "0.26.1",
     "valid-url": "^1.0.9"
   }
 }
