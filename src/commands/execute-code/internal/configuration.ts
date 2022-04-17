@@ -131,8 +131,6 @@ export const createTarget = async (outputChannel: OutputChannel) => {
       const adapter = new SASjs({
         serverUrl: serverUrl,
         serverType: serverType,
-        appLoc: '/Public/app',
-        useComputeApi: true,
         httpsAgentOptions,
         debug: true
       })
