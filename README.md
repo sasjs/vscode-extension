@@ -10,8 +10,10 @@ This project contains the source code for the SASjs VS Code extension, available
 
 ## Features
 
+### Code Execution
 
-### Execute code on SAS Viya
+You can run code on SAS Viya, SAS 9 EBI or on regular Foundation SAS!
+#### Execute code on SAS Viya
 
 When a SAS program is selected, you can click the running man icon to execute that code on SAS Viya.  
 
@@ -26,6 +28,18 @@ The first time you do this, you will [receive a series of prompts](https://youtu
  - Select default.  Click 'yes' to avoid having to select your target each time.
 
 You can now execute code!  You can also highlight a section of code and run that. Each log returned will be stored in a `sasjsresults` folder.  You can also run the `SASjs: Execute Code` command from the command palette(`Cmd+Shift+P`).
+
+#### Execute code on Foundation SAS
+
+In order to run on Foundation / Base / Desktop SAS you will need a running version of SASjs server (on the same machine where SAS is installed).  You can download SASjs server [here](https://github.com/sasjs/server/releases).  Configuration instructions are [here](https://github.com/sasjs/server#env-var-configuration).
+
+Once SASjs server is running, just click the running man and select 'add new target'.  Fill in the prompts as follows:
+
+1. Name of target.  This is the alias for connecting to your chosen SAS server.
+2. serverUrl.  The location of SASjs server, eg http://localhost:5000
+3. serverType.  Choose SASJS
+
+You can now execute code.  The log will be returned in a new window.
 
 ### SAS Lint and Format
 Spend less time on code reviews and more time pushing code! Select VIEW->PROBLEMS (or ctrl+shift+M) to examine the currently opened SAS program for issues.
