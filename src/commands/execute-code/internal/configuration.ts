@@ -10,7 +10,6 @@ import {
   AuthConfigSas9
 } from '@sasjs/utils/types'
 import {
-  getAllowInsecure,
   getAuthCode,
   getChoiceInput,
   getClientId,
@@ -79,16 +78,12 @@ export const selectTarget = async (outputChannel: OutputChannel) => {
 export const createTarget = async (outputChannel: OutputChannel) => {
   const name = await getTargetName()
   const serverUrl = await getServerUrl()
-  const httpsAgentOptions = (await getAllowInsecure())
-    ? { rejectUnauthorized: false }
-    : undefined
   const serverType = await getServerType()
   const targetJson: any = {
     name,
     serverUrl,
     serverType,
-    appLoc: '/Public/app',
-    httpsAgentOptions
+    appLoc: '/Public/app'
   }
   if (serverType === ServerType.SasViya) {
     const clientId = await getClientId()
@@ -103,7 +98,6 @@ export const createTarget = async (outputChannel: OutputChannel) => {
       serverType: serverType,
       appLoc: '/Public/app',
       useComputeApi: true,
-      httpsAgentOptions,
       debug: true
     })
 
@@ -131,7 +125,8 @@ export const createTarget = async (outputChannel: OutputChannel) => {
       const adapter = new SASjs({
         serverUrl: serverUrl,
         serverType: serverType,
-        httpsAgentOptions,
+        appLoc: '/Public/app',
+        useComputeApi: true,
         debug: true
       })
 
