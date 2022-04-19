@@ -37,6 +37,10 @@
           "dark": "./assets/images/play-dark.svg",
           "light": "./assets/images/play-light.svg"
         }
+      },
+      {
+        "command": "sasjs-for-vscode.createTarget",
+        "title": "SASjs: Create target"
       }
     ],
     "configuration": {
