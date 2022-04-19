@@ -34,15 +34,6 @@ export const getServerUrl = async () => {
   return serverUrl
 }
 
-export const getAllowInsecure = async () => {
-  const allowInsecure = await getChoiceInput(
-    ['Yes', 'No'],
-    'Does your server use a self-signed certificate or not provide access over HTTPs?'
-  )
-
-  return allowInsecure === 'Yes' ? true : false
-}
-
 export const getServerType = async () => {
   const serverType = await getChoiceInput(
     [ServerType.SasViya, ServerType.Sas9, ServerType.Sasjs],
