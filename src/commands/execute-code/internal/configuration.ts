@@ -126,7 +126,6 @@ export const createTarget = async (outputChannel: OutputChannel) => {
         serverUrl: serverUrl,
         serverType: serverType,
         appLoc: '/Public/app',
-        useComputeApi: true,
         debug: true
       })
 
