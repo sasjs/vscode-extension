@@ -2,6 +2,7 @@ import { OutputChannel, env, Uri, workspace } from 'vscode'
 import axios from 'axios'
 
 import SASjs from '@sasjs/adapter/node'
+import { decodeFromBase64 } from '@sasjs/utils'
 import {
   Target,
   Configuration,
@@ -211,7 +212,10 @@ export const getAuthConfigSas9 = async (
 ) => {
   const authConfig = target.authConfigSas9
   if (authConfig) {
-    return authConfig
+    return {
+      userName: authConfig.userName,
+      password: decodeFromBase64(authConfig.password)
+    }
   }
 
   const userName = await getUserName()
