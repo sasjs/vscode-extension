@@ -24,7 +24,7 @@
     "commands": [
       {
         "command": "sasjs-for-vscode.executingCode",
-        "title": "SASjs: Running your SAS Code",
+        "title": "Your SAS Code is running!",
         "icon": {
           "dark": "./assets/images/running-man-dark.gif",
           "light": "./assets/images/running-man-light.gif"
@@ -44,7 +44,7 @@
       "properties": {
         "sasjs-for-vscode.target": {
           "type": "string",
-          "description": "A SASjs target represents a SAS server, configured in a project (sasjs/sasjsconfig.json) or globally (~/.sasjsrc)"
+          "description": "The default target for deployment and code execution. A target represents a SAS server, configured at project level (sasjs/sasjsconfig.json) or globally (~/.sasjsrc).  Leave blank to choose a target each time."
         }
       }
     },
