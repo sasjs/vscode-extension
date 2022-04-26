@@ -13,7 +13,7 @@ import {
 import { getEditorContent } from '../../utils/editor'
 import { createFile } from '../../utils/file'
 import { getAuthConfig, getAuthConfigSas9 } from './internal/configuration'
-import { selectTarget } from '../../utils/selectTarget'
+import { selectTarget } from '../../utils/target'
 import { getTimestamp } from './internal/utils'
 
 export class ExecuteCodeCommand {
