@@ -2,7 +2,7 @@ import { OutputChannel, env, Uri, workspace } from 'vscode'
 import axios from 'axios'
 
 import SASjs from '@sasjs/adapter/node'
-import { decodeFromBase64 } from '@sasjs/utils'
+import { decodeFromBase64, encodeToBase64 } from '@sasjs/utils'
 import {
   Target,
   Configuration,
@@ -147,7 +147,7 @@ export const getAuthConfigSas9 = async (
 
   const updatedTarget = new Target({
     ...target.toJson(),
-    authConfigSas9: { userName, password }
+    authConfigSas9: { userName, password: encodeToBase64(password) }
   })
 
   await saveToGlobalConfig(updatedTarget, outputChannel)
