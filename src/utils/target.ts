@@ -8,8 +8,6 @@ import { createTarget } from './createTarget'
 
 /**
  * This function will be called from execute command for selecting target before execution
- * @param outputChannel
- * @returns
  */
 export const selectTarget = async (outputChannel: OutputChannel) => {
   const config = (await getGlobalConfiguration(outputChannel)) as Configuration
@@ -60,8 +58,6 @@ export const selectTarget = async (outputChannel: OutputChannel) => {
 
 /**
  * This function will be called from select target command for configuration of setting
- * @param outputChannel
- * @returns
  */
 export const configureTarget = async (outputChannel: OutputChannel) => {
   const config = (await getGlobalConfiguration(outputChannel)) as Configuration
