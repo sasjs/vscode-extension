@@ -1,5 +1,5 @@
 import { window, ExtensionContext, commands, OutputChannel } from 'vscode'
-import { selectTarget } from '../../utils/selectTarget'
+import { configureTarget } from '../../utils/target'
 
 export class SelectTargetCommand {
   private outputChannel: OutputChannel
@@ -17,7 +17,7 @@ export class SelectTargetCommand {
   }
 
   private selectTarget = async () => {
-    selectTarget(this.outputChannel).then(() => {
+    configureTarget(this.outputChannel).then(() => {
       window.showInformationMessage('Target Selected!')
     })
   }
