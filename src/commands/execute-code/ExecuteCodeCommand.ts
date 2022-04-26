@@ -12,11 +12,8 @@ import {
 } from 'vscode'
 import { getEditorContent } from '../../utils/editor'
 import { createFile } from '../../utils/file'
-import {
-  selectTarget,
-  getAuthConfig,
-  getAuthConfigSas9
-} from './internal/configuration'
+import { getAuthConfig, getAuthConfigSas9 } from './internal/configuration'
+import { selectTarget } from '../../utils/selectTarget'
 import { getTimestamp } from './internal/utils'
 
 export class ExecuteCodeCommand {
