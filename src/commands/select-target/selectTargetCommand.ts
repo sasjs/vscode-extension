@@ -17,8 +17,12 @@ export class SelectTargetCommand {
   }
 
   private selectTarget = async () => {
-    configureTarget(this.outputChannel).then(() => {
-      window.showInformationMessage('Target Selected!')
+    configureTarget(this.outputChannel).then((target) => {
+      if (target) {
+        window.showInformationMessage(`Selected Target: ${target.name}`)
+      } else {
+        window.showInformationMessage('No target selected!')
+      }
     })
   }
 }
