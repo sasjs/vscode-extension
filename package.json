@@ -1,10 +1,10 @@
 {
   "name": "sasjs-for-vscode",
   "version": "1.0.0",
-  "displayName": "SASjs - DevOps for SAS Solutions",
+  "displayName": "SASjs - DevOps for SAS",
   "publisher": "SASjs",
   "icon": "logo.png",
-  "description": "Execute code on any SAS server, also perform SAS linting and syntax highlighting",
+  "description": "Execute code on any SAS server, plus SAS Linting and Syntax Highlighting",
   "engines": {
     "vscode": "^1.64.0"
   },
