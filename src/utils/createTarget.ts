@@ -2,6 +2,7 @@ import { OutputChannel, env, Uri } from 'vscode'
 import axios from 'axios'
 
 import SASjs from '@sasjs/adapter/node'
+import { encodeToBase64 } from '@sasjs/utils'
 import { Target, ServerType } from '@sasjs/utils/types'
 import {
   getAuthCode,
@@ -54,7 +55,7 @@ export const createTarget = async (outputChannel: OutputChannel) => {
   } else if (serverType === ServerType.Sas9) {
     const userName = await getUserName()
     const password = await getPassword()
-    targetJson.authConfigSas9 = { userName, password }
+    targetJson.authConfigSas9 = { userName, password: encodeToBase64(password) }
   } else if (serverType === ServerType.Sasjs) {
     const res = await axios.get(`${serverUrl}/SASjsApi/info`)
     if (res.data.mode === 'server') {
