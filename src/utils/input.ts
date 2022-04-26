@@ -79,8 +79,10 @@ export const getUserName = async () => {
 }
 
 export const getPassword = async () => {
-  const authCode = await getTextInput('Enter Password', (value: string) =>
-    value ? null : 'Password can not be empty'
+  const authCode = await getTextInput(
+    'Enter Password',
+    (value: string) => (value ? null : 'Password can not be empty'),
+    true
   )
 
   return authCode
@@ -88,11 +90,13 @@ export const getPassword = async () => {
 
 export const getTextInput = async (
   placeHolder: string,
-  validator: (value: string) => string | null
+  validator: (value: string) => string | null,
+  password: boolean = false
 ) => {
   const input = await window.showInputBox({
     placeHolder,
     ignoreFocusOut: true,
+    password,
     validateInput: validator
   })
 
