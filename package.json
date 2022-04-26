@@ -41,6 +41,14 @@
       {
         "command": "sasjs-for-vscode.createTarget",
         "title": "SASjs: Create target"
+      },
+      {
+        "command": "sasjs-for-vscode.selectTarget",
+        "title": "SASjs: Select Target",
+        "icon": {
+          "dark": "./assets/images/target-dark.svg",
+          "light": "./assets/images/target-light.svg"
+        }
       }
     ],
     "configuration": {
@@ -110,6 +118,11 @@
           "command": "sasjs-for-vscode.executingCode",
           "group": "navigation",
           "when": "editorLangId == sas && isSasjsCodeExecuting"
+        },
+        {
+          "command": "sasjs-for-vscode.selectTarget",
+          "group": "navigation",
+          "when": "editorLangId == sas"
         }
       ]
     }
