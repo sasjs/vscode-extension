@@ -17,12 +17,18 @@ export class SelectTargetCommand {
   }
 
   private selectTarget = async () => {
-    configureTarget(this.outputChannel).then((target) => {
-      if (target) {
-        window.showInformationMessage(`Selected Target: ${target.name}`)
-      } else {
-        window.showInformationMessage('No target selected!')
-      }
-    })
+    configureTarget(this.outputChannel)
+      .then((target) => {
+        if (target) {
+          window.showInformationMessage(`Selected Target: ${target.name}`)
+        } else {
+          window.showErrorMessage('No target selected!')
+        }
+      })
+      .catch((err) => {
+        window.showErrorMessage('No target selected!')
+        this.outputChannel.appendLine(err.message)
+        this.outputChannel.show()
+      })
   }
 }
