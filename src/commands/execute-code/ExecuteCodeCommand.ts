@@ -1,5 +1,5 @@
 import SASjs from '@sasjs/adapter/node'
-import { ServerType } from '@sasjs/utils'
+import { ServerType, Target } from '@sasjs/utils'
 import * as os from 'os'
 import * as path from 'path'
 import {
@@ -33,8 +33,21 @@ export class ExecuteCodeCommand {
 
   private executeCode = async () => {
     this.outputChannel.appendLine('Initialising SASjs.')
-    const target = await selectTarget(this.outputChannel)
+    let target: Target | undefined
+    try {
+      target = await selectTarget(this.outputChannel)
+    } catch (error: any) {
+      this.outputChannel.appendLine('SASjs: Error selecting target: ')
+      this.outputChannel.appendLine(error)
+      this.outputChannel.appendLine(error.message)
+      this.outputChannel.appendLine(JSON.stringify(error, null, 2))
+      this.outputChannel.show()
+    }
+
     if (!target) {
+      window.showErrorMessage(
+        'An unexpected error occurred while selecting target.'
+      )
       return
     }
 
@@ -150,6 +163,7 @@ const createAndOpenLogFile = async (
   )
 
   outputChannel.appendLine(`Log content: ${log}`)
+  outputChannel.show()
 
   await createFile(resultsPath, log)
   const document = await workspace.openTextDocument(resultsPath)
@@ -159,10 +173,11 @@ const createAndOpenLogFile = async (
 }
 
 const handleErrorResponse = async (e: any, outputChannel: OutputChannel) => {
-  outputChannel.append('SASjs: Error executing code: ')
-  outputChannel.append(e)
-  outputChannel.append(e.message)
-  outputChannel.append(JSON.stringify(e, null, 2))
+  outputChannel.appendLine('SASjs: Error executing code: ')
+  outputChannel.appendLine(e)
+  outputChannel.appendLine(e.message)
+  outputChannel.appendLine(JSON.stringify(e, null, 2))
+  outputChannel.show()
 
   const { log } = e
   if (log) {

@@ -58,7 +58,7 @@ export const createTarget = async (outputChannel: OutputChannel) => {
     targetJson.authConfigSas9 = { userName, password: encodeToBase64(password) }
   } else if (serverType === ServerType.Sasjs) {
     const res = await axios.get(`${serverUrl}/SASjsApi/info`)
-    if (res.data.mode === 'server') {
+    if (res.data?.mode === 'server') {
       const clientId = await getClientId()
       env.openExternal(Uri.parse(getAuthUrl(serverType, serverUrl, clientId)))
 
@@ -80,6 +80,8 @@ export const createTarget = async (outputChannel: OutputChannel) => {
       )
 
       targetJson.authConfig = authResponse
+    } else if (res.data?.mode !== 'desktop') {
+      throw new Error('An unexpected error occurred while creating target.')
     }
   }
 
