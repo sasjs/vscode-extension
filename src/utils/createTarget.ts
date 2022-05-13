@@ -31,7 +31,10 @@ export const createTarget = async (outputChannel: OutputChannel) => {
     const clientId = await getClientId()
     const clientSecret = await getClientSecret()
 
-    env.openExternal(Uri.parse(getAuthUrl(serverType, serverUrl, clientId)))
+    const authUrl = Uri.parse(getAuthUrl(serverType, serverUrl, clientId))
+    outputChannel.appendLine(authUrl.toString())
+    outputChannel.show()
+    env.openExternal(authUrl)
 
     const authCode = await getAuthCode()
 
@@ -60,7 +63,10 @@ export const createTarget = async (outputChannel: OutputChannel) => {
     const res = await axios.get(`${serverUrl}/SASjsApi/info`)
     if (res.data?.mode === 'server') {
       const clientId = await getClientId()
-      env.openExternal(Uri.parse(getAuthUrl(serverType, serverUrl, clientId)))
+      const authUrl = Uri.parse(getAuthUrl(serverType, serverUrl, clientId))
+      outputChannel.appendLine(authUrl.toString())
+      outputChannel.show()
+      env.openExternal(authUrl)
 
       const authCode = await getAuthCode()
 
