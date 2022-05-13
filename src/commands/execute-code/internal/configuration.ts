@@ -48,9 +48,12 @@ export const getAuthConfig = async (
   if (target.serverType === ServerType.SasViya) {
     clientSecret = await getClientSecret()
   }
-  env.openExternal(
-    Uri.parse(getAuthUrl(target.serverType, target.serverUrl, clientId))
+  const authUrl = Uri.parse(
+    getAuthUrl(target.serverType, target.serverUrl, clientId)
   )
+  outputChannel.appendLine(authUrl.toString())
+  outputChannel.show()
+  env.openExternal(authUrl)
   const authCode = await getAuthCode()
 
   const authResponse = await getTokens(
