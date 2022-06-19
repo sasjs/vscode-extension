@@ -12,34 +12,41 @@ This project contains the source code for the SASjs VS Code extension, available
 
 ### Code Execution
 
-You can run code on SAS Viya, SAS 9 EBI or on regular Foundation SAS!
-#### Execute code on SAS Viya
-
-When a SAS program is selected, you can click the running man icon to execute that code on SAS Viya.  
+You can run code on SAS Viya, SAS 9 EBI or on regular Foundation SAS!  Just set up the target, and click the running man to execute your SAS code.
 
 ![snippet](https://user-images.githubusercontent.com/4420615/111214809-aacb2b00-85d2-11eb-95ab-8832c9d13afb.gif)
 
-The first time you do this, you will [receive a series of prompts](https://youtu.be/lNWS2lCRX4I):
+You can also highlight a section of code and run that. Each log returned will be stored in a `sasjsresults` folder.  You can also run the `SASjs: Execute Code` command from the command palette(`Cmd+Shift+P`).
 
- - Name of Target.  This is an alias relating to the server on which you intend to run the code.  It will be added as a GLOBAL target, located at `~/.sasjsrc`. More info [here](https://cli.sasjs.io/faq/#what-is-the-difference-between-local-and-global-targets)).
- - Server Url.  The full URL (including port if needed) of your SAS Viya server.
- - Server Type.  Currenly only SAS Viya is supported.
- - CLIENT / SECRET.  You will need to ask your administrator for these, and they should have the `authorization_code` grant type.  More info [here](https://cli.sasjs.io/faq/#how-can-i-obtain-a-viya-client-and-secret).
- - Select default.  Click 'yes' to avoid having to select your target each time.
+The target 🎯 describes the server on which you intend to run the code.  The attributes are added to a file in your home directory - `~/.sasjsrc`. More info [here](https://cli.sasjs.io/faq/#what-is-the-difference-between-local-and-global-targets)).
 
-You can now execute code!  You can also highlight a section of code and run that. Each log returned will be stored in a `sasjsresults` folder.  You can also run the `SASjs: Execute Code` command from the command palette(`Cmd+Shift+P`).
+The following attributes are needed for all server types:
 
-#### Execute code on Foundation SAS
+ - Name.  An alias to represent the target.
+ - Server Url.  The full URL (including port if needed) of your SAS server. 
+ - Server Type.  Can be SASVIYA, SAS9 or SASJS.
+
+Below are the setup steps specific to each server type
+
+#### SAS Viya
+
+Enter the [following prompts](https://youtu.be/lNWS2lCRX4I):
+
+ - CLIENT / SECRET.  Relevant for SASVIYA - you will need to ask your administrator for these, and they should have the `authorization_code` grant type.  More info [here](https://cli.sasjs.io/faq/#how-can-i-obtain-a-viya-client-and-secret).
+ - Follow the link to obtain your authorisation code
+
+#### SAS9 EBI
+
+For a SAS9 server type, you need to provide your user and passsword in the prompts.  Before you can execute code, you will need a runner (an STP in your metadata home directory) - just follow the instructions here:  https://cli.sasjs.io/auth/#sasjs-runner
+
+#### Foundation (Base) SAS
 
 In order to run on Foundation / Base / Desktop SAS you will need a running version of SASjs server (on the same machine where SAS is installed).  You can download SASjs server [here](https://github.com/sasjs/server/releases).  Configuration instructions are [here](https://github.com/sasjs/server#env-var-configuration).
 
-Once SASjs server is running, just click the running man and select 'add new target'.  Fill in the prompts as follows:
+For local desktop instances of SASjs Server, the serverUrl is likely to be http://localhost:5000
 
-1. Name of target.  This is the alias for connecting to your chosen SAS server.
-2. serverUrl.  The location of SASjs server, eg http://localhost:5000
-3. serverType.  Choose SASJS
+If you are running SASjs Server in server mode, then you will need a client id - the default is `clientID1`
 
-You can now execute code.  The log will be returned in a new window.
 
 ### SAS Lint and Format
 Spend less time on code reviews and more time pushing code! Select VIEW->PROBLEMS (or ctrl+shift+M) to examine the currently opened SAS program for issues.
