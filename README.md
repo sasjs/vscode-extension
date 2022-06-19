@@ -39,6 +39,11 @@ Enter the [following prompts](https://youtu.be/lNWS2lCRX4I):
 
 For a SAS9 server type, you need to provide your user and passsword in the prompts.  Before you can execute code, you will need a runner (an STP in your metadata home directory) - just follow the instructions here:  https://cli.sasjs.io/auth/#sasjs-runner
 
+
+https://user-images.githubusercontent.com/4420615/174494256-8676a5e3-9dd2-45a7-bc67-2a5c2355c182.mp4
+
+
+
 #### Foundation (Base) SAS
 
 In order to run on Foundation / Base / Desktop SAS you will need a running version of SASjs server (on the same machine where SAS is installed).  You can download SASjs server [here](https://github.com/sasjs/server/releases).  Configuration instructions are [here](https://github.com/sasjs/server#env-var-configuration).
