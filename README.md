@@ -12,7 +12,7 @@ This project contains the source code for the SASjs VS Code extension, available
 
 ### Code Execution
 
-You can run code on SAS Viya, SAS 9 EBI or on regular Foundation SAS!  Just set up the target, and click the running man to execute your SAS code.
+You can run code on SAS Viya, SAS 9 EBI or [SASjs Server](https://server.sasjs.io)!  Just set up the target, and click the running man to execute your SAS code.
 
 ![snippet](https://user-images.githubusercontent.com/4420615/111214809-aacb2b00-85d2-11eb-95ab-8832c9d13afb.gif)
 
@@ -43,15 +43,13 @@ For a SAS9 server type, you need to provide your user and passsword in the promp
 https://user-images.githubusercontent.com/4420615/174494256-8676a5e3-9dd2-45a7-bc67-2a5c2355c182.mp4
 
 
+#### SASjs Server
 
-#### Foundation (Base) SAS
-
-In order to run on Foundation / Base / Desktop SAS you will need a running version of SASjs server (on the same machine where SAS is installed).  You can download SASjs server [here](https://github.com/sasjs/server/releases).  Configuration instructions are [here](https://github.com/sasjs/server#env-var-configuration).
+In order to run on Foundation / Base / Desktop SAS you will need a running version of SASjs server (on the same machine where SAS is installed).  You can download SASjs server [here](https://github.com/sasjs/server/releases).  Configuration instructions are [here](https://server.sasjs.io/installation/).
 
 For local desktop instances of SASjs Server, the serverUrl is likely to be http://localhost:5000
 
 If you are running SASjs Server in server mode, then you will need a client id - the default is `clientID1`
-
 
 ### SAS Lint and Format
 Spend less time on code reviews and more time pushing code! Select VIEW->PROBLEMS (or ctrl+shift+M) to examine the currently opened SAS program for issues.
@@ -62,18 +60,25 @@ Rules can be configured by creating a `.sasjslint` file in the root of your proj
 
 ```json
 {
-    "noTrailingSpaces": true,
     "noEncodedPasswords": true,
     "hasDoxygenHeader": true,
-    "noSpacesInFileNames": true,
-    "maxLineLength": 80,
+    "hasMacroNameInMend": true,
+    "hasMacroParentheses": true,
+    "ignoreList": [
+      "sajsbuild/",
+      "sasjsresults/"
+    ],
+    "indentationMultiple": 2,
     "lowerCaseFileNames": true,
+    "maxLineLength": 80,
+    "noNestedMacros": true,
+    "noSpacesInFileNames": true,
     "noTabIndentation": true,
-    "indentationMultiple": 2
+    "noTrailingSpaces": true
 }
 ```
 
-We've now added the ability to automatically fix certain problems within SAS files, such as trailing spaces, missing Doxygen header blocks and missing macro names in `%mend` statements.
+SASjs lint can automatically fix certain problems within SAS files, such as trailing spaces, missing Doxygen header blocks and missing macro names in `%mend` statements.
 You can use this feature in two ways:
 
 1. On demand - by selecting 'Format Document' either from the right click menu or from the command palette.
