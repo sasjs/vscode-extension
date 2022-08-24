@@ -1,7 +1,7 @@
 import { OutputChannel, workspace } from 'vscode'
 
 import { Target, Configuration } from '@sasjs/utils/types'
-import { getChoiceInput, getIsDefault } from './input'
+import { getChoiceInput, getIsDefault, getCreateNewTarget } from './input'
 
 import { getGlobalConfiguration } from './config'
 import { createTarget } from './createTarget'
@@ -34,23 +34,19 @@ export const selectTarget = async (outputChannel: OutputChannel) => {
       [...targetNames, 'add and select new target'],
       inputMessage
     )
+    let target
     if (targetName === 'add and select new target') {
-      const target = await createTarget(outputChannel)
-      const isDefault = await getIsDefault()
-      if (isDefault) {
-        await extConfig.update('target', target.name, true)
-      }
-      return target
+      target = await createTarget(outputChannel)
     } else if (!!targetName) {
-      const isDefault = await getIsDefault()
-      if (isDefault) {
-        await extConfig.update('target', targetName, true)
-      }
       const selectedTarget = config.targets.find(
         (t: any) => t.name === targetName
       )
-      return new Target(selectedTarget)
+      target = new Target(selectedTarget)
     }
+    if (target) {
+      await extConfig.update('target', target.name, true)
+    }
+    return target
   } else {
     return await createTarget(outputChannel)
   }
@@ -69,28 +65,21 @@ export const configureTarget = async (outputChannel: OutputChannel) => {
       [...targetNames, 'add and select new target'],
       'Please select a target'
     )
+    let target
     if (targetName === 'add and select new target') {
-      const target = await createTarget(outputChannel)
-      const isDefault = await getIsDefault()
-      if (isDefault) {
-        await extConfig.update('target', target.name, true)
-      }
-      return target
+      target = await createTarget(outputChannel)
     } else if (!!targetName) {
-      const isDefault = await getIsDefault()
-      if (isDefault) {
-        await extConfig.update('target', targetName, true)
-      }
       const selectedTarget = config.targets.find(
         (t: any) => t.name === targetName
       )
-      return new Target(selectedTarget)
+      target = new Target(selectedTarget)
     }
-  } else {
-    const response = await getChoiceInput(
-      ['Yes', 'No'],
-      'No targets are found. Would you like to create a new target?'
-    )
-    if (response === 'Yes') return await createTarget(outputChannel)
+
+    if (target) {
+      await extConfig.update('target', target.name, true)
+    }
+    return target
+  } else if (await getCreateNewTarget()) {
+    return await createTarget(outputChannel)
   }
 }
