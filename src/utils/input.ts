@@ -127,3 +127,11 @@ export const getIsDefault = async () => {
 
   return isDefault === 'Yes'
 }
+
+export const getCreateNewTarget = async () => {
+  const createNew = await window.showQuickPick(['Yes', 'No'], {
+    placeHolder: 'No targets are found. Would you like to create a new target?',
+    ignoreFocusOut: true
+  })
+  return createNew === 'Yes'
+}
