@@ -193,7 +193,7 @@
     "vscode-test": "^1.6.1"
   },
   "dependencies": {
-    "@sasjs/adapter": "3.10.13",
+    "@sasjs/adapter": "3.10.14",
     "@sasjs/lint": "1.12.0",
     "@sasjs/utils": "2.47.0",
     "axios": "0.26.1",
