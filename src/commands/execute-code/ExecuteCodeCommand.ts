@@ -119,7 +119,6 @@ const createAndOpenLogFile = async (
     `SASjs: Attempting to create log file at ${resultsPath}.`
   )
 
-  outputChannel.appendLine(`Log content: ${log}`)
   outputChannel.show()
 
   await createFile(resultsPath, log)
@@ -150,7 +149,7 @@ const handleSuccessResponse = async (
   res: any,
   outputChannel: OutputChannel
 ) => {
-  outputChannel.append('SASjs: Code executed successfully!')
+  outputChannel.appendLine('SASjs: Code executed successfully!')
   if (typeof res === 'object') {
     await createAndOpenLogFile(JSON.stringify(res, null, 2), outputChannel)
   } else if (typeof res === 'string') {
