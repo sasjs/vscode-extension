@@ -74,21 +74,7 @@ export class ExecuteCodeCommand {
           '',
           authConfig
         )
-        .then(async (res) => {
-          this.outputChannel.append('SASjs: Code executed successfully!')
-          if (typeof res === 'object' && res.log) {
-            await createAndOpenLogFile(res.log, this.outputChannel)
-          } else if (typeof res === 'string') {
-            await createAndOpenLogFile(res, this.outputChannel)
-          }
-
-          this.outputChannel.append(JSON.stringify(res, null, 2))
-          await commands.executeCommand(
-            'setContext',
-            'isSasjsCodeExecuting',
-            false
-          )
-        })
+        .then(async (res) => handleSuccessResponse(res, this.outputChannel))
         .catch(async (e) => handleErrorResponse(e, this.outputChannel))
     } else if (target.serverType === ServerType.Sas9) {
       const { userName, password } = await getAuthConfigSas9(
@@ -103,43 +89,14 @@ export class ExecuteCodeCommand {
           userName,
           password
         )
-        .then(async (res) => {
-          this.outputChannel.append('SASjs: Code executed successfully!')
-          if (typeof res === 'object') {
-            await createAndOpenLogFile(JSON.stringify(res), this.outputChannel)
-          } else if (typeof res === 'string') {
-            await createAndOpenLogFile(res, this.outputChannel)
-          }
-          this.outputChannel.append(JSON.stringify(res, null, 2))
-          await commands.executeCommand(
-            'setContext',
-            'isSasjsCodeExecuting',
-            false
-          )
-        })
+        .then(async (res) => handleSuccessResponse(res, this.outputChannel))
         .catch(async (e) => handleErrorResponse(e, this.outputChannel))
     } else if (target.serverType === ServerType.Sasjs) {
       const authConfig = await getAuthConfig(target, this.outputChannel)
       await commands.executeCommand('setContext', 'isSasjsCodeExecuting', true)
       adapter
-        .executeScriptSASjs(currentFileContent || '', authConfig)
-        .then(async (res) => {
-          this.outputChannel.append('SASjs: Code executed successfully!')
-          if (typeof res === 'object') {
-            await createAndOpenLogFile(
-              JSON.stringify(res, null, 2),
-              this.outputChannel
-            )
-          } else if (typeof res === 'string') {
-            await createAndOpenLogFile(res, this.outputChannel)
-          }
-          this.outputChannel.append(JSON.stringify(res, null, 2))
-          await commands.executeCommand(
-            'setContext',
-            'isSasjsCodeExecuting',
-            false
-          )
-        })
+        .executeScriptSASjs(currentFileContent || '', 'sas', authConfig)
+        .then(async (res) => handleSuccessResponse(res, this.outputChannel))
         .catch(async (e) => handleErrorResponse(e, this.outputChannel))
     }
   }
@@ -186,5 +143,18 @@ const handleErrorResponse = async (e: any, outputChannel: OutputChannel) => {
     await createAndOpenLogFile(e.message, outputChannel)
   }
 
+  await commands.executeCommand('setContext', 'isSasjsCodeExecuting', false)
+}
+
+const handleSuccessResponse = async (
+  res: any,
+  outputChannel: OutputChannel
+) => {
+  outputChannel.append('SASjs: Code executed successfully!')
+  if (typeof res === 'object') {
+    await createAndOpenLogFile(JSON.stringify(res, null, 2), outputChannel)
+  } else if (typeof res === 'string') {
+    await createAndOpenLogFile(res, outputChannel)
+  }
   await commands.executeCommand('setContext', 'isSasjsCodeExecuting', false)
 }
