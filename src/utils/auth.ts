@@ -99,8 +99,7 @@ export const authenticateTarget = async (
 
   const adapter = new SASjs({
     serverUrl: targetJson.serverUrl,
-    serverType: targetJson.serverType,
-    appLoc: '/Public/app'
+    serverType: targetJson.serverType
   })
 
   const clientId = await getClientId()
