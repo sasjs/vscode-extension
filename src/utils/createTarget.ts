@@ -1,20 +1,8 @@
-import { OutputChannel, env, Uri } from 'vscode'
-import axios from 'axios'
+import { OutputChannel } from 'vscode'
 
-import SASjs from '@sasjs/adapter/node'
-import { encodeToBase64 } from '@sasjs/utils'
-import { Target, ServerType } from '@sasjs/utils/types'
-import {
-  getAuthCode,
-  getClientId,
-  getClientSecret,
-  getServerType,
-  getServerUrl,
-  getTargetName,
-  getUserName,
-  getPassword
-} from './input'
-import { getAuthUrl, getTokens, authenticateTarget } from './auth'
+import { Target } from '@sasjs/utils/types'
+import { getServerType, getServerUrl, getTargetName } from './input'
+import { authenticateTarget } from './auth'
 import { saveToGlobalConfig } from './config'
 
 export const createTarget = async (outputChannel: OutputChannel) => {
