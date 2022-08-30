@@ -40,7 +40,11 @@
       },
       {
         "command": "sasjs-for-vscode.createTarget",
-        "title": "SASjs: Create target"
+        "title": "SASjs: Create Target"
+      },
+      {
+        "command": "sasjs-for-vscode.authenticateTarget",
+        "title": "SASjs: Authenticate Target"
       },
       {
         "command": "sasjs-for-vscode.selectTarget",

@@ -21,8 +21,6 @@ export class SelectTargetCommand {
       .then((target) => {
         if (target) {
           window.showInformationMessage(`Selected Target: ${target.name}`)
-        } else {
-          window.showErrorMessage('No target selected!')
         }
       })
       .catch((err) => {
