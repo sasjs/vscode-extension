@@ -97,15 +97,11 @@ export const authenticateTarget = async (
     return targetJson
   }
 
-  const adapter =
-    targetJson.serverType === ServerType.SasViya ||
-    targetJson.serverType === ServerType.Sasjs
-      ? new SASjs({
-          serverUrl: targetJson.serverUrl,
-          serverType: targetJson.serverType,
-          appLoc: '/Public/app'
-        })
-      : undefined
+  const adapter = new SASjs({
+    serverUrl: targetJson.serverUrl,
+    serverType: targetJson.serverType,
+    appLoc: '/Public/app'
+  })
 
   const clientId = await getClientId()
   const clientSecret =
@@ -119,7 +115,7 @@ export const authenticateTarget = async (
   const authCode = await getAuthCode()
 
   targetJson.authConfig = (await getTokens(
-    adapter!,
+    adapter,
     clientId,
     clientSecret,
     authCode,
