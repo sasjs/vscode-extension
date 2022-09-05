@@ -43,7 +43,10 @@ export const getAuthConfig = async (
     debug: true
   })
 
-  const clientId = await getClientId()
+  const defaultClientID =
+    target.serverType === ServerType.Sasjs ? 'clientID1' : undefined
+
+  const clientId = await getClientId(defaultClientID)
   let clientSecret = ''
   if (target.serverType === ServerType.SasViya) {
     clientSecret = await getClientSecret()
