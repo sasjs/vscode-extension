@@ -53,10 +53,12 @@ export const getServerType = async () => {
   return serverType
 }
 
-export const getClientId = async () => {
+export const getClientId = async (defaultClientID?: string) => {
   const clientId = await getTextInput(
     'Please enter your Client ID',
-    (value: string) => (value ? null : 'Client ID can not be empty')
+    (value: string) => (value ? null : 'Client ID can not be empty'),
+    false,
+    defaultClientID
   )
 
   return clientId
@@ -101,9 +103,11 @@ export const getPassword = async () => {
 export const getTextInput = async (
   placeHolder: string,
   validator: (value: string) => string | null,
-  password: boolean = false
+  password: boolean = false,
+  value?: string
 ) => {
   const input = await window.showInputBox({
+    value,
     placeHolder,
     ignoreFocusOut: true,
     password,

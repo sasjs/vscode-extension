@@ -102,7 +102,10 @@ export const authenticateTarget = async (
     serverType: targetJson.serverType
   })
 
-  const clientId = await getClientId()
+  const defaultClientID =
+    targetJson.serverType === ServerType.Sasjs ? 'clientID1' : undefined
+
+  const clientId = await getClientId(defaultClientID)
   const clientSecret =
     targetJson.serverType === ServerType.SasViya ? await getClientSecret() : ''
 
