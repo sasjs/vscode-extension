@@ -5,7 +5,17 @@ import { ServerType } from '@sasjs/utils/types'
 export const getTargetName = async () => {
   const targetName = await getTextInput(
     'Please enter a name for your target',
-    (value: string) => (value ? null : 'Target name can not be empty')
+    (value: string) => {
+      if (!value) {
+        return 'Target name can not be empty'
+      }
+
+      if (!/^[A-Za-z0-9\-]+$/.test(value)) {
+        return 'Target name should be alphanumeric or can contain dashes'
+      }
+
+      return null
+    }
   )
 
   return targetName
