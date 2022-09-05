@@ -19,7 +19,7 @@ jobs:
         run: npm ci
 
       - name: Build Project
-        run: npm run compile
+        run: npm run vscode:prepublish
 
       - name: Install VSCE
         run: sudo npm install -g vsce
