@@ -43,6 +43,10 @@
         "title": "SASjs: Create Target"
       },
       {
+        "command": "sasjs-for-vscode.deleteTarget",
+        "title": "SASjs: Delete Target"
+      },
+      {
         "command": "sasjs-for-vscode.authenticateTarget",
         "title": "SASjs: Authenticate Target"
       },

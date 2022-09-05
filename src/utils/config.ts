@@ -3,6 +3,7 @@ import { OutputChannel, window, workspace } from 'vscode'
 import * as os from 'os'
 import { Target } from '@sasjs/utils/types/target'
 import { createFile, readFile } from './file'
+import { getChoiceInput } from './input'
 
 export async function saveToGlobalConfig(
   buildTarget: Target,
@@ -26,16 +27,59 @@ export async function saveToGlobalConfig(
   } else {
     globalConfig = { targets: [targetJson] }
   }
+
+  return await saveGlobalRcFile(
+    JSON.stringify(globalConfig, null, 2),
+    outputChannel
+  )
+}
+
+export async function removeTargetFromGlobalRcFile(
+  outputChannel: OutputChannel
+) {
+  const globalConfig = await getGlobalConfiguration(outputChannel)
+
+  if (globalConfig) {
+    if (!globalConfig?.targets.length) {
+      throw new Error('No target found in global config file!')
+    }
+
+    const targetNames = (globalConfig?.targets || []).map((t: any) => t.name)
+    const targetName = await getChoiceInput(
+      [...targetNames],
+      'Please select a target you want to delete'
+    )
+
+    if (!targetName) {
+      throw new Error('No target selected!')
+    }
+    const targetIndex = globalConfig.targets.findIndex(
+      (t: Target) => t.name === targetName
+    )
+    globalConfig.targets.splice(targetIndex, 1)
+
+    const extConfig = workspace.getConfiguration('sasjs-for-vscode')
+    const targetFromExt = extConfig.get('target')
+
+    if (targetFromExt === targetName) {
+      await extConfig.update('target', '', true)
+    }
+
+    return await saveGlobalRcFile(
+      JSON.stringify(globalConfig, null, 2),
+      outputChannel
+    )
+  }
+}
+
+export async function saveGlobalRcFile(
+  content: string,
+  outputChannel: OutputChannel
+) {
   const rcFilePath = path.join(os.homedir(), '.sasjsrc')
   outputChannel.appendLine(
     `SASjs: Saving global configuration to ${rcFilePath}`
   )
-  return await saveGlobalRcFile(JSON.stringify(globalConfig, null, 2))
-}
-
-export async function saveGlobalRcFile(content: string) {
-  const homeDir = os.homedir()
-  const rcFilePath = path.join(homeDir, '.sasjsrc')
 
   await createFile(rcFilePath, content)
 
