@@ -2,6 +2,7 @@ import * as vscode from 'vscode'
 import { ExecuteCodeCommand } from './commands/execute-code/ExecuteCodeCommand'
 import { ExecutingCodeCommand } from './commands/execute-code/ExecutingCodeCommand'
 import { CreateTargetCommand } from './commands/creating-target/createTargetCommand'
+import { DeleteTargetCommand } from './commands/delete-target/deleteTargetCommand'
 import { AuthenticateTargetCommand } from './commands/authenticating-target/authenticateTargetCommand'
 import { SelectTargetCommand } from './commands/select-target/selectTargetCommand'
 import { FormatCommand } from './commands/format/FormatCommand'
@@ -21,6 +22,9 @@ export function activate(context: vscode.ExtensionContext) {
 
   const createTargetCommand = new CreateTargetCommand(context)
   createTargetCommand.initialise()
+
+  const deleteTargetCommand = new DeleteTargetCommand(context)
+  deleteTargetCommand.initialise()
 
   const authenticateTargetCommand = new AuthenticateTargetCommand(context)
   authenticateTargetCommand.initialise()

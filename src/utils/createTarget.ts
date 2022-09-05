@@ -1,4 +1,4 @@
-import { OutputChannel } from 'vscode'
+import { OutputChannel, workspace } from 'vscode'
 
 import { Target } from '@sasjs/utils/types'
 import { getServerType, getServerUrl, getTargetName } from './input'
@@ -21,6 +21,9 @@ export const createTarget = async (outputChannel: OutputChannel) => {
   const target = new Target(targetJson)
 
   await saveToGlobalConfig(target, outputChannel)
+
+  const extConfig = workspace.getConfiguration('sasjs-for-vscode')
+  await extConfig.update('target', target.name, true)
 
   return target
 }

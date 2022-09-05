@@ -59,7 +59,6 @@ export const configureTarget = async (outputChannel: OutputChannel) => {
   const config = (await getGlobalConfiguration(outputChannel)) as Configuration
 
   if (config?.targets?.length) {
-    const extConfig = workspace.getConfiguration('sasjs-for-vscode')
     const targetNames = (config?.targets || []).map((t: any) => t.name)
     const targetName = await getChoiceInput(
       [...targetNames, 'add and select new target'],
@@ -76,6 +75,7 @@ export const configureTarget = async (outputChannel: OutputChannel) => {
     }
 
     if (target) {
+      const extConfig = workspace.getConfiguration('sasjs-for-vscode')
       await extConfig.update('target', target.name, true)
     }
     return target
