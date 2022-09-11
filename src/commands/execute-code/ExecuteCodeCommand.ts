@@ -61,7 +61,11 @@ export class ExecuteCodeCommand {
       debug: true
     })
 
-    const currentFileContent = getEditorContent()
+    const execFilePath = window.activeTextEditor?.document.fileName
+
+    const sasCodeInjection = `options set=SAS_EXECFILEPATH "${execFilePath}";`
+
+    const currentFileContent = `${sasCodeInjection}\n${getEditorContent()}`
 
     if (target.serverType === ServerType.SasViya) {
       const authConfig = await getAuthConfig(target, this.outputChannel)
