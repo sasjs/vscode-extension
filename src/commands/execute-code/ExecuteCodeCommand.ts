@@ -63,7 +63,7 @@ export class ExecuteCodeCommand {
 
     const execFilePath = window.activeTextEditor?.document.fileName
 
-    const sasCodeInjection = `option set=SAS_EXECFILEPATH"${execFilePath}";`
+    const sasCodeInjection = `options set=SAS_EXECFILEPATH "${execFilePath}";`
 
     const currentFileContent = `${sasCodeInjection}\n${getEditorContent()}`
 
