@@ -72,12 +72,12 @@ export class ExecuteCodeCommand {
 
       await commands.executeCommand('setContext', 'isSasjsCodeExecuting', true)
       adapter
-        .executeScriptSASViya(
-          'vscode-test-exec',
-          (currentFileContent || '').split('\n'),
-          '',
+        .executeScript({
+          fileName: 'vscode-test-exec',
+          linesOfCode: (currentFileContent || '').split('\n'),
+          contextName: '',
           authConfig
-        )
+        })
         .then(async (res) => handleSuccessResponse(res, this.outputChannel))
         .catch(async (e) => handleErrorResponse(e, this.outputChannel))
     } else if (target.serverType === ServerType.Sas9) {
@@ -88,18 +88,21 @@ export class ExecuteCodeCommand {
 
       await commands.executeCommand('setContext', 'isSasjsCodeExecuting', true)
       adapter
-        .executeScriptSAS9(
-          (currentFileContent || '').split('\n'),
-          userName,
-          password
-        )
+        .executeScript({
+          linesOfCode: (currentFileContent || '').split('\n'),
+          authConfigSas9: { userName, password }
+        })
         .then(async (res) => handleSuccessResponse(res, this.outputChannel))
         .catch(async (e) => handleErrorResponse(e, this.outputChannel))
     } else if (target.serverType === ServerType.Sasjs) {
       const authConfig = await getAuthConfig(target, this.outputChannel)
       await commands.executeCommand('setContext', 'isSasjsCodeExecuting', true)
       adapter
-        .executeScriptSASjs(currentFileContent || '', 'sas', authConfig)
+        .executeScript({
+          linesOfCode: (currentFileContent || '').split('\n'),
+          runTime: 'sas',
+          authConfig
+        })
         .then(async (res) => handleSuccessResponse(res, this.outputChannel))
         .catch(async (e) => handleErrorResponse(e, this.outputChannel))
     }
