@@ -57,6 +57,23 @@
           "dark": "./assets/images/target-dark.svg",
           "light": "./assets/images/target-light.svg"
         }
+      },
+      {
+        "command": "sasjs-for-vscode.showTarget",
+        "title": "SASjs: Select Target"
+      },
+      {
+        "command": "sasjs-for-vscode.syncDirectories",
+        "title": "SASjs: Sync Directories",
+        "icon": "./assets/images/sync.png"
+      },
+      {
+        "command": "sasjs-for-vscode.syncingDirectories",
+        "title": "SASjs: Syncing Directories",
+        "icon": {
+          "dark": "./assets/images/syncing-dark.gif",
+          "light": "./assets/images/syncing-light.gif"
+        }
       }
     ],
     "configuration": {
@@ -131,6 +148,16 @@
           "command": "sasjs-for-vscode.selectTarget",
           "group": "navigation",
           "when": "editorLangId == sas"
+        },
+        {
+          "command": "sasjs-for-vscode.syncDirectories",
+          "group": "navigation",
+          "when": "editorLangId == sas && showSyncButton && !isSyncingDirectories"
+        },
+        {
+          "command": "sasjs-for-vscode.syncingDirectories",
+          "group": "navigation",
+          "when": "editorLangId == sas  && isSyncingDirectories"
         }
       ]
     }
@@ -207,7 +234,7 @@
   "dependencies": {
     "@sasjs/adapter": "4.0.1",
     "@sasjs/lint": "1.12.0",
-    "@sasjs/utils": "2.47.0",
+    "@sasjs/utils": "2.49.3",
     "axios": "0.26.1",
     "valid-url": "^1.0.9"
   }

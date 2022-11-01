@@ -1,10 +1,13 @@
 import * as vscode from 'vscode'
 import { ExecuteCodeCommand } from './commands/execute-code/ExecuteCodeCommand'
 import { ExecutingCodeCommand } from './commands/execute-code/ExecutingCodeCommand'
+import { SyncDirectoriesCommand } from './commands/sync-directories/syncDirectoriesCommand'
+import { SyncingDirectoriesCommand } from './commands/sync-directories/syncingDirectoriesCommand'
 import { CreateTargetCommand } from './commands/creating-target/createTargetCommand'
 import { DeleteTargetCommand } from './commands/delete-target/deleteTargetCommand'
 import { AuthenticateTargetCommand } from './commands/authenticating-target/authenticateTargetCommand'
 import { SelectTargetCommand } from './commands/select-target/selectTargetCommand'
+import { ShowTargetCommand } from './commands/show-target/showTargetCommand'
 import { FormatCommand } from './commands/format/FormatCommand'
 import { lint, clearLintIssues } from './lint/lint'
 import { Configuration } from '@sasjs/utils/types'
@@ -20,6 +23,12 @@ export function activate(context: vscode.ExtensionContext) {
   const executingCodeCommand = new ExecutingCodeCommand(context)
   executingCodeCommand.initialise()
 
+  const syncDirectoriesCommand = new SyncDirectoriesCommand(context)
+  syncDirectoriesCommand.initialise()
+
+  const syncingDirectoriesCommand = new SyncingDirectoriesCommand(context)
+  syncingDirectoriesCommand.initialise()
+
   const createTargetCommand = new CreateTargetCommand(context)
   createTargetCommand.initialise()
 
@@ -32,6 +41,9 @@ export function activate(context: vscode.ExtensionContext) {
   const selectTargetCommand = new SelectTargetCommand(context)
   selectTargetCommand.initialise()
 
+  const showTargetCommand = new ShowTargetCommand(context)
+  showTargetCommand.initialise()
+
   const formatCommand = new FormatCommand()
   formatCommand.initialise()
 
@@ -39,7 +51,7 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.StatusBarAlignment.Right,
     1000
   )
-  statusBarItem.command = 'sasjs-for-vscode.selectTarget'
+  statusBarItem.command = 'sasjs-for-vscode.showTarget'
   context.subscriptions.push(statusBarItem)
 
   eventListeners.push(
@@ -72,44 +84,55 @@ export function activate(context: vscode.ExtensionContext) {
 
   eventListeners.push(
     vscode.workspace.onDidChangeConfiguration(
-      () => updateStatusBarItem(),
+      () => configurationChangeHandler(),
       null,
       context.subscriptions
     )
   )
 
-  // update status bar item once at start
-  updateStatusBarItem()
+  // invoke configuration change handler once at start
+  configurationChangeHandler()
 }
 
 export function deactivate() {
   eventListeners.forEach((listener) => listener.dispose())
 }
 
-async function updateStatusBarItem() {
+async function configurationChangeHandler() {
+  vscode.commands.executeCommand('setContext', 'showSyncButton', false)
   const extConfig = vscode.workspace.getConfiguration('sasjs-for-vscode')
   const targetFromExt = extConfig.get('target')
   statusBarItem.text = `sasjs: ${(targetFromExt as string) ?? 'none'}`
 
-  if (targetFromExt) {
-    const outputChannel = vscode.window.createOutputChannel('SASjs')
-    const config = (await getGlobalConfiguration(
-      outputChannel
-    )) as Configuration
-    if (config?.targets?.length) {
-      const selectedTarget = config.targets.find(
-        (t: any) => t.name === targetFromExt
-      )
-      if (selectedTarget) {
-        statusBarItem.tooltip = `Target Details\nName: ${selectedTarget.name}\nServerUrl: ${selectedTarget.serverUrl}\nServerType: ${selectedTarget.serverType}`
-      } else {
-        statusBarItem.tooltip = `Target Details\nTarget not found in global .sasjsrc`
-      }
-    } else {
-      statusBarItem.tooltip = `Target Details\nNo Target found in global .sasjsrc`
-    }
-  } else {
+  if (!targetFromExt) {
     statusBarItem.tooltip = `No target is selected.`
+    statusBarItem.show()
+    return
   }
+
+  const outputChannel = vscode.window.createOutputChannel('SASjs')
+  const config = (await getGlobalConfiguration(outputChannel)) as Configuration
+
+  if (!config?.targets?.length) {
+    statusBarItem.tooltip = `Target Details\nNo Target found in global .sasjsrc`
+    statusBarItem.show()
+    return
+  }
+
+  const selectedTarget = config.targets.find(
+    (t: any) => t.name === targetFromExt
+  )
+
+  if (!selectedTarget) {
+    statusBarItem.tooltip = `Target Details\nTarget not found in global .sasjsrc`
+    statusBarItem.show()
+    return
+  }
+
+  if (selectedTarget.syncDirectories?.length) {
+    vscode.commands.executeCommand('setContext', 'showSyncButton', true)
+  }
+
+  statusBarItem.tooltip = `Target Details\nName: ${selectedTarget.name}\nServerUrl: ${selectedTarget.serverUrl}\nServerType: ${selectedTarget.serverType}`
   statusBarItem.show()
 }
