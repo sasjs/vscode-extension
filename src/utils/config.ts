@@ -1,9 +1,20 @@
 import * as path from 'path'
-import { OutputChannel, window, workspace } from 'vscode'
 import * as os from 'os'
-import { Target } from '@sasjs/utils/types/target'
+import { OutputChannel, window, workspace, env, Uri } from 'vscode'
+import SASjs from '@sasjs/adapter/node'
+import { decodeFromBase64, encodeToBase64 } from '@sasjs/utils'
+import { Target, AuthConfig, ServerType, AuthConfigSas9 } from '@sasjs/utils'
 import { createFile, readFile } from './file'
-import { getChoiceInput } from './input'
+import {
+  getChoiceInput,
+  getAuthCode,
+  getClientId,
+  getClientSecret,
+  getUserName,
+  getPassword
+} from './input'
+import { getAuthUrl, getTokens } from './auth'
+import { isSasJsServerInServerMode } from './utils'
 
 export async function saveToGlobalConfig(
   buildTarget: Target,
@@ -115,4 +126,95 @@ export const getGlobalConfiguration = async (outputChannel: OutputChannel) => {
     await window.showTextDocument(document)
     return null
   }
+}
+
+export const getAuthConfig = async (
+  target: Target,
+  outputChannel: OutputChannel
+) => {
+  if (
+    target.serverType === ServerType.Sasjs &&
+    !(await isSasJsServerInServerMode(target))
+  ) {
+    return
+  }
+  const authConfig = target.authConfig
+  if (authConfig) {
+    return authConfig
+  }
+
+  const adapter = new SASjs({
+    serverUrl: target.serverUrl,
+    serverType: target.serverType,
+    appLoc: '/Public/app',
+    useComputeApi: true,
+    httpsAgentOptions: target.httpsAgentOptions,
+    debug: true
+  })
+
+  const defaultClientID =
+    target.serverType === ServerType.Sasjs ? 'clientID1' : undefined
+
+  const clientId = await getClientId(defaultClientID)
+  let clientSecret = ''
+  if (target.serverType === ServerType.SasViya) {
+    clientSecret = await getClientSecret()
+  }
+  const authUrl = Uri.parse(
+    getAuthUrl(target.serverType, target.serverUrl, clientId)
+  )
+  outputChannel.appendLine(authUrl.toString())
+  outputChannel.show()
+  env.openExternal(authUrl)
+  const authCode = await getAuthCode()
+
+  const authResponse = await getTokens(
+    adapter,
+    clientId,
+    clientSecret,
+    authCode,
+    outputChannel
+  )
+
+  const updatedTarget = new Target({
+    ...target.toJson(),
+    authConfig: authResponse
+  })
+
+  await saveToGlobalConfig(updatedTarget, outputChannel)
+
+  return {
+    client: clientId,
+    secret: clientSecret,
+    access_token: authResponse.access_token,
+    refresh_token: authResponse.refresh_token
+  } as AuthConfig
+}
+
+export const getAuthConfigSas9 = async (
+  target: Target,
+  outputChannel: OutputChannel
+) => {
+  const authConfig = target.authConfigSas9
+  if (authConfig) {
+    return {
+      userName: authConfig.userName,
+      password: decodeFromBase64(authConfig.password)
+    }
+  }
+
+  const userName = await getUserName()
+  const password = await getPassword()
+
+  const updatedTarget = new Target({
+    ...target.toJson(),
+    authConfigSas9: { userName, password: encodeToBase64(password) }
+  })
+
+  await saveToGlobalConfig(updatedTarget, outputChannel)
+
+  return {
+    userName,
+    password
+  } as AuthConfigSas9
 }

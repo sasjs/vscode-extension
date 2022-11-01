@@ -12,9 +12,9 @@ import {
 } from 'vscode'
 import { getEditorContent } from '../../utils/editor'
 import { createFile } from '../../utils/file'
-import { getAuthConfig, getAuthConfigSas9 } from './internal/configuration'
+import { getAuthConfig, getAuthConfigSas9 } from '../../utils/config'
 import { selectTarget } from '../../utils/target'
-import { getTimestamp } from './internal/utils'
+import { getTimestamp } from '../../utils/utils'
 
 export class ExecuteCodeCommand {
   private outputChannel: OutputChannel
