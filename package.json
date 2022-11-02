@@ -114,18 +114,6 @@
         "path": "./syntaxes/sas.tmLanguage.json"
       }
     ],
-    "themes": [
-      {
-        "label": "SASjs Light",
-        "uiTheme": "vs",
-        "path": "./themes/sasjs-theme-light.json"
-      },
-      {
-        "label": "SASjs Dark",
-        "uiTheme": "vs",
-        "path": "./themes/sasjs-theme-dark.json"
-      }
-    ],
     "jsonValidation": [
       {
         "fileMatch": ".sasjslint",
@@ -226,7 +214,7 @@
     "glob": "^8.0.1",
     "mocha": "^9.2.2",
     "semantic-release": "^19.0.2",
-    "semantic-release-vsce": "^5.0.11",
+    "semantic-release-vsce": "^5.2.4",
     "typescript": "^4.6.3",
     "vsce": "2.7.0",
     "vscode-test": "^1.6.1"
