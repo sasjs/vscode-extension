@@ -25,7 +25,7 @@ jobs:
         run: sudo npm install -g vsce
 
       - name: Semantic Release
-        uses: cycjimmy/semantic-release-action
+        uses: cycjimmy/semantic-release-action@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
           VSCE_PAT: ${{ secrets.VS_CODE_PUBLISH_TOKEN }}
