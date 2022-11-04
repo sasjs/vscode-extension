@@ -8,8 +8,12 @@ import {
   getChoiceInput
 } from './input'
 import { authenticateTarget } from './auth'
-import { saveToConfigFile } from './config'
-import { isSasjsProject } from './utils'
+import { getGlobalConfiguration, saveToConfigFile } from './config'
+import {
+  getGlobalConfigurationPath,
+  getLocalConfigurationPath,
+  isSasjsProject
+} from './utils'
 
 export const createTarget = async (outputChannel: OutputChannel) => {
   const name = await getTargetName()
@@ -24,11 +28,14 @@ export const createTarget = async (outputChannel: OutputChannel) => {
   let isLocal = false
 
   if (await isSasjsProject()) {
+    const globalConfigPath = getGlobalConfigurationPath()
+    const localConfigPath = getLocalConfigurationPath()
+
     const choice = await getChoiceInput(
-      ['Yes, No'],
-      'Do you want to create local target?'
+      [globalConfigPath, localConfigPath],
+      'Where do you want to save your target?'
     )
-    if (choice === 'Yes') {
+    if (choice) {
       isLocal = true
     }
   }

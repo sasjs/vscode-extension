@@ -51,3 +51,6 @@ export const getLocalConfigurationPath = () =>
     'sasjs',
     'sasjsconfig.json'
   )
+
+export const getGlobalConfigurationPath = () =>
+  path.join(os.homedir(), '.sasjsrc')
