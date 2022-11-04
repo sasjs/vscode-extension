@@ -118,17 +118,20 @@ export const configureTarget = async (outputChannel: OutputChannel) => {
   )
   let target: Target | undefined
   let isLocal = false
+
   if (choice?.label === 'add and select new target') {
-    target = await createTarget(outputChannel)
-  } else if (!!choice?.label) {
+    return await createTarget(outputChannel)
+  }
+
+  if (!!choice?.label) {
+    let selectedTarget: TargetJson | undefined
     if (choice.detail === 'global target') {
-      const selectedTarget = globalTargets.find((t) => t.name === choice.label)
-      target = new Target(selectedTarget)
+      selectedTarget = globalTargets.find((t) => t.name === choice.label)
     } else {
-      const selectedTarget = localTargets.find((t) => t.name === choice.label)
-      target = new Target(selectedTarget)
+      selectedTarget = localTargets.find((t) => t.name === choice.label)
       isLocal = true
     }
+    target = new Target(selectedTarget)
   }
 
   if (target) {

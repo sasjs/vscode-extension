@@ -26,7 +26,7 @@ export const openTargetFile = async () => {
   const isLocal = extConfig.get('isLocal') as boolean
   const sasjsConfigPath = isLocal
     ? getLocalConfigurationPath()
-    : path.join(os.homedir(), '.sasjsrc')
+    : getGlobalConfigurationPath()
   const document = await workspace.openTextDocument(sasjsConfigPath)
   await window.showTextDocument(document)
 }
