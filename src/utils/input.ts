@@ -1,4 +1,4 @@
-import { window } from 'vscode'
+import { window, QuickPickItem } from 'vscode'
 import * as validUrl from 'valid-url'
 import { ServerType } from '@sasjs/utils/types'
 
@@ -123,6 +123,18 @@ export const getTextInput = async (
 
 export const getChoiceInput = async (
   choices: string[],
+  placeHolder: string
+) => {
+  const input = await window.showQuickPick(choices, {
+    placeHolder,
+    ignoreFocusOut: true
+  })
+
+  return input
+}
+
+export const getTargetChoice = async (
+  choices: QuickPickItem[],
   placeHolder: string
 ) => {
   const input = await window.showQuickPick(choices, {

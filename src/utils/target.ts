@@ -1,85 +1,140 @@
-import { OutputChannel, workspace } from 'vscode'
+import {
+  OutputChannel,
+  workspace,
+  window,
+  QuickPickItem,
+  QuickPickItemKind
+} from 'vscode'
 
-import { Target, Configuration } from '@sasjs/utils/types'
-import { getChoiceInput, getIsDefault, getCreateNewTarget } from './input'
+import { Target, Configuration, TargetJson } from '@sasjs/utils/types'
+import { getTargetChoice } from './input'
 
-import { getGlobalConfiguration } from './config'
+import { getGlobalConfiguration, getLocalConfiguration } from './config'
 import { createTarget } from './createTarget'
+import { isSasjsProject } from './utils'
 
 /**
  * This function will be called from execute command for selecting target before execution
  */
 export const selectTarget = async (outputChannel: OutputChannel) => {
-  const config = (await getGlobalConfiguration(outputChannel)) as Configuration
+  const globalTargets: TargetJson[] = []
+  const localTargets: TargetJson[] = []
 
-  if (config?.targets?.length) {
-    const extConfig = workspace.getConfiguration('sasjs-for-vscode')
-    const targetFromExt = extConfig.get('target')
-    let inputMessage =
-      'Target specified in extension setting is not available in global .sasjsrc file. Please select a target from following list.'
-    if (!!targetFromExt) {
-      const selectedTarget = config.targets.find(
-        (t: any) => t.name === targetFromExt
-      )
+  const global = (await getGlobalConfiguration(outputChannel)) as Configuration
+  if (global?.targets?.length) {
+    globalTargets.push(...global.targets)
+  }
+
+  if (await isSasjsProject()) {
+    const local = (await getLocalConfiguration(outputChannel)) as Configuration
+    if (local?.targets?.length) {
+      localTargets.push(...local.targets)
+    }
+  }
+
+  const extConfig = workspace.getConfiguration('sasjs-for-vscode')
+  const targetFromExt = extConfig.get('target') as string
+  const isLocal = extConfig.get('isLocal') as boolean
+
+  if (!targetFromExt) {
+    return await configureTarget(outputChannel)
+  }
+
+  if (isLocal) {
+    if (localTargets.length) {
+      const selectedTarget = localTargets.find((t) => t.name === targetFromExt)
       if (selectedTarget) {
         return new Target(selectedTarget)
       }
-    } else {
-      inputMessage =
-        'No target is specified in extension setting. Please select a target from following list.'
+
+      window.showErrorMessage(
+        'Target specified in extension setting is not available in local config file. Please select another target.'
+      )
+      return await configureTarget(outputChannel)
+    }
+    return await configureTarget(outputChannel)
+  }
+
+  if (globalTargets.length) {
+    const selectedTarget = globalTargets.find((t) => t.name === targetFromExt)
+    if (selectedTarget) {
+      return new Target(selectedTarget)
     }
 
-    const targetNames = (config?.targets || []).map((t: any) => t.name)
-    const targetName = await getChoiceInput(
-      [...targetNames, 'add and select new target'],
-      inputMessage
+    window.showErrorMessage(
+      'Target specified in extension setting is not available in global .sasjsrc file file. Please select another target.'
     )
-    let target
-    if (targetName === 'add and select new target') {
-      target = await createTarget(outputChannel)
-    } else if (!!targetName) {
-      const selectedTarget = config.targets.find(
-        (t: any) => t.name === targetName
-      )
-      target = new Target(selectedTarget)
-    }
-    if (target) {
-      await extConfig.update('target', target.name, true)
-    }
-    return target
-  } else {
-    return await createTarget(outputChannel)
+    return await configureTarget(outputChannel)
   }
+  return await configureTarget(outputChannel)
 }
 
 /**
  * This function will be called from select target command for configuration of setting
  */
 export const configureTarget = async (outputChannel: OutputChannel) => {
-  const config = (await getGlobalConfiguration(outputChannel)) as Configuration
+  const quickPickChoices: QuickPickItem[] = []
+  const globalTargets: TargetJson[] = []
+  const localTargets: TargetJson[] = []
 
-  if (config?.targets?.length) {
-    const targetNames = (config?.targets || []).map((t: any) => t.name)
-    const targetName = await getChoiceInput(
-      [...targetNames, 'add and select new target'],
-      'Please select a target'
-    )
-    let target
-    if (targetName === 'add and select new target') {
-      target = await createTarget(outputChannel)
-    } else if (!!targetName) {
-      const selectedTarget = config.targets.find(
-        (t: any) => t.name === targetName
-      )
-      target = new Target(selectedTarget)
-    }
-
-    if (target) {
-      const extConfig = workspace.getConfiguration('sasjs-for-vscode')
-      await extConfig.update('target', target.name, true)
-    }
-    return target
-  } else if (await getCreateNewTarget()) {
-    return await createTarget(outputChannel)
+  const global = (await getGlobalConfiguration(outputChannel)) as Configuration
+  if (global?.targets?.length) {
+    globalTargets.push(...global.targets)
+    quickPickChoices.push({
+      label: 'global',
+      kind: QuickPickItemKind.Separator
+    })
+    global.targets.forEach((t) => {
+      quickPickChoices.push({
+        label: t.name,
+        detail: 'global target'
+      })
+    })
   }
+
+  if (await isSasjsProject()) {
+    const local = (await getLocalConfiguration(outputChannel)) as Configuration
+    if (local?.targets?.length) {
+      localTargets.push(...local.targets)
+      quickPickChoices.push({
+        label: 'local',
+        kind: QuickPickItemKind.Separator
+      })
+      local.targets.forEach((t) => {
+        quickPickChoices.push({
+          label: t.name,
+          detail: 'local target'
+        })
+      })
+    }
+  }
+
+  quickPickChoices.push({
+    label: 'add and select new target'
+  })
+  const choice = await getTargetChoice(
+    quickPickChoices,
+    'Please select a target'
+  )
+  let target: Target | undefined
+  let isLocal = false
+  if (choice?.label === 'add and select new target') {
+    target = await createTarget(outputChannel)
+  } else if (!!choice?.label) {
+    if (choice.detail === 'global target') {
+      const selectedTarget = globalTargets.find((t) => t.name === choice.label)
+      target = new Target(selectedTarget)
+    } else {
+      const selectedTarget = localTargets.find((t) => t.name === choice.label)
+      target = new Target(selectedTarget)
+      isLocal = true
+    }
+  }
+
+  if (target) {
+    const extConfig = workspace.getConfiguration('sasjs-for-vscode')
+    await extConfig.update('target', target.name)
+    await extConfig.update('isLocal', isLocal)
+  }
+  return target
 }
