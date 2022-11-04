@@ -35,7 +35,7 @@ export const createTarget = async (outputChannel: OutputChannel) => {
       [globalConfigPath, localConfigPath],
       'Where do you want to save your target?'
     )
-    if (choice) {
+    if (choice !== globalConfigPath) {
       isLocal = true
     }
   }

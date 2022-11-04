@@ -31,6 +31,7 @@ export const getTarget = async () => {
 }
 
 export const getServerUrl = async () => {
+  const defaultValue = 'https://'
   const serverUrl = await getTextInput(
     'Please enter your SAS server URL',
     (value: string) => {
@@ -38,7 +39,9 @@ export const getServerUrl = async () => {
         return null
       }
       return 'Server URL is not valid'
-    }
+    },
+    false,
+    defaultValue
   )
 
   return serverUrl
