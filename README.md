@@ -60,6 +60,7 @@ Rules can be configured by creating a `.sasjslint` file in the root of your proj
 
 ```json
 {
+    "defaultHeader": "/**{lineEnding}  some custom header{lineEnding}**/",
     "noEncodedPasswords": true,
     "hasDoxygenHeader": true,
     "hasMacroNameInMend": true,
@@ -88,11 +89,6 @@ You can use this feature in two ways:
 ![image](https://user-images.githubusercontent.com/2980428/117259572-15b41800-ae46-11eb-9c7f-b9700b77405b.png)
 
 
-### Syntax Highlighting
-
-Two themes are provided with SAS Code formatting - a Light Theme and a Dark Theme
-
-![](https://i.imgur.com/dbCD6rg.png)![](https://i.imgur.com/BrPmat4.png)
 
 ## Contributions
 
