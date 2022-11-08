@@ -86,6 +86,10 @@
         "sasjs-for-vscode.isLocal": {
           "type": "boolean",
           "description": "This represents that the target is configured at project level (sasjs/sasjsconfig.json) or globally (~/.sasjsrc)."
+        },
+        "sasjs-for-vscode.lintConfig": {
+          "type": "object",
+          "description": "This represents that the target is configured at project level (sasjs/sasjsconfig.json) or globally (~/.sasjsrc)."
         }
       }
     },
@@ -225,7 +229,7 @@
   },
   "dependencies": {
     "@sasjs/adapter": "4.0.1",
-    "@sasjs/lint": "1.12.0",
+    "@sasjs/lint": "1.14.0",
     "@sasjs/utils": "2.49.3",
     "axios": "0.26.1",
     "dotenv": "16.0.3",
