@@ -82,6 +82,10 @@
         "sasjs-for-vscode.target": {
           "type": "string",
           "description": "The default target for deployment and code execution. A target represents a SAS server, configured at project level (sasjs/sasjsconfig.json) or globally (~/.sasjsrc).  Leave blank to choose a target each time."
+        },
+        "sasjs-for-vscode.isLocal": {
+          "type": "boolean",
+          "description": "This represents that the target is configured at project level (sasjs/sasjsconfig.json) or globally (~/.sasjsrc)."
         }
       }
     },
@@ -224,6 +228,7 @@
     "@sasjs/lint": "1.12.0",
     "@sasjs/utils": "2.49.3",
     "axios": "0.26.1",
+    "dotenv": "16.0.3",
     "valid-url": "^1.0.9"
   }
 }

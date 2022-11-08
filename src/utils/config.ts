@@ -1,48 +1,48 @@
 import * as path from 'path'
 import * as os from 'os'
-import { OutputChannel, window, workspace, env, Uri } from 'vscode'
-import SASjs from '@sasjs/adapter/node'
-import { decodeFromBase64, encodeToBase64 } from '@sasjs/utils'
+import { OutputChannel, window, workspace } from 'vscode'
+import { decodeFromBase64, fileExists } from '@sasjs/utils'
 import { Target, AuthConfig, ServerType, AuthConfigSas9 } from '@sasjs/utils'
+import dotenv from 'dotenv'
 import { createFile, readFile } from './file'
+import { getChoiceInput } from './input'
+import { authenticateTarget } from './auth'
 import {
-  getChoiceInput,
-  getAuthCode,
-  getClientId,
-  getClientSecret,
-  getUserName,
-  getPassword
-} from './input'
-import { getAuthUrl, getTokens } from './auth'
-import { isSasJsServerInServerMode } from './utils'
+  getLocalConfigurationPath,
+  isSasjsProject,
+  isSasJsServerInServerMode
+} from './utils'
 
-export async function saveToGlobalConfig(
+export async function saveToConfigFile(
   buildTarget: Target,
+  isLocal: boolean,
   outputChannel: OutputChannel
 ) {
-  let globalConfig = await getGlobalConfiguration(outputChannel)
+  let config = isLocal
+    ? await getLocalConfiguration(outputChannel)
+    : await getGlobalConfiguration(outputChannel)
+
   const targetJson = buildTarget.toJson()
-  if (globalConfig) {
-    if (globalConfig.targets && globalConfig.targets.length) {
-      const existingTargetIndex = globalConfig.targets.findIndex(
+  if (config) {
+    if (config.targets && config.targets.length) {
+      const existingTargetIndex = config.targets.findIndex(
         (t: Target) => t.name === buildTarget.name
       )
       if (existingTargetIndex > -1) {
-        globalConfig.targets[existingTargetIndex] = targetJson
+        config.targets[existingTargetIndex] = targetJson
       } else {
-        globalConfig.targets.push(targetJson)
+        config.targets.push(targetJson)
       }
     } else {
-      globalConfig.targets = [targetJson]
+      config.targets = [targetJson]
     }
   } else {
-    globalConfig = { targets: [targetJson] }
+    config = { targets: [targetJson] }
   }
 
-  return await saveGlobalRcFile(
-    JSON.stringify(globalConfig, null, 2),
-    outputChannel
-  )
+  const saveFunction = isLocal ? saveLocalConfigFile : saveGlobalRcFile
+
+  return await saveFunction(JSON.stringify(config, null, 2), outputChannel)
 }
 
 export async function removeTargetFromGlobalRcFile(
@@ -97,6 +97,18 @@ export async function saveGlobalRcFile(
   return rcFilePath
 }
 
+export async function saveLocalConfigFile(
+  content: string,
+  outputChannel: OutputChannel
+) {
+  const configPath = getLocalConfigurationPath()
+  outputChannel.appendLine(`SASjs: Saving local configuration to ${configPath}`)
+
+  await createFile(configPath, content)
+
+  return configPath
+}
+
 export const getGlobalConfiguration = async (outputChannel: OutputChannel) => {
   const sasjsConfigPath = path.join(os.homedir(), '.sasjsrc')
   let configFile
@@ -128,73 +140,78 @@ export const getGlobalConfiguration = async (outputChannel: OutputChannel) => {
   }
 }
 
+export const getLocalConfiguration = async (outputChannel: OutputChannel) => {
+  const sasjsConfigPath = getLocalConfigurationPath()
+  let configFile
+
+  try {
+    configFile = await readFile(sasjsConfigPath)
+  } catch {
+    outputChannel.appendLine('A local SASjs config file was not found.')
+    return null
+  }
+
+  try {
+    const configJson = JSON.parse(configFile)
+    return configJson
+  } catch {
+    outputChannel.appendLine(
+      'There was an error parsing your local SASjs config file.'
+    )
+    window.showErrorMessage(
+      'There was an error parsing your local SASjs config file. Please ensure that the file is valid JSON.',
+      { modal: true }
+    )
+
+    const document = await workspace.openTextDocument(sasjsConfigPath)
+    await window.showTextDocument(document)
+    return null
+  }
+}
+
 export const getAuthConfig = async (
   target: Target,
   outputChannel: OutputChannel
-) => {
+): Promise<AuthConfig | undefined> => {
   if (
     target.serverType === ServerType.Sasjs &&
     !(await isSasJsServerInServerMode(target))
   ) {
     return
   }
-  const authConfig = target.authConfig
-  if (authConfig) {
-    return authConfig
+
+  if (target.authConfig) {
+    return target.authConfig
   }
 
-  const adapter = new SASjs({
-    serverUrl: target.serverUrl,
-    serverType: target.serverType,
-    appLoc: '/Public/app',
-    useComputeApi: true,
-    httpsAgentOptions: target.httpsAgentOptions,
-    debug: true
-  })
+  const extConfig = workspace.getConfiguration('sasjs-for-vscode')
+  const isLocal = extConfig.get('isLocal') as boolean
 
-  const defaultClientID =
-    target.serverType === ServerType.Sasjs ? 'clientID1' : undefined
-
-  const clientId = await getClientId(defaultClientID)
-  let clientSecret = ''
-  if (target.serverType === ServerType.SasViya) {
-    clientSecret = await getClientSecret()
+  if ((await isSasjsProject()) && isLocal) {
+    const authConfig = (await getAuthConfigFromEnvFile(
+      target.name,
+      target.serverType
+    )) as AuthConfig
+    if (authConfig) {
+      return authConfig
+    }
   }
-  const authUrl = Uri.parse(
-    getAuthUrl(target.serverType, target.serverUrl, clientId)
-  )
-  outputChannel.appendLine(authUrl.toString())
-  outputChannel.show()
-  env.openExternal(authUrl)
-  const authCode = await getAuthCode()
 
-  const authResponse = await getTokens(
-    adapter,
-    clientId,
-    clientSecret,
-    authCode,
-    outputChannel
-  )
+  const targetJson = await authenticateTarget(target, isLocal, outputChannel)
 
-  const updatedTarget = new Target({
-    ...target.toJson(),
-    authConfig: authResponse
-  })
+  if (targetJson?.authConfig) {
+    const updatedTarget = new Target(targetJson)
+    await saveToConfigFile(updatedTarget, isLocal, outputChannel)
+    return targetJson.authConfig
+  }
 
-  await saveToGlobalConfig(updatedTarget, outputChannel)
-
-  return {
-    client: clientId,
-    secret: clientSecret,
-    access_token: authResponse.access_token,
-    refresh_token: authResponse.refresh_token
-  } as AuthConfig
+  return await getAuthConfig(target, outputChannel)
 }
 
 export const getAuthConfigSas9 = async (
   target: Target,
   outputChannel: OutputChannel
-) => {
+): Promise<AuthConfigSas9> => {
   const authConfig = target.authConfigSas9
   if (authConfig) {
     return {
@@ -203,18 +220,55 @@ export const getAuthConfigSas9 = async (
     }
   }
 
-  const userName = await getUserName()
-  const password = await getPassword()
+  const extConfig = workspace.getConfiguration('sasjs-for-vscode')
+  const isLocal = extConfig.get('isLocal') as boolean
 
-  const updatedTarget = new Target({
-    ...target.toJson(),
-    authConfigSas9: { userName, password: encodeToBase64(password) }
-  })
+  if ((await isSasjsProject()) && isLocal) {
+    const authConfigSas9 = (await getAuthConfigFromEnvFile(
+      target.name,
+      target.serverType
+    )) as AuthConfigSas9
+    if (authConfigSas9) {
+      return authConfigSas9
+    }
+  }
 
-  await saveToGlobalConfig(updatedTarget, outputChannel)
+  const targetJson = await authenticateTarget(target, isLocal, outputChannel)
 
-  return {
-    userName,
-    password
-  } as AuthConfigSas9
+  if (targetJson?.authConfigSas9) {
+    const updatedTarget = new Target(targetJson)
+    await saveToConfigFile(updatedTarget, isLocal, outputChannel)
+    return targetJson.authConfigSas9
+  }
+
+  return await getAuthConfigSas9(target, outputChannel)
+}
+
+const getAuthConfigFromEnvFile = async (
+  targetName: string,
+  serverType: ServerType
+) => {
+  const targetEnvFilePath = path.join(
+    workspace.workspaceFolders![0].uri.fsPath,
+    `.env.${targetName}`
+  )
+
+  if (await fileExists(targetEnvFilePath)) {
+    const targetEnvFileContent = await readFile(targetEnvFilePath)
+    const targetEnvConfig = dotenv.parse(targetEnvFileContent)
+
+    if (serverType === ServerType.Sas9) {
+      return {
+        userName: targetEnvConfig.SAS_USERNAME,
+        password: decodeFromBase64(targetEnvConfig.SAS_PASSWORD ?? '')
+      } as AuthConfigSas9
+    }
+
+    return {
+      client: targetEnvConfig.CLIENT,
+      secret: targetEnvConfig.SECRET,
+      access_token: targetEnvConfig.ACCESS_TOKEN,
+      refresh_token: targetEnvConfig.REFRESH_TOKEN
+    } as AuthConfig
+  }
 }

@@ -11,7 +11,7 @@ import { ShowTargetCommand } from './commands/show-target/showTargetCommand'
 import { FormatCommand } from './commands/format/FormatCommand'
 import { lint, clearLintIssues } from './lint/lint'
 import { Configuration } from '@sasjs/utils/types'
-import { getGlobalConfiguration } from './utils/config'
+import { getGlobalConfiguration, getLocalConfiguration } from './utils/config'
 
 const eventListeners: vscode.Disposable[] = []
 let statusBarItem: vscode.StatusBarItem
@@ -102,6 +102,7 @@ async function configurationChangeHandler() {
   vscode.commands.executeCommand('setContext', 'showSyncButton', false)
   const extConfig = vscode.workspace.getConfiguration('sasjs-for-vscode')
   const targetFromExt = extConfig.get('target')
+  const isLocal = extConfig.get('isLocal') as boolean
   statusBarItem.text = `sasjs: ${(targetFromExt as string) ?? 'none'}`
 
   if (!targetFromExt) {
@@ -111,10 +112,14 @@ async function configurationChangeHandler() {
   }
 
   const outputChannel = vscode.window.createOutputChannel('SASjs')
-  const config = (await getGlobalConfiguration(outputChannel)) as Configuration
+  const config = isLocal
+    ? ((await getLocalConfiguration(outputChannel)) as Configuration)
+    : ((await getGlobalConfiguration(outputChannel)) as Configuration)
 
   if (!config?.targets?.length) {
-    statusBarItem.tooltip = `Target Details\nNo Target found in global .sasjsrc`
+    statusBarItem.tooltip = `Target Details\nNo Target found in ${
+      isLocal ? 'local' : 'global'
+    } config file`
     statusBarItem.show()
     return
   }
@@ -124,7 +129,9 @@ async function configurationChangeHandler() {
   )
 
   if (!selectedTarget) {
-    statusBarItem.tooltip = `Target Details\nTarget not found in global .sasjsrc`
+    statusBarItem.tooltip = `Target Details\nTarget not found in ${
+      isLocal ? 'local' : 'global'
+    } config file`
     statusBarItem.show()
     return
   }

@@ -2,7 +2,7 @@ import * as path from 'path'
 import * as os from 'os'
 import axios from 'axios'
 import { window, workspace } from 'vscode'
-import { Target, timestampToYYYYMMDDHHMMSS } from '@sasjs/utils'
+import { Target, timestampToYYYYMMDDHHMMSS, fileExists } from '@sasjs/utils'
 
 export const getTimestamp = () =>
   timestampToYYYYMMDDHHMMSS()
@@ -22,7 +22,35 @@ export const isSasJsServerInServerMode = async (target: Target) => {
 }
 
 export const openTargetFile = async () => {
-  const sasjsConfigPath = path.join(os.homedir(), '.sasjsrc')
+  const extConfig = workspace.getConfiguration('sasjs-for-vscode')
+  const isLocal = extConfig.get('isLocal') as boolean
+  const sasjsConfigPath = isLocal
+    ? getLocalConfigurationPath()
+    : getGlobalConfigurationPath()
   const document = await workspace.openTextDocument(sasjsConfigPath)
   await window.showTextDocument(document)
 }
+
+export const isSasjsProject = async () => {
+  const localConfigPath = path.join(
+    workspace.workspaceFolders![0].uri.fsPath,
+    'sasjs',
+    'sasjsconfig.json'
+  )
+
+  if (await fileExists(localConfigPath)) {
+    return true
+  }
+
+  return false
+}
+
+export const getLocalConfigurationPath = () =>
+  path.join(
+    workspace.workspaceFolders![0].uri.fsPath,
+    'sasjs',
+    'sasjsconfig.json'
+  )
+
+export const getGlobalConfigurationPath = () =>
+  path.join(os.homedir(), '.sasjsrc')

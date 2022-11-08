@@ -1,5 +1,13 @@
+import * as path from 'path'
 import axios from 'axios'
-import { OutputChannel, env, Uri, workspace } from 'vscode'
+import {
+  OutputChannel,
+  env,
+  Uri,
+  workspace,
+  QuickPickItem,
+  QuickPickItemKind
+} from 'vscode'
 import SASjs from '@sasjs/adapter/node'
 import {
   Configuration,
@@ -8,17 +16,23 @@ import {
   Target,
   TargetJson
 } from '@sasjs/utils'
-import { getGlobalConfiguration, saveToGlobalConfig } from './config'
+import {
+  getGlobalConfiguration,
+  getLocalConfiguration,
+  saveToConfigFile
+} from './config'
 import {
   getAuthCode,
   getClientId,
   getClientSecret,
-  getChoiceInput,
   getCreateNewTarget,
   getPassword,
-  getUserName
+  getUserName,
+  getTargetChoice
 } from './input'
 import { createTarget } from './createTarget'
+import { createFile } from './file'
+import { isSasjsProject } from './utils'
 
 export const getTokens = async (
   sasjsInstance: SASjs,
@@ -55,24 +69,75 @@ export const getAuthUrl = (
 export const selectAndAuthenticateTarget = async (
   outputChannel: OutputChannel
 ) => {
-  const config = (await getGlobalConfiguration(outputChannel)) as Configuration
+  const quickPickChoices: QuickPickItem[] = []
+  const globalTargets: TargetJson[] = []
+  const localTargets: TargetJson[] = []
 
-  if (config?.targets?.length) {
-    const targetNames = (config?.targets || []).map((t: any) => t.name)
-    const targetName = await getChoiceInput(
-      [...targetNames],
+  const global = (await getGlobalConfiguration(outputChannel)) as Configuration
+  if (global?.targets?.length) {
+    globalTargets.push(...global.targets)
+    quickPickChoices.push({
+      label: 'global',
+      kind: QuickPickItemKind.Separator
+    })
+    global.targets.forEach((t) => {
+      quickPickChoices.push({
+        label: t.name,
+        detail: 'global target'
+      })
+    })
+  }
+
+  if (await isSasjsProject()) {
+    const local = (await getLocalConfiguration(outputChannel)) as Configuration
+    if (local?.targets?.length) {
+      localTargets.push(...local.targets)
+      quickPickChoices.push({
+        label: 'local',
+        kind: QuickPickItemKind.Separator
+      })
+      local.targets.forEach((t) => {
+        quickPickChoices.push({
+          label: t.name,
+          detail: 'local target'
+        })
+      })
+    }
+  }
+
+  if (quickPickChoices.length) {
+    const choice = await getTargetChoice(
+      quickPickChoices,
       'Please select a target to authenticate'
     )
 
-    if (!!targetName) {
-      const targetJson = config.targets.find((t: any) => t.name === targetName)
-      await authenticateTarget(targetJson!, outputChannel)
-      const target = new Target(targetJson)
-      await saveToGlobalConfig(target, outputChannel)
-      const extConfig = workspace.getConfiguration('sasjs-for-vscode')
-      await extConfig.update('target', target.name, true)
-      return target
+    let target: Target | undefined
+    let isLocal = false
+
+    if (!!choice?.label) {
+      if (choice.detail === 'global target') {
+        const selectedTarget = globalTargets.find(
+          (t) => t.name === choice.label
+        )
+        const targetJson = await authenticateTarget(
+          selectedTarget!,
+          false,
+          outputChannel
+        )
+        target = new Target(targetJson)
+        await saveToConfigFile(target, false, outputChannel)
+      } else {
+        const selectedTarget = localTargets.find((t) => t.name === choice.label)
+        await authenticateTarget(selectedTarget!, true, outputChannel)
+        target = new Target(selectedTarget)
+        isLocal = true
+      }
     }
+
+    const extConfig = workspace.getConfiguration('sasjs-for-vscode')
+    await extConfig.update('target', target?.name)
+    await extConfig.update('isLocal', isLocal)
+    return target
   } else if (await getCreateNewTarget()) {
     return await createTarget(outputChannel)
   }
@@ -80,6 +145,7 @@ export const selectAndAuthenticateTarget = async (
 
 export const authenticateTarget = async (
   targetJson: TargetJson,
+  isLocal: boolean,
   outputChannel: OutputChannel
 ) => {
   if (targetJson.serverType === ServerType.Sasjs) {
@@ -93,7 +159,22 @@ export const authenticateTarget = async (
   if (targetJson.serverType === ServerType.Sas9) {
     const userName = await getUserName()
     const password = await getPassword()
-    targetJson.authConfigSas9 = { userName, password: encodeToBase64(password) }
+    if (isLocal) {
+      const envFileContent = `SAS_USERNAME=${userName}\nSAS_PASSWORD=${encodeToBase64(
+        password
+      )}\n`
+      const envFilePath = path.join(
+        workspace.workspaceFolders![0].uri.fsPath,
+        `.env.${targetJson.name}`
+      )
+      await createFile(envFilePath, envFileContent)
+    } else {
+      targetJson.authConfigSas9 = {
+        userName,
+        password: encodeToBase64(password)
+      }
+    }
+
     return targetJson
   }
 
@@ -116,13 +197,24 @@ export const authenticateTarget = async (
 
   const authCode = await getAuthCode()
 
-  targetJson.authConfig = (await getTokens(
+  const authConfig = (await getTokens(
     adapter,
     clientId,
     clientSecret,
     authCode,
     outputChannel
   )) as any
+
+  if (isLocal) {
+    const envFileContent = `CLIENT=${authConfig.client}\nSECRET=${authConfig.secret}\nACCESS_TOKEN=${authConfig.access_token}\nREFRESH_TOKEN=${authConfig.refresh_token}\n`
+    const envFilePath = path.join(
+      workspace.workspaceFolders![0].uri.fsPath,
+      `.env.${targetJson.name}`
+    )
+    return await createFile(envFilePath, envFileContent)
+  }
+
+  targetJson.authConfig = authConfig
 
   return targetJson
 }
