@@ -11,15 +11,14 @@ import { createFile } from '../../utils/file'
 import { selectTarget } from '../../utils/target'
 import { executeCode } from './internal/executeCode'
 import { extractHashArray } from './internal/extractHashArray'
-
+import { getRelativePath } from '@sasjs/utils/file'
 import {
   compareHashes,
   findResourcesNotPresentLocally,
   getHash,
   generateProgramToGetRemoteHash,
-  generateProgramToSyncHashDiff,
-  getRelativePath
-} from '@sasjs/utils'
+  generateProgramToSyncHashDiff
+} from '@sasjs/utils/fs'
 import { getTimestamp } from '../../utils/utils'
 
 export class SyncDirectoriesCommand {
