@@ -139,7 +139,8 @@ export const selectAndAuthenticateTarget = async (
     await extConfig.update('isLocal', isLocal)
     return target
   } else if (await getCreateNewTarget()) {
-    return await createTarget(outputChannel)
+    const { target } = await createTarget(outputChannel)
+    return target
   }
 }
 

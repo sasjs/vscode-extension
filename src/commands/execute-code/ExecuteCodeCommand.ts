@@ -34,8 +34,9 @@ export class ExecuteCodeCommand {
   private executeCode = async () => {
     this.outputChannel.appendLine('Initialising SASjs.')
     let target: Target | undefined
+
     try {
-      target = await selectTarget(this.outputChannel)
+      ;({ target } = await selectTarget(this.outputChannel))
     } catch (error: any) {
       this.outputChannel.appendLine('SASjs: Error selecting target: ')
       this.outputChannel.appendLine(error)
