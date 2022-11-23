@@ -148,7 +148,7 @@
         {
           "command": "sasjs-for-vscode.syncDirectories",
           "group": "navigation",
-          "when": "editorLangId == sas && showSyncButton && !isSyncingDirectories"
+          "when": "editorLangId == sas && !isSyncingDirectories"
         },
         {
           "command": "sasjs-for-vscode.syncingDirectories",

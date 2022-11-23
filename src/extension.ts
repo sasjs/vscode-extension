@@ -99,7 +99,6 @@ export function deactivate() {
 }
 
 async function configurationChangeHandler() {
-  vscode.commands.executeCommand('setContext', 'showSyncButton', false)
   const extConfig = vscode.workspace.getConfiguration('sasjs-for-vscode')
   const targetFromExt = extConfig.get('target')
   const isLocal = extConfig.get('isLocal') as boolean
@@ -134,10 +133,6 @@ async function configurationChangeHandler() {
     } config file`
     statusBarItem.show()
     return
-  }
-
-  if (selectedTarget.syncDirectories?.length) {
-    vscode.commands.executeCommand('setContext', 'showSyncButton', true)
   }
 
   statusBarItem.tooltip = `Target Details\nName: ${selectedTarget.name}\nServerUrl: ${selectedTarget.serverUrl}\nServerType: ${selectedTarget.serverType}`
