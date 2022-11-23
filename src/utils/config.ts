@@ -204,7 +204,7 @@ export const getAuthConfig = async (
 
     const envFilePath = path.join(
       workspace.workspaceFolders![0].uri.fsPath,
-      `.env.${target.name}`
+      '.env'
     )
 
     const authConfigFromEnv = (await getAuthConfigFromEnvFile(
@@ -260,7 +260,7 @@ export const getAuthConfigSas9 = async (
 
     const envFilePath = path.join(
       workspace.workspaceFolders![0].uri.fsPath,
-      `.env.${target.name}`
+      '.env'
     )
 
     const authConfigFromEnv = (await getAuthConfigFromEnvFile(
