@@ -12,6 +12,7 @@ import { FormatCommand } from './commands/format/FormatCommand'
 import { lint, clearLintIssues } from './lint/lint'
 import { Configuration } from '@sasjs/utils/types'
 import { getGlobalConfiguration, getLocalConfiguration } from './utils/config'
+import SASjsChannel from './utils/outputChannel'
 
 const eventListeners: vscode.Disposable[] = []
 let statusBarItem: vscode.StatusBarItem
@@ -110,7 +111,7 @@ async function configurationChangeHandler() {
     return
   }
 
-  const outputChannel = vscode.window.createOutputChannel('SASjs')
+  const outputChannel = SASjsChannel.getOutputChannel()
   const config = isLocal
     ? ((await getLocalConfiguration(outputChannel)) as Configuration)
     : ((await getGlobalConfiguration(outputChannel)) as Configuration)

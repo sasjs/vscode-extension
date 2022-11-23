@@ -15,12 +15,13 @@ import { createFile } from '../../utils/file'
 import { getAuthConfig, getAuthConfigSas9 } from '../../utils/config'
 import { selectTarget } from '../../utils/target'
 import { getTimestamp } from '../../utils/utils'
+import SASjsChannel from '../../utils/outputChannel'
 
 export class ExecuteCodeCommand {
   private outputChannel: OutputChannel
 
   constructor(private context: ExtensionContext) {
-    this.outputChannel = window.createOutputChannel('SASjs')
+    this.outputChannel = SASjsChannel.getOutputChannel()
   }
 
   initialise = () => {

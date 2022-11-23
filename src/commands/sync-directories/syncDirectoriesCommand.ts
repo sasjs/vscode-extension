@@ -25,12 +25,13 @@ import {
   getGlobalConfiguration,
   getLocalConfiguration
 } from '../../utils/config'
+import SASjsChannel from '../../utils/outputChannel'
 
 export class SyncDirectoriesCommand {
   private outputChannel: OutputChannel
 
   constructor(private context: ExtensionContext) {
-    this.outputChannel = window.createOutputChannel('SASjs')
+    this.outputChannel = SASjsChannel.getOutputChannel()
   }
 
   initialise = () => {
