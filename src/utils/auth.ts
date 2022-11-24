@@ -139,7 +139,8 @@ export const selectAndAuthenticateTarget = async (
     await extConfig.update('isLocal', isLocal)
     return target
   } else if (await getCreateNewTarget()) {
-    return await createTarget(outputChannel)
+    const { target } = await createTarget(outputChannel)
+    return target
   }
 }
 
@@ -206,7 +207,7 @@ export const authenticateTarget = async (
   )) as any
 
   if (isLocal) {
-    const envFileContent = `CLIENT=${authConfig.client}\nSECRET=${authConfig.secret}\nACCESS_TOKEN=${authConfig.access_token}\nREFRESH_TOKEN=${authConfig.refresh_token}\n`
+    const envFileContent = `CLIENT=${clientId}\nSECRET=${clientSecret}\nACCESS_TOKEN=${authConfig.access_token}\nREFRESH_TOKEN=${authConfig.refresh_token}\n`
     const envFilePath = path.join(
       workspace.workspaceFolders![0].uri.fsPath,
       `.env.${targetJson.name}`

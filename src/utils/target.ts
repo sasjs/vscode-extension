@@ -44,7 +44,7 @@ export const selectTarget = async (outputChannel: OutputChannel) => {
     if (localTargets.length) {
       const selectedTarget = localTargets.find((t) => t.name === targetFromExt)
       if (selectedTarget) {
-        return new Target(selectedTarget)
+        return { target: new Target(selectedTarget), isLocal: true }
       }
 
       window.showErrorMessage(
@@ -58,7 +58,7 @@ export const selectTarget = async (outputChannel: OutputChannel) => {
   if (globalTargets.length) {
     const selectedTarget = globalTargets.find((t) => t.name === targetFromExt)
     if (selectedTarget) {
-      return new Target(selectedTarget)
+      return { target: new Target(selectedTarget), isLocal: false }
     }
 
     window.showErrorMessage(
@@ -66,6 +66,7 @@ export const selectTarget = async (outputChannel: OutputChannel) => {
     )
     return await configureTarget(outputChannel)
   }
+
   return await configureTarget(outputChannel)
 }
 
@@ -139,5 +140,5 @@ export const configureTarget = async (outputChannel: OutputChannel) => {
     await extConfig.update('target', target.name)
     await extConfig.update('isLocal', isLocal)
   }
-  return target
+  return { target, isLocal }
 }

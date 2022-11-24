@@ -12,6 +12,7 @@ import { FormatCommand } from './commands/format/FormatCommand'
 import { lint, clearLintIssues } from './lint/lint'
 import { Configuration } from '@sasjs/utils/types'
 import { getGlobalConfiguration, getLocalConfiguration } from './utils/config'
+import SASjsChannel from './utils/outputChannel'
 
 const eventListeners: vscode.Disposable[] = []
 let statusBarItem: vscode.StatusBarItem
@@ -99,7 +100,6 @@ export function deactivate() {
 }
 
 async function configurationChangeHandler() {
-  vscode.commands.executeCommand('setContext', 'showSyncButton', false)
   const extConfig = vscode.workspace.getConfiguration('sasjs-for-vscode')
   const targetFromExt = extConfig.get('target')
   const isLocal = extConfig.get('isLocal') as boolean
@@ -111,7 +111,7 @@ async function configurationChangeHandler() {
     return
   }
 
-  const outputChannel = vscode.window.createOutputChannel('SASjs')
+  const outputChannel = SASjsChannel.getOutputChannel()
   const config = isLocal
     ? ((await getLocalConfiguration(outputChannel)) as Configuration)
     : ((await getGlobalConfiguration(outputChannel)) as Configuration)
@@ -134,10 +134,6 @@ async function configurationChangeHandler() {
     } config file`
     statusBarItem.show()
     return
-  }
-
-  if (selectedTarget.syncDirectories?.length) {
-    vscode.commands.executeCommand('setContext', 'showSyncButton', true)
   }
 
   statusBarItem.tooltip = `Target Details\nName: ${selectedTarget.name}\nServerUrl: ${selectedTarget.serverUrl}\nServerType: ${selectedTarget.serverType}`

@@ -15,12 +15,13 @@ import { createFile } from '../../utils/file'
 import { getAuthConfig, getAuthConfigSas9 } from '../../utils/config'
 import { selectTarget } from '../../utils/target'
 import { getTimestamp } from '../../utils/utils'
+import SASjsChannel from '../../utils/outputChannel'
 
 export class ExecuteCodeCommand {
   private outputChannel: OutputChannel
 
   constructor(private context: ExtensionContext) {
-    this.outputChannel = window.createOutputChannel('SASjs')
+    this.outputChannel = SASjsChannel.getOutputChannel()
   }
 
   initialise = () => {
@@ -34,8 +35,9 @@ export class ExecuteCodeCommand {
   private executeCode = async () => {
     this.outputChannel.appendLine('Initialising SASjs.')
     let target: Target | undefined
+
     try {
-      target = await selectTarget(this.outputChannel)
+      ;({ target } = await selectTarget(this.outputChannel))
     } catch (error: any) {
       this.outputChannel.appendLine('SASjs: Error selecting target: ')
       this.outputChannel.appendLine(error)

@@ -188,12 +188,32 @@ export const getAuthConfig = async (
   const isLocal = extConfig.get('isLocal') as boolean
 
   if ((await isSasjsProject()) && isLocal) {
-    const authConfig = (await getAuthConfigFromEnvFile(
-      target.name,
+    const targetEnvFilePath = path.join(
+      workspace.workspaceFolders![0].uri.fsPath,
+      `.env.${target.name}`
+    )
+
+    const authConfigFromTargetEnv = (await getAuthConfigFromEnvFile(
+      targetEnvFilePath,
       target.serverType
     )) as AuthConfig
-    if (authConfig) {
-      return authConfig
+
+    if (authConfigFromTargetEnv) {
+      return authConfigFromTargetEnv
+    }
+
+    const envFilePath = path.join(
+      workspace.workspaceFolders![0].uri.fsPath,
+      '.env'
+    )
+
+    const authConfigFromEnv = (await getAuthConfigFromEnvFile(
+      envFilePath,
+      target.serverType
+    )) as AuthConfig
+
+    if (authConfigFromEnv) {
+      return authConfigFromEnv
     }
   }
 
@@ -224,12 +244,32 @@ export const getAuthConfigSas9 = async (
   const isLocal = extConfig.get('isLocal') as boolean
 
   if ((await isSasjsProject()) && isLocal) {
-    const authConfigSas9 = (await getAuthConfigFromEnvFile(
-      target.name,
+    const targetEnvFilePath = path.join(
+      workspace.workspaceFolders![0].uri.fsPath,
+      `.env.${target.name}`
+    )
+
+    const authConfigFromTargetEnv = (await getAuthConfigFromEnvFile(
+      targetEnvFilePath,
       target.serverType
     )) as AuthConfigSas9
-    if (authConfigSas9) {
-      return authConfigSas9
+
+    if (authConfigFromTargetEnv) {
+      return authConfigFromTargetEnv
+    }
+
+    const envFilePath = path.join(
+      workspace.workspaceFolders![0].uri.fsPath,
+      '.env'
+    )
+
+    const authConfigFromEnv = (await getAuthConfigFromEnvFile(
+      envFilePath,
+      target.serverType
+    )) as AuthConfigSas9
+
+    if (authConfigFromEnv) {
+      return authConfigFromEnv
     }
   }
 
@@ -245,16 +285,11 @@ export const getAuthConfigSas9 = async (
 }
 
 const getAuthConfigFromEnvFile = async (
-  targetName: string,
+  envFilePath: string,
   serverType: ServerType
 ) => {
-  const targetEnvFilePath = path.join(
-    workspace.workspaceFolders![0].uri.fsPath,
-    `.env.${targetName}`
-  )
-
-  if (await fileExists(targetEnvFilePath)) {
-    const targetEnvFileContent = await readFile(targetEnvFilePath)
+  if (await fileExists(envFilePath)) {
+    const targetEnvFileContent = await readFile(envFilePath)
     const targetEnvConfig = dotenv.parse(targetEnvFileContent)
 
     if (serverType === ServerType.Sas9) {

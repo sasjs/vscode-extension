@@ -50,5 +50,5 @@ export const createTarget = async (outputChannel: OutputChannel) => {
   await extConfig.update('target', target.name)
   await extConfig.update('isLocal', isLocal)
 
-  return target
+  return { target, isLocal }
 }

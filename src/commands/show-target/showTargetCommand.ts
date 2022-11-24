@@ -1,11 +1,12 @@
 import { window, ExtensionContext, commands, OutputChannel } from 'vscode'
 import { openTargetFile } from '../../utils/utils'
+import SASjsChannel from '../../utils/outputChannel'
 
 export class ShowTargetCommand {
   private outputChannel: OutputChannel
 
   constructor(private context: ExtensionContext) {
-    this.outputChannel = window.createOutputChannel('SASjs')
+    this.outputChannel = SASjsChannel.getOutputChannel()
   }
 
   initialise = () => {
