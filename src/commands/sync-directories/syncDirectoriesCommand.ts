@@ -76,19 +76,19 @@ export class SyncDirectoriesCommand {
 
     commands.executeCommand('setContext', 'isSyncingDirectories', true)
 
-    try {
-      for (const item of syncDirectories) {
-        const remoteFolderPath = item.remote
-        const localFolderPath = item.local
+    for (const item of syncDirectories) {
+      const remoteFolderPath = item.remote
+      const localFolderPath = item.local
 
-        const resultsFolder = workspace.workspaceFolders?.length
-          ? path.join(
-              workspace.workspaceFolders![0].uri.fsPath,
-              'sasjsresults',
-              `${getTimestamp()}`
-            )
-          : path.join(os.homedir(), 'sasjsresults', `${getTimestamp()}`)
+      const resultsFolder = workspace.workspaceFolders?.length
+        ? path.join(
+            workspace.workspaceFolders![0].uri.fsPath,
+            'sasjsresults',
+            `${getTimestamp()}`
+          )
+        : path.join(os.homedir(), 'sasjsresults', `${getTimestamp()}`)
 
+      try {
         this.outputChannel.appendLine(
           `generating program to get hash of remote folder ${remoteFolderPath}`
         )
@@ -235,9 +235,17 @@ export class SyncDirectoriesCommand {
         )
 
         this.outputChannel.show()
+      } catch (error: any) {
+        const logPath = path.join(resultsFolder, 'error.log')
+
+        await createErrorLogFile(error, logPath)
+
+        window.showErrorMessage(
+          `An error has occurred. For more info see ${logPath}`
+        )
+
+        break
       }
-    } catch (error: any) {
-      window.showErrorMessage(error.message)
     }
 
     commands.executeCommand('setContext', 'isSyncingDirectories', false)
@@ -268,4 +276,20 @@ const getSyncDirectories = async (
   const targetLevelSyncDirectories = target.syncDirectories || []
 
   return [...rootLevelSyncDirectories, ...targetLevelSyncDirectories]
+}
+
+const createErrorLogFile = async (error: any, logPath: string) => {
+  if (error.log) {
+    return await createFile(logPath, error.log)
+  }
+
+  if (error instanceof Error) {
+    return await createFile(logPath, error.toString())
+  }
+
+  if (typeof error === 'object') {
+    return await createFile(logPath, JSON.stringify(error, null, 2))
+  }
+
+  await createFile(logPath, error)
 }
