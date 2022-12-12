@@ -1,13 +1,8 @@
-import { window, ExtensionContext, commands, OutputChannel } from 'vscode'
+import { window, ExtensionContext, commands } from 'vscode'
 import { configureTarget } from '../../utils/target'
-import SASjsChannel from '../../utils/outputChannel'
 
 export class SelectTargetCommand {
-  private outputChannel: OutputChannel
-
-  constructor(private context: ExtensionContext) {
-    this.outputChannel = SASjsChannel.getOutputChannel()
-  }
+  constructor(private context: ExtensionContext) {}
 
   initialise = () => {
     const selectTargetCommand = commands.registerCommand(
@@ -18,7 +13,7 @@ export class SelectTargetCommand {
   }
 
   private selectTarget = async () => {
-    configureTarget(this.outputChannel)
+    configureTarget()
       .then(({ target }) => {
         if (target) {
           window.showInformationMessage(`Selected Target: ${target.name}`)
@@ -26,8 +21,8 @@ export class SelectTargetCommand {
       })
       .catch((err) => {
         window.showErrorMessage('No target selected!')
-        this.outputChannel.appendLine(err.message)
-        this.outputChannel.show()
+        process.outputChannel.appendLine(err.message)
+        process.outputChannel.show()
       })
   }
 }

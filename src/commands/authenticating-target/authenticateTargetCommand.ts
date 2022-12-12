@@ -1,13 +1,8 @@
-import { window, ExtensionContext, commands, OutputChannel } from 'vscode'
+import { window, ExtensionContext, commands } from 'vscode'
 import { selectAndAuthenticateTarget } from '../../utils/auth'
-import SASjsChannel from '../../utils/outputChannel'
 
 export class AuthenticateTargetCommand {
-  private outputChannel: OutputChannel
-
-  constructor(private context: ExtensionContext) {
-    this.outputChannel = SASjsChannel.getOutputChannel()
-  }
+  constructor(private context: ExtensionContext) {}
 
   initialise = () => {
     const authenticateTargetCommand = commands.registerCommand(
@@ -18,7 +13,7 @@ export class AuthenticateTargetCommand {
   }
 
   private authenticateTarget = async () => {
-    selectAndAuthenticateTarget(this.outputChannel).then((target) => {
+    selectAndAuthenticateTarget().then((target) => {
       if (target) {
         window.showInformationMessage('Target authenticated!')
       }

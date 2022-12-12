@@ -1,13 +1,8 @@
-import { window, ExtensionContext, commands, OutputChannel } from 'vscode'
+import { window, ExtensionContext, commands } from 'vscode'
 import { createTarget } from '../../utils/createTarget'
-import SASjsChannel from '../../utils/outputChannel'
 
 export class CreateTargetCommand {
-  private outputChannel: OutputChannel
-
-  constructor(private context: ExtensionContext) {
-    this.outputChannel = SASjsChannel.getOutputChannel()
-  }
+  constructor(private context: ExtensionContext) {}
 
   initialise = () => {
     const executingCodeCommand = commands.registerCommand(
@@ -18,7 +13,7 @@ export class CreateTargetCommand {
   }
 
   private createTarget = async () => {
-    createTarget(this.outputChannel).then(() => {
+    createTarget().then(() => {
       window.showInformationMessage('Target created!')
     })
   }

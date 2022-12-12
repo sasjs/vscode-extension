@@ -1,12 +1,6 @@
 import * as os from 'os'
 import * as path from 'path'
-import {
-  window,
-  ExtensionContext,
-  commands,
-  OutputChannel,
-  workspace
-} from 'vscode'
+import { window, ExtensionContext, commands, workspace } from 'vscode'
 import { createFile } from '../../utils/file'
 import { selectTarget } from '../../utils/target'
 import { executeCode } from './internal/executeCode'
@@ -25,14 +19,9 @@ import {
   getGlobalConfiguration,
   getLocalConfiguration
 } from '../../utils/config'
-import SASjsChannel from '../../utils/outputChannel'
 
 export class SyncDirectoriesCommand {
-  private outputChannel: OutputChannel
-
-  constructor(private context: ExtensionContext) {
-    this.outputChannel = SASjsChannel.getOutputChannel()
-  }
+  constructor(private context: ExtensionContext) {}
 
   initialise = () => {
     const syncDirectoriesCommand = commands.registerCommand(
@@ -47,13 +36,13 @@ export class SyncDirectoriesCommand {
     let isLocal: boolean = false
 
     try {
-      ;({ target, isLocal } = await selectTarget(this.outputChannel))
+      ;({ target, isLocal } = await selectTarget())
     } catch (error: any) {
-      this.outputChannel.appendLine('SASjs: Error selecting target: ')
-      this.outputChannel.appendLine(error)
-      this.outputChannel.appendLine(error.message)
-      this.outputChannel.appendLine(JSON.stringify(error, null, 2))
-      this.outputChannel.show()
+      process.outputChannel.appendLine('SASjs: Error selecting target: ')
+      process.outputChannel.appendLine(error)
+      process.outputChannel.appendLine(error.message)
+      process.outputChannel.appendLine(JSON.stringify(error, null, 2))
+      process.outputChannel.show()
     }
 
     if (!target) {
@@ -63,11 +52,7 @@ export class SyncDirectoriesCommand {
       return
     }
 
-    const syncDirectories = await getSyncDirectories(
-      target,
-      isLocal,
-      this.outputChannel
-    )
+    const syncDirectories = await getSyncDirectories(target, isLocal)
 
     if (!syncDirectories.length) {
       window.showErrorMessage('There are no directories to sync.')
@@ -89,42 +74,32 @@ export class SyncDirectoriesCommand {
         : path.join(os.homedir(), 'sasjsresults', `${getTimestamp()}`)
 
       try {
-        this.outputChannel.appendLine(
+        process.outputChannel.appendLine(
           `generating program to get hash of remote folder ${remoteFolderPath}`
         )
         const program = await generateProgramToGetRemoteHash(remoteFolderPath)
-        await saveFile(
-          program,
-          path.join(resultsFolder, 'getRemoteHash.sas'),
-          this.outputChannel
-        )
+        await saveFile(program, path.join(resultsFolder, 'getRemoteHash.sas'))
 
-        this.outputChannel.appendLine(
+        process.outputChannel.appendLine(
           `executing program to get hash of remote folder ${remoteFolderPath}`
         )
-        const { log } = await executeCode(target!, program, this.outputChannel)
-        await saveFile(
-          log,
-          path.join(resultsFolder, 'getRemoteHash.log'),
-          this.outputChannel
-        )
+        const { log } = await executeCode(target!, program)
+        await saveFile(log, path.join(resultsFolder, 'getRemoteHash.log'))
 
-        this.outputChannel.appendLine('extracting hashes from log')
+        process.outputChannel.appendLine('extracting hashes from log')
         const remoteHashes = extractHashArray(log)
         await saveFile(
           JSON.stringify(remoteHashes, null, 2),
-          path.join(resultsFolder, 'hashesBeforeSync.json'),
-          this.outputChannel
+          path.join(resultsFolder, 'hashesBeforeSync.json')
         )
 
-        this.outputChannel.appendLine(
+        process.outputChannel.appendLine(
           `creating the hash of local folder ${localFolderPath}`
         )
         const localHash = await getHash(localFolderPath)
         await saveFile(
           JSON.stringify(localHash, null, 2),
-          path.join(resultsFolder, 'localHash.json'),
-          this.outputChannel
+          path.join(resultsFolder, 'localHash.json')
         )
 
         const remoteHashMap = remoteHashes.reduce(
@@ -146,48 +121,34 @@ export class SyncDirectoriesCommand {
           continue
         }
 
-        this.outputChannel.appendLine(
+        process.outputChannel.appendLine(
           `Extract differences from local (${localFolderPath}) and remote (${remoteFolderPath}) hash`
         )
         const hashedDiff = compareHashes(localHash, remoteHashMap)
         await saveFile(
           JSON.stringify(hashedDiff, null, 2),
-          path.join(resultsFolder, 'hashesDiff.json'),
-          this.outputChannel
+          path.join(resultsFolder, 'hashesDiff.json')
         )
 
-        this.outputChannel.appendLine(
+        process.outputChannel.appendLine(
           `generating program to sync differences between local (${localFolderPath}) and remote (${remoteFolderPath})`
         )
         const syncProgram = await generateProgramToSyncHashDiff(
           hashedDiff,
           remoteFolderPath
         )
-        await saveFile(
-          syncProgram,
-          path.join(resultsFolder, 'syncProgram.sas'),
-          this.outputChannel
-        )
+        await saveFile(syncProgram, path.join(resultsFolder, 'syncProgram.sas'))
 
-        this.outputChannel.appendLine(
+        process.outputChannel.appendLine(
           `executing program to sync differences between local (${localFolderPath}) and remote (${remoteFolderPath})`
         )
-        const { log: syncLog } = await executeCode(
-          target!,
-          syncProgram,
-          this.outputChannel
-        )
-        await saveFile(
-          syncLog,
-          path.join(resultsFolder, 'sync.log'),
-          this.outputChannel
-        )
+        const { log: syncLog } = await executeCode(target!, syncProgram)
+        await saveFile(syncLog, path.join(resultsFolder, 'sync.log'))
 
         const syncedHash = extractHashArray(syncLog)
         await saveFile(
           JSON.stringify(syncedHash, null, 2),
-          path.join(resultsFolder, 'hashesAfterSync.json'),
-          this.outputChannel
+          path.join(resultsFolder, 'hashesAfterSync.json')
         )
         const syncedHashMap = syncedHash.reduce(
           (map: { [key: string]: string }, item: any) => {
@@ -210,9 +171,11 @@ export class SyncDirectoriesCommand {
         })
 
         if (syncedResources.length) {
-          this.outputChannel.appendLine('The following resources were synced:')
+          process.outputChannel.appendLine(
+            'The following resources were synced:'
+          )
           syncedResources.forEach((item) => {
-            this.outputChannel.appendLine(`* ${item}`)
+            process.outputChannel.appendLine(`* ${item}`)
           })
         }
 
@@ -222,11 +185,11 @@ export class SyncDirectoriesCommand {
         )
 
         if (resourcesNotPresentLocally.length) {
-          this.outputChannel.appendLine(
+          process.outputChannel.appendLine(
             `The following resources are present in remote (${remoteFolderPath}) but not in local (${localFolderPath}) :`
           )
           resourcesNotPresentLocally.forEach((item) => {
-            this.outputChannel.appendLine(`* ${item}`)
+            process.outputChannel.appendLine(`* ${item}`)
           })
         }
 
@@ -234,7 +197,7 @@ export class SyncDirectoriesCommand {
           `Synced Remote Folder (${remoteFolderPath}) and Local Folder(${localFolderPath}).`
         )
 
-        this.outputChannel.show()
+        process.outputChannel.show()
       } catch (error: any) {
         const logPath = path.join(resultsFolder, 'error.log')
 
@@ -252,24 +215,16 @@ export class SyncDirectoriesCommand {
   }
 }
 
-const saveFile = async (
-  fileContent: string,
-  filePath: string,
-  outputChannel: OutputChannel
-) => {
-  outputChannel.appendLine(`creating result file at ${filePath}`)
+const saveFile = async (fileContent: string, filePath: string) => {
+  process.outputChannel.appendLine(`creating result file at ${filePath}`)
   await createFile(filePath, fileContent)
-  outputChannel.appendLine(`result file saved to ${filePath}`)
+  process.outputChannel.appendLine(`result file saved to ${filePath}`)
 }
 
-const getSyncDirectories = async (
-  target: Target,
-  isLocal: boolean,
-  outputChannel: OutputChannel
-) => {
+const getSyncDirectories = async (target: Target, isLocal: boolean) => {
   const config = isLocal
-    ? await getLocalConfiguration(outputChannel)
-    : await getGlobalConfiguration(outputChannel)
+    ? await getLocalConfiguration()
+    : await getGlobalConfiguration()
 
   const rootLevelSyncDirectories: SyncDirectoryMap[] =
     config.syncDirectories || []

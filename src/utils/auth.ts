@@ -1,13 +1,6 @@
 import * as path from 'path'
 import axios from 'axios'
-import {
-  OutputChannel,
-  env,
-  Uri,
-  workspace,
-  QuickPickItem,
-  QuickPickItemKind
-} from 'vscode'
+import { env, Uri, workspace, QuickPickItem, QuickPickItemKind } from 'vscode'
 import SASjs from '@sasjs/adapter/node'
 import {
   Configuration,
@@ -38,16 +31,15 @@ export const getTokens = async (
   sasjsInstance: SASjs,
   clientId: string,
   clientSecret: string,
-  authCode: string,
-  outputChannel: OutputChannel
+  authCode: string
 ) => {
-  outputChannel.appendLine(
+  process.outputChannel.appendLine(
     `Attempting to get access token with client ${clientId} and auth code ${authCode}`
   )
   const authResponse = await sasjsInstance
     .getAccessToken(clientId, clientSecret, authCode)
     .catch((e) => {
-      outputChannel.appendLine(
+      process.outputChannel.appendLine(
         `Error getting access tokens: ${e?.message || e}`
       )
 
@@ -66,14 +58,12 @@ export const getAuthUrl = (
     ? `${serverUrl}/#/SASjsLogon?client_id=${clientId}&response_type=code`
     : `${serverUrl}/SASLogon/oauth/authorize?client_id=${clientId}&response_type=code`
 
-export const selectAndAuthenticateTarget = async (
-  outputChannel: OutputChannel
-) => {
+export const selectAndAuthenticateTarget = async () => {
   const quickPickChoices: QuickPickItem[] = []
   const globalTargets: TargetJson[] = []
   const localTargets: TargetJson[] = []
 
-  const global = (await getGlobalConfiguration(outputChannel)) as Configuration
+  const global = (await getGlobalConfiguration()) as Configuration
   if (global?.targets?.length) {
     globalTargets.push(...global.targets)
     quickPickChoices.push({
@@ -89,7 +79,7 @@ export const selectAndAuthenticateTarget = async (
   }
 
   if (await isSasjsProject()) {
-    const local = (await getLocalConfiguration(outputChannel)) as Configuration
+    const local = (await getLocalConfiguration()) as Configuration
     if (local?.targets?.length) {
       localTargets.push(...local.targets)
       quickPickChoices.push({
@@ -119,16 +109,12 @@ export const selectAndAuthenticateTarget = async (
         const selectedTarget = globalTargets.find(
           (t) => t.name === choice.label
         )
-        const targetJson = await authenticateTarget(
-          selectedTarget!,
-          false,
-          outputChannel
-        )
+        const targetJson = await authenticateTarget(selectedTarget!, false)
         target = new Target(targetJson)
-        await saveToConfigFile(target, false, outputChannel)
+        await saveToConfigFile(target, false)
       } else {
         const selectedTarget = localTargets.find((t) => t.name === choice.label)
-        await authenticateTarget(selectedTarget!, true, outputChannel)
+        await authenticateTarget(selectedTarget!, true)
         target = new Target(selectedTarget)
         isLocal = true
       }
@@ -139,15 +125,14 @@ export const selectAndAuthenticateTarget = async (
     await extConfig.update('isLocal', isLocal)
     return target
   } else if (await getCreateNewTarget()) {
-    const { target } = await createTarget(outputChannel)
+    const { target } = await createTarget()
     return target
   }
 }
 
 export const authenticateTarget = async (
   targetJson: TargetJson,
-  isLocal: boolean,
-  outputChannel: OutputChannel
+  isLocal: boolean
 ) => {
   if (targetJson.serverType === ServerType.Sasjs) {
     const res = await axios.get(`${targetJson.serverUrl}/SASjsApi/info`)
@@ -202,8 +187,7 @@ export const authenticateTarget = async (
     adapter,
     clientId,
     clientSecret,
-    authCode,
-    outputChannel
+    authCode
   )) as any
 
   if (isLocal) {
