@@ -6,6 +6,7 @@ import { getTargetChoice } from './input'
 import { getGlobalConfiguration, getLocalConfiguration } from './config'
 import { createTarget } from './createTarget'
 import { isSasjsProject } from './utils'
+import { setConstants } from './setConstants'
 
 /**
  * This function will be called from execute command for selecting target before execution
@@ -133,6 +134,7 @@ export const configureTarget = async () => {
     const extConfig = workspace.getConfiguration('sasjs-for-vscode')
     await extConfig.update('target', target.name)
     await extConfig.update('isLocal', isLocal)
+    await setConstants()
   }
   return { target, isLocal }
 }

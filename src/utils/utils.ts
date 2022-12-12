@@ -2,7 +2,12 @@ import * as path from 'path'
 import * as os from 'os'
 import axios from 'axios'
 import { window, workspace } from 'vscode'
-import { Target, timestampToYYYYMMDDHHMMSS, fileExists } from '@sasjs/utils'
+import {
+  Target,
+  timestampToYYYYMMDDHHMMSS,
+  fileExists,
+  folderExists
+} from '@sasjs/utils'
 
 export const getTimestamp = () =>
   timestampToYYYYMMDDHHMMSS()
@@ -33,7 +38,7 @@ export const openTargetFile = async () => {
 
 export const isSasjsProject = async () => {
   const localConfigPath = path.join(
-    workspace.workspaceFolders![0].uri.fsPath,
+    process.projectDir,
     'sasjs',
     'sasjsconfig.json'
   )
@@ -54,3 +59,12 @@ export const getLocalConfigurationPath = () =>
 
 export const getGlobalConfigurationPath = () =>
   path.join(os.homedir(), '.sasjsrc')
+
+export const getNodeModulePath = async (module: string): Promise<string> => {
+  // Check if module is present in project's dependencies
+  const projectPath = path.join(process.cwd(), 'node_modules', module)
+
+  if (await folderExists(projectPath)) return projectPath
+
+  return ''
+}

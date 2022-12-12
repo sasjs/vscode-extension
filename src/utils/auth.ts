@@ -26,6 +26,7 @@ import {
 import { createTarget } from './createTarget'
 import { createFile } from './file'
 import { isSasjsProject } from './utils'
+import { setConstants } from './setConstants'
 
 export const getTokens = async (
   sasjsInstance: SASjs,
@@ -123,6 +124,7 @@ export const selectAndAuthenticateTarget = async () => {
     const extConfig = workspace.getConfiguration('sasjs-for-vscode')
     await extConfig.update('target', target?.name)
     await extConfig.update('isLocal', isLocal)
+    await setConstants()
     return target
   } else if (await getCreateNewTarget()) {
     const { target } = await createTarget()

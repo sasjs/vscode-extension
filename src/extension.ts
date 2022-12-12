@@ -17,8 +17,8 @@ import { setProcessVariables } from './utils/setProcessVariables'
 const eventListeners: vscode.Disposable[] = []
 let statusBarItem: vscode.StatusBarItem
 
-export function activate(context: vscode.ExtensionContext) {
-  setProcessVariables()
+export async function activate(context: vscode.ExtensionContext) {
+  await setProcessVariables()
 
   const executeCodeCommand = new ExecuteCodeCommand(context)
   executeCodeCommand.initialise()
