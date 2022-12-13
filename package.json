@@ -233,6 +233,6 @@
     "@sasjs/utils": "2.51.2",
     "axios": "0.26.1",
     "dotenv": "16.0.3",
-    "valid-url": "^1.0.9"
+    "valid-url": "1.0.9"
   }
 }
