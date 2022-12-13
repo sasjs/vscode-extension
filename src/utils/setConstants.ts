@@ -57,11 +57,6 @@ export const setConstants = async () => {
     'logs'
   )
 
-  console.log(
-    `[buildDestinationResultsLogsFolder]`,
-    buildDestinationResultsLogsFolder
-  )
-
   const sas9CredentialsError =
     'The following attributes were not found:' +
     '\n* SAS_USERNAME' +
