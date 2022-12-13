@@ -5,11 +5,11 @@ export class CreateTargetCommand {
   constructor(private context: ExtensionContext) {}
 
   initialise = () => {
-    const executingCodeCommand = commands.registerCommand(
+    const executingTargetCommand = commands.registerCommand(
       'sasjs-for-vscode.createTarget',
       () => this.createTarget()
     )
-    this.context.subscriptions.push(executingCodeCommand)
+    this.context.subscriptions.push(executingTargetCommand)
   }
 
   private createTarget = async () => {
