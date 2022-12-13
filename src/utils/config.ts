@@ -175,7 +175,7 @@ export const getAuthConfig = async (
 
   if ((await isSasjsProject()) && isLocal) {
     const targetEnvFilePath = path.join(
-      workspace.workspaceFolders![0].uri.fsPath,
+      process.projectDir,
       `.env.${target.name}`
     )
 
@@ -188,10 +188,7 @@ export const getAuthConfig = async (
       return authConfigFromTargetEnv
     }
 
-    const envFilePath = path.join(
-      workspace.workspaceFolders![0].uri.fsPath,
-      '.env'
-    )
+    const envFilePath = path.join(process.projectDir, '.env')
 
     const authConfigFromEnv = (await getAuthConfigFromEnvFile(
       envFilePath,
@@ -230,7 +227,7 @@ export const getAuthConfigSas9 = async (
 
   if ((await isSasjsProject()) && isLocal) {
     const targetEnvFilePath = path.join(
-      workspace.workspaceFolders![0].uri.fsPath,
+      process.projectDir,
       `.env.${target.name}`
     )
 
@@ -243,10 +240,7 @@ export const getAuthConfigSas9 = async (
       return authConfigFromTargetEnv
     }
 
-    const envFilePath = path.join(
-      workspace.workspaceFolders![0].uri.fsPath,
-      '.env'
-    )
+    const envFilePath = path.join(process.projectDir, '.env')
 
     const authConfigFromEnv = (await getAuthConfigFromEnvFile(
       envFilePath,

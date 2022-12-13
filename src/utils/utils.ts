@@ -51,18 +51,14 @@ export const isSasjsProject = async () => {
 }
 
 export const getLocalConfigurationPath = () =>
-  path.join(
-    workspace.workspaceFolders![0].uri.fsPath,
-    'sasjs',
-    'sasjsconfig.json'
-  )
+  path.join(process.projectDir, 'sasjs', 'sasjsconfig.json')
 
 export const getGlobalConfigurationPath = () =>
   path.join(os.homedir(), '.sasjsrc')
 
 export const getNodeModulePath = async (module: string): Promise<string> => {
   // Check if module is present in project's dependencies
-  const projectPath = path.join(process.cwd(), 'node_modules', module)
+  const projectPath = path.join(process.projectDir, 'node_modules', module)
 
   if (await folderExists(projectPath)) return projectPath
 

@@ -3,7 +3,7 @@ import * as path from 'path'
 import { window, ExtensionContext, commands, workspace } from 'vscode'
 import { createFile } from '../../utils/file'
 import { selectTarget } from '../../utils/target'
-import { executeCode } from './internal/executeCode'
+import { executeCode } from '../../utils/executeCode'
 import { extractHashArray } from './internal/extractHashArray'
 import { getRelativePath } from '@sasjs/utils/file'
 import {
@@ -61,17 +61,16 @@ export class SyncDirectoriesCommand {
 
     commands.executeCommand('setContext', 'isSyncingDirectories', true)
 
+    const { buildDestinationResultsFolder } = process.sasjsConstants
+
     for (const item of syncDirectories) {
       const remoteFolderPath = item.remote
       const localFolderPath = item.local
 
-      const resultsFolder = workspace.workspaceFolders?.length
-        ? path.join(
-            workspace.workspaceFolders![0].uri.fsPath,
-            'sasjsresults',
-            `${getTimestamp()}`
-          )
-        : path.join(os.homedir(), 'sasjsresults', `${getTimestamp()}`)
+      const resultsFolder = path.join(
+        buildDestinationResultsFolder,
+        getTimestamp()
+      )
 
       try {
         process.outputChannel.appendLine(

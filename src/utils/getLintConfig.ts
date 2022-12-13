@@ -6,14 +6,7 @@ import { readFile } from './file'
 export const getLintConfig = async () => {
   let config = DefaultLintConfiguration
 
-  let lintConfigPath = ''
-
-  if (workspace.workspaceFolders?.length) {
-    lintConfigPath = path.join(
-      workspace.workspaceFolders[0].uri.fsPath,
-      '.sasjslint'
-    )
-  }
+  const lintConfigPath = path.join(process.projectDir, '.sasjslint')
 
   await readFile(lintConfigPath)
     .then((content) => {
