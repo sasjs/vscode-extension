@@ -6,7 +6,8 @@ import {
   Target,
   timestampToYYYYMMDDHHMMSS,
   fileExists,
-  folderExists
+  folderExists,
+  copy
 } from '@sasjs/utils'
 
 export const getTimestamp = () =>
@@ -63,4 +64,17 @@ export const getNodeModulePath = async (module: string): Promise<string> => {
   if (await folderExists(projectPath)) return projectPath
 
   return ''
+}
+
+export async function setupDoxygen(folderPath: string): Promise<void> {
+  const doxyFilesPath =
+    process.env.VSCODE_DEBUG_MODE === 'true' ? '../doxy' : './doxy'
+  const doxyFolderPathSource = path.join(__dirname, doxyFilesPath)
+  const doxyFolderPath = path.join(
+    process.projectDir,
+    folderPath,
+    'sasjs',
+    'doxy'
+  )
+  await copy(doxyFolderPathSource, doxyFolderPath)
 }

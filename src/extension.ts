@@ -8,6 +8,7 @@ import { DeleteTargetCommand } from './commands/delete-target/deleteTargetComman
 import { AuthenticateTargetCommand } from './commands/authenticating-target/authenticateTargetCommand'
 import { SelectTargetCommand } from './commands/select-target/selectTargetCommand'
 import { ShowTargetCommand } from './commands/show-target/showTargetCommand'
+import { DocsCommand } from './commands/docs/docsCommand'
 import { FormatCommand } from './commands/format/FormatCommand'
 import { lint, clearLintIssues } from './lint/lint'
 import { Configuration } from '@sasjs/utils/types'
@@ -46,6 +47,9 @@ export async function activate(context: vscode.ExtensionContext) {
 
   const showTargetCommand = new ShowTargetCommand(context)
   showTargetCommand.initialise()
+
+  const docsCommand = new DocsCommand(context)
+  docsCommand.initialise()
 
   const formatCommand = new FormatCommand()
   formatCommand.initialise()
