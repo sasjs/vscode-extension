@@ -244,13 +244,13 @@
   },
   "dependencies": {
     "@sasjs/adapter": "4.0.1",
-    "@sasjs/lint": "1.15.0",
+    "@sasjs/lint": "2.0.1",
     "@sasjs/utils": "2.51.2",
     "axios": "0.26.1",
     "dotenv": "16.0.3",
     "esbuild-plugin-copy": "2.0.1",
     "node-graphviz": "0.1.1",
     "shelljs.exec": "1.1.8",
-    "valid-url": "^1.0.9"
+    "valid-url": "1.0.9"
   }
 }
