@@ -69,9 +69,9 @@ export class DocsCommand {
 
     await generateDocs(target, config)
       .then((res) => {
-        window.showInformationMessage(
-          `Docs have been generated!\nThe docs are located in the ${res.outDirectory}' directory.\nClick to open: ${res.outDirectory}/index.html`
-        )
+        const message = `Docs have been generated!\nThe docs are located in the ${res.outDirectory}' directory.\nClick to open: ${res.outDirectory}/index.html`
+        process.outputChannel.appendLine(message)
+        window.showInformationMessage(message)
       })
       .catch((err) => {
         handleErrorResponse(err, 'Error generating docs')
@@ -86,9 +86,9 @@ export class DocsCommand {
     const config = await getLocalConfiguration()
     await generateDot(target, config)
       .then((res) => {
-        window.showInformationMessage(
-          `Dot files have been generated!\nFiles are located in the ${res.outDirectory}' directory.`
-        )
+        const message = `Dot files have been generated!\nFiles are located in the ${res.outDirectory}' directory.`
+        process.outputChannel.appendLine(message)
+        window.showInformationMessage(message)
       })
       .catch((err) => {
         handleErrorResponse(err, 'Error generating docs')
