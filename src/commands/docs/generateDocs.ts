@@ -1,5 +1,5 @@
 import * as path from 'path'
-import * as exec from 'shelljs.exec'
+import exec from 'shelljs.exec'
 import {
   createFolder,
   deleteFolder,

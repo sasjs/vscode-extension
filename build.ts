@@ -8,7 +8,7 @@ import { build } from 'esbuild'
   const res = await build({
     entryPoints: ['./src/extension.ts'],
     outfile: 'out/extension.js',
-    external: ['vscode', '@sasjs/utils/fs'],
+    external: ['vscode', '@sasjs/utils/fs', 'node-graphviz'],
     format: 'cjs',
     platform: 'node',
     bundle: true,
