@@ -7,13 +7,14 @@ import {
   readFile,
   Target,
   Configuration,
-  LogLevel,
+  folderExists,
   getAbsolutePath,
   isWindows
 } from '@sasjs/utils'
 import { getFoldersForDocs } from './internal/getFoldersForDocs'
 import { createDotFiles } from './internal/createDotFiles'
 import { getDocConfig } from './internal/getDocConfig'
+import { initDocs } from './initDocs'
 
 /**
  * Generates documentation(Doxygen)
@@ -119,6 +120,8 @@ export async function generateDocs(
     PROJECT_LOGO: path.join(doxyContent.path, doxyContent.logo),
     PROJECT_NAME
   })
+
+  if (!(await folderExists(doxyContent.path))) await initDocs()
 
   const doxyConfigPath = await getDoxyConfigPath(doxyContent.path)
   process.outputChannel.appendLine(

@@ -15,12 +15,6 @@ import { generateDocs } from './generateDocs'
 import { generateDot } from './generateDot'
 import { initDocs } from './initDocs'
 
-enum SubCommand {
-  Generate = 'generate',
-  Init = 'init',
-  Lineage = 'lineage'
-}
-
 export class DocsCommand {
   constructor(private context: ExtensionContext) {}
 
@@ -32,22 +26,7 @@ export class DocsCommand {
   }
 
   private docsCommand = async () => {
-    const subCommand = await getChoiceInput(
-      [...Object.values(SubCommand)],
-      'Please select a sub command:'
-    )
-
-    switch (subCommand) {
-      case SubCommand.Generate:
-        await this.executeGenerateDocs()
-        break
-      case SubCommand.Init:
-        await this.executeInitDocs()
-        break
-      case SubCommand.Lineage:
-        await this.executeGenerateDot()
-        break
-    }
+    await this.executeGenerateDocs()
   }
 
   private getTargetInfo = async () => {
@@ -75,35 +54,6 @@ export class DocsCommand {
       })
       .catch((err) => {
         handleErrorResponse(err, 'Error generating docs')
-      })
-  }
-
-  private async executeGenerateDot() {
-    const { target } = await this.getTargetInfo()
-
-    if (!target) return
-
-    const config = await getLocalConfiguration()
-    await generateDot(target, config)
-      .then((res) => {
-        const message = `Dot files have been generated!\nFiles are located in the ${res.outDirectory}' directory.`
-        process.outputChannel.appendLine(message)
-        window.showInformationMessage(message)
-      })
-      .catch((err) => {
-        handleErrorResponse(err, 'Error generating docs')
-      })
-  }
-
-  private async executeInitDocs() {
-    await initDocs()
-      .then(() => {
-        window.showInformationMessage(
-          'The doxygen configuration files have been initialised under `/sasjs/doxy/`.'
-        )
-      })
-      .catch((err) => {
-        handleErrorResponse(err, 'Error initialising docs')
       })
   }
 }
