@@ -8,11 +8,10 @@ import {
 } from 'vscode'
 import { getLocalConfiguration } from '../../utils/config'
 import { createFile } from '../../utils/file'
-import { getChoiceInput } from '../../utils/input'
+import { initializeSasjsProject } from '../../utils/initializeSasjsProject'
 import { selectTarget } from '../../utils/target'
 import { getTimestamp } from '../../utils/utils'
 import { generateDocs } from './generateDocs'
-import { generateDot } from './generateDot'
 import { initDocs } from './initDocs'
 
 export class DocsCommand {
@@ -30,6 +29,11 @@ export class DocsCommand {
   }
 
   private getTargetInfo = async () => {
+    if (!process.isSasjsProject) {
+      await initializeSasjsProject()
+      await initDocs()
+    }
+
     return await selectTarget().catch((err) => {
       handleErrorResponse(err, 'Error selecting target:')
       window.showErrorMessage(
