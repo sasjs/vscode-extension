@@ -227,7 +227,7 @@
     "@types/shelljs.exec": "1.1.0",
     "@types/tough-cookie": "^4.0.1",
     "@types/valid-url": "^1.0.3",
-    "@types/vscode": "^1.64.0",
+    "@types/vscode": "^1.74.0",
     "@typescript-eslint/eslint-plugin": "^5.33.1",
     "@typescript-eslint/parser": "^5.33.1",
     "all-contributors-cli": "^6.20.0",
