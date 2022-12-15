@@ -1,9 +1,9 @@
-import { workspace } from 'vscode'
 import { setConstants } from './setConstants'
+import { setProjectDirDetails } from './setProjectDirDetails'
 import SASjsChannel from './outputChannel'
 
 export const setProcessVariables = async () => {
   process.outputChannel = SASjsChannel.getOutputChannel()
-  process.projectDir = workspace.workspaceFolders![0].uri.fsPath
+  await setProjectDirDetails()
   await setConstants()
 }
