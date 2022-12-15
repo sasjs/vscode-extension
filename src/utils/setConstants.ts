@@ -1,5 +1,6 @@
 import * as path from 'path'
 import * as os from 'os'
+import { workspace } from 'vscode'
 import { getGlobalConfiguration, getLocalConfiguration } from './config'
 import { getNodeModulePath } from './utils'
 import { getAbsolutePath } from '@sasjs/utils'
@@ -7,32 +8,32 @@ import { getAbsolutePath } from '@sasjs/utils'
 export const contextName = 'sasjs cli compute context'
 
 export const setConstants = async () => {
-  const configuration = process.isSasjsProject
+  const extConfig = workspace.getConfiguration('sasjs-for-vscode')
+  const isLocal = extConfig.get('isLocal') as boolean
+  const configuration = isLocal
     ? await getLocalConfiguration()
     : await getGlobalConfiguration()
 
   const buildOutputFolder =
     configuration?.buildConfig?.buildOutputFolder ||
-    (process.isSasjsProject ? 'sasjsbuild' : '.sasjs/sasjsbuild')
+    (isLocal ? 'sasjsbuild' : '.sasjs/sasjsbuild')
 
   const buildResultsFolder =
     configuration?.buildConfig?.buildResultsFolder ||
-    (process.isSasjsProject ? 'sasjsresults' : '.sasjs/sasjsresults')
+    (isLocal ? 'sasjsresults' : '.sasjs/sasjsresults')
 
   const homeDir = os.homedir()
 
-  const buildSourceFolder = path.join(
-    process.isSasjsProject ? process.projectDir : homeDir
-  )
+  const buildSourceFolder = path.join(isLocal ? process.projectDir : homeDir)
   const buildSourceDbFolder = path.join(
-    process.isSasjsProject ? process.projectDir : homeDir,
+    isLocal ? process.projectDir : homeDir,
     'sasjs',
     'db'
   )
 
   const buildDestinationFolder = getAbsolutePath(
     buildOutputFolder,
-    process.isSasjsProject ? process.projectDir : homeDir
+    isLocal ? process.projectDir : homeDir
   )
 
   const buildDestinationServicesFolder = path.join(
@@ -48,7 +49,7 @@ export const setConstants = async () => {
 
   const buildDestinationResultsFolder = getAbsolutePath(
     buildResultsFolder,
-    process.isSasjsProject ? process.projectDir : homeDir
+    isLocal ? process.projectDir : homeDir
   )
 
   const buildDestinationResultsLogsFolder = path.join(
