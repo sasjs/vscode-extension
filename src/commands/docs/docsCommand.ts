@@ -1,3 +1,4 @@
+import { getAbsolutePath } from '@sasjs/utils'
 import * as path from 'path'
 import {
   ExtensionContext,
@@ -6,7 +7,10 @@ import {
   ViewColumn,
   workspace
 } from 'vscode'
-import { getLocalConfiguration } from '../../utils/config'
+import {
+  getGlobalConfiguration,
+  getLocalConfiguration
+} from '../../utils/config'
 import { createFile } from '../../utils/file'
 import { initializeSasjsProject } from '../../utils/initializeSasjsProject'
 import { selectTarget } from '../../utils/target'
@@ -48,12 +52,25 @@ export class DocsCommand {
 
     if (!target) return
 
-    const config = await getLocalConfiguration()
+    const extConfig = workspace.getConfiguration('sasjs-for-vscode')
+    const isLocal = extConfig.get('isLocal') as boolean
+    const config = isLocal
+      ? await getLocalConfiguration()
+      : await getGlobalConfiguration()
 
     await generateDocs(target, config)
-      .then((res) => {
-        const message = `Docs have been generated!\nThe docs are located in the ${res.outDirectory}' directory.\nClick to open: ${res.outDirectory}/index.html`
+      .then(async (res) => {
+        const message = `Docs have been generated!\nThe docs are located in the ${res.outDirectory}' directory.`
         process.outputChannel.appendLine(message)
+
+        const absolutePath = getAbsolutePath(
+          res.outDirectory,
+          process.projectDir
+        )
+        const document = await workspace.openTextDocument(
+          path.join(absolutePath, 'index.html')
+        )
+        window.showTextDocument(document)
         window.showInformationMessage(message)
       })
       .catch((err) => {
