@@ -25,7 +25,6 @@ import {
 } from './input'
 import { createTarget } from './createTarget'
 import { createFile } from './file'
-import { isSasjsProject } from './utils'
 import { setConstants } from './setConstants'
 
 export const getTokens = async (
@@ -79,7 +78,7 @@ export const selectAndAuthenticateTarget = async () => {
     })
   }
 
-  if (await isSasjsProject()) {
+  if (process.isSasjsProject) {
     const local = (await getLocalConfiguration()) as Configuration
     if (local?.targets?.length) {
       localTargets.push(...local.targets)

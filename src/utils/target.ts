@@ -5,7 +5,6 @@ import { getTargetChoice } from './input'
 
 import { getGlobalConfiguration, getLocalConfiguration } from './config'
 import { createTarget } from './createTarget'
-import { isSasjsProject } from './utils'
 import { setConstants } from './setConstants'
 
 /**
@@ -20,7 +19,7 @@ export const selectTarget = async () => {
     globalTargets.push(...global.targets)
   }
 
-  if (await isSasjsProject()) {
+  if (process.isSasjsProject) {
     const local = (await getLocalConfiguration()) as Configuration
     if (local?.targets?.length) {
       localTargets.push(...local.targets)
@@ -88,7 +87,7 @@ export const configureTarget = async () => {
     })
   }
 
-  if (await isSasjsProject()) {
+  if (process.isSasjsProject) {
     const local = (await getLocalConfiguration()) as Configuration
     if (local?.targets?.length) {
       localTargets.push(...local.targets)

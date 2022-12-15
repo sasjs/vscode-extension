@@ -37,20 +37,6 @@ export const openTargetFile = async () => {
   await window.showTextDocument(document)
 }
 
-export const isSasjsProject = async () => {
-  const localConfigPath = path.join(
-    process.projectDir,
-    'sasjs',
-    'sasjsconfig.json'
-  )
-
-  if (await fileExists(localConfigPath)) {
-    return true
-  }
-
-  return false
-}
-
 export const getLocalConfigurationPath = () =>
   path.join(process.projectDir, 'sasjs', 'sasjsconfig.json')
 

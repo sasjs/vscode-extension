@@ -9,7 +9,6 @@ import { authenticateTarget } from './auth'
 import {
   getGlobalConfigurationPath,
   getLocalConfigurationPath,
-  isSasjsProject,
   isSasJsServerInServerMode
 } from './utils'
 
@@ -173,7 +172,7 @@ export const getAuthConfig = async (
   const extConfig = workspace.getConfiguration('sasjs-for-vscode')
   const isLocal = extConfig.get('isLocal') as boolean
 
-  if ((await isSasjsProject()) && isLocal) {
+  if (process.isSasjsProject && isLocal) {
     const targetEnvFilePath = path.join(
       process.projectDir,
       `.env.${target.name}`
@@ -225,7 +224,7 @@ export const getAuthConfigSas9 = async (
   const extConfig = workspace.getConfiguration('sasjs-for-vscode')
   const isLocal = extConfig.get('isLocal') as boolean
 
-  if ((await isSasjsProject()) && isLocal) {
+  if (process.isSasjsProject && isLocal) {
     const targetEnvFilePath = path.join(
       process.projectDir,
       `.env.${target.name}`

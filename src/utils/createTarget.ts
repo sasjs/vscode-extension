@@ -9,11 +9,7 @@ import {
 } from './input'
 import { authenticateTarget } from './auth'
 import { saveToConfigFile } from './config'
-import {
-  getGlobalConfigurationPath,
-  getLocalConfigurationPath,
-  isSasjsProject
-} from './utils'
+import { getGlobalConfigurationPath, getLocalConfigurationPath } from './utils'
 import { setConstants } from './setConstants'
 
 export const createTarget = async () => {
@@ -28,7 +24,7 @@ export const createTarget = async () => {
   }
   let isLocal = false
 
-  if (await isSasjsProject()) {
+  if (process.isSasjsProject) {
     const globalConfigPath = getGlobalConfigurationPath()
     const localConfigPath = getLocalConfigurationPath()
 
