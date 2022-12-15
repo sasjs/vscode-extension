@@ -93,7 +93,7 @@ export async function getDotFileContent(
     }
   })
 
-  return `digraph lliprc{\n${dotNodes}\n${dotVertices}\n}`
+  return `digraph sasjsdoc{\n${dotNodes}\n${dotVertices}\n}`
 }
 
 export function getBrief(fileContent: string) {
