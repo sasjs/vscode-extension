@@ -121,8 +121,8 @@ export const selectAndAuthenticateTarget = async () => {
     }
 
     const extConfig = workspace.getConfiguration('sasjs-for-vscode')
-    await extConfig.update('target', target?.name)
-    await extConfig.update('isLocal', isLocal)
+    await extConfig.update('target', target?.name, true)
+    await extConfig.update('isLocal', isLocal, true)
     await setConstants()
     return target
   } else if (await getCreateNewTarget()) {

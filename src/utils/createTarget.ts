@@ -44,8 +44,8 @@ export const createTarget = async () => {
   await saveToConfigFile(target, isLocal)
 
   const extConfig = workspace.getConfiguration('sasjs-for-vscode')
-  await extConfig.update('target', target.name)
-  await extConfig.update('isLocal', isLocal)
+  await extConfig.update('target', target.name, true)
+  await extConfig.update('isLocal', isLocal, true)
   await setConstants()
 
   return { target, isLocal }

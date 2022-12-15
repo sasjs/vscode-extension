@@ -24,8 +24,8 @@ export const initializeSasjsProject = async () => {
   await createFile(configPath, JSON.stringify(config, null, 2))
 
   const extConfig = workspace.getConfiguration('sasjs-for-vscode')
-  await extConfig.update('target', 'sasjsdoc')
-  await extConfig.update('isLocal', true)
+  await extConfig.update('target', 'sasjsdoc', true)
+  await extConfig.update('isLocal', true, true)
   await setConstants()
 
   process.isSasjsProject = true
