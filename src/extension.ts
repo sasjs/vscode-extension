@@ -8,16 +8,19 @@ import { DeleteTargetCommand } from './commands/delete-target/deleteTargetComman
 import { AuthenticateTargetCommand } from './commands/authenticating-target/authenticateTargetCommand'
 import { SelectTargetCommand } from './commands/select-target/selectTargetCommand'
 import { ShowTargetCommand } from './commands/show-target/showTargetCommand'
+import { DocsCommand } from './commands/docs/docsCommand'
 import { FormatCommand } from './commands/format/FormatCommand'
 import { lint, clearLintIssues } from './lint/lint'
 import { Configuration } from '@sasjs/utils/types'
 import { getGlobalConfiguration, getLocalConfiguration } from './utils/config'
-import SASjsChannel from './utils/outputChannel'
+import { setProcessVariables } from './utils/setProcessVariables'
 
 const eventListeners: vscode.Disposable[] = []
 let statusBarItem: vscode.StatusBarItem
 
-export function activate(context: vscode.ExtensionContext) {
+export async function activate(context: vscode.ExtensionContext) {
+  await setProcessVariables()
+
   const executeCodeCommand = new ExecuteCodeCommand(context)
   executeCodeCommand.initialise()
 
@@ -44,6 +47,9 @@ export function activate(context: vscode.ExtensionContext) {
 
   const showTargetCommand = new ShowTargetCommand(context)
   showTargetCommand.initialise()
+
+  const docsCommand = new DocsCommand(context)
+  docsCommand.initialise()
 
   const formatCommand = new FormatCommand()
   formatCommand.initialise()
@@ -111,10 +117,9 @@ async function configurationChangeHandler() {
     return
   }
 
-  const outputChannel = SASjsChannel.getOutputChannel()
   const config = isLocal
-    ? ((await getLocalConfiguration(outputChannel)) as Configuration)
-    : ((await getGlobalConfiguration(outputChannel)) as Configuration)
+    ? ((await getLocalConfiguration()) as Configuration)
+    : ((await getGlobalConfiguration()) as Configuration)
 
   if (!config?.targets?.length) {
     statusBarItem.tooltip = `Target Details\nNo Target found in ${

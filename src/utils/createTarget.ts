@@ -1,4 +1,4 @@
-import { OutputChannel, workspace } from 'vscode'
+import { workspace } from 'vscode'
 
 import { Target } from '@sasjs/utils/types'
 import {
@@ -8,14 +8,11 @@ import {
   getChoiceInput
 } from './input'
 import { authenticateTarget } from './auth'
-import { getGlobalConfiguration, saveToConfigFile } from './config'
-import {
-  getGlobalConfigurationPath,
-  getLocalConfigurationPath,
-  isSasjsProject
-} from './utils'
+import { saveToConfigFile } from './config'
+import { getGlobalConfigurationPath, getLocalConfigurationPath } from './utils'
+import { setConstants } from './setConstants'
 
-export const createTarget = async (outputChannel: OutputChannel) => {
+export const createTarget = async () => {
   const name = await getTargetName()
   const serverUrl = await getServerUrl()
   const serverType = await getServerType()
@@ -27,7 +24,7 @@ export const createTarget = async (outputChannel: OutputChannel) => {
   }
   let isLocal = false
 
-  if (await isSasjsProject()) {
+  if (process.isSasjsProject) {
     const globalConfigPath = getGlobalConfigurationPath()
     const localConfigPath = getLocalConfigurationPath()
 
@@ -40,15 +37,16 @@ export const createTarget = async (outputChannel: OutputChannel) => {
     }
   }
 
-  await authenticateTarget(targetJson, isLocal, outputChannel)
+  await authenticateTarget(targetJson, isLocal)
 
   const target = new Target(targetJson)
 
-  await saveToConfigFile(target, isLocal, outputChannel)
+  await saveToConfigFile(target, isLocal)
 
   const extConfig = workspace.getConfiguration('sasjs-for-vscode')
-  await extConfig.update('target', target.name)
-  await extConfig.update('isLocal', isLocal)
+  await extConfig.update('target', target.name, true)
+  await extConfig.update('isLocal', isLocal, true)
+  await setConstants()
 
   return { target, isLocal }
 }

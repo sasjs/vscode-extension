@@ -1,13 +1,8 @@
-import { window, ExtensionContext, commands, OutputChannel } from 'vscode'
+import { window, ExtensionContext, commands } from 'vscode'
 import { removeTargetFromGlobalRcFile } from '../../utils/config'
-import SASjsChannel from '../../utils/outputChannel'
 
 export class DeleteTargetCommand {
-  private outputChannel: OutputChannel
-
-  constructor(private context: ExtensionContext) {
-    this.outputChannel = SASjsChannel.getOutputChannel()
-  }
+  constructor(private context: ExtensionContext) {}
 
   initialise = () => {
     const executingCodeCommand = commands.registerCommand(
@@ -18,7 +13,7 @@ export class DeleteTargetCommand {
   }
 
   private deleteTarget = async () => {
-    removeTargetFromGlobalRcFile(this.outputChannel)
+    removeTargetFromGlobalRcFile()
       .then(() => {
         window.showInformationMessage('Target deleted!')
       })

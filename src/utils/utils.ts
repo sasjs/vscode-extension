@@ -2,7 +2,13 @@ import * as path from 'path'
 import * as os from 'os'
 import axios from 'axios'
 import { window, workspace } from 'vscode'
-import { Target, timestampToYYYYMMDDHHMMSS, fileExists } from '@sasjs/utils'
+import {
+  Target,
+  timestampToYYYYMMDDHHMMSS,
+  fileExists,
+  folderExists,
+  copy
+} from '@sasjs/utils'
 
 export const getTimestamp = () =>
   timestampToYYYYMMDDHHMMSS()
@@ -31,26 +37,30 @@ export const openTargetFile = async () => {
   await window.showTextDocument(document)
 }
 
-export const isSasjsProject = async () => {
-  const localConfigPath = path.join(
-    workspace.workspaceFolders![0].uri.fsPath,
-    'sasjs',
-    'sasjsconfig.json'
-  )
-
-  if (await fileExists(localConfigPath)) {
-    return true
-  }
-
-  return false
-}
-
 export const getLocalConfigurationPath = () =>
-  path.join(
-    workspace.workspaceFolders![0].uri.fsPath,
-    'sasjs',
-    'sasjsconfig.json'
-  )
+  path.join(process.projectDir, 'sasjs', 'sasjsconfig.json')
 
 export const getGlobalConfigurationPath = () =>
   path.join(os.homedir(), '.sasjsrc')
+
+export const getNodeModulePath = async (module: string): Promise<string> => {
+  // Check if module is present in project's dependencies
+  const projectPath = path.join(process.projectDir, 'node_modules', module)
+
+  if (await folderExists(projectPath)) return projectPath
+
+  return ''
+}
+
+export async function setupDoxygen(folderPath: string): Promise<void> {
+  const doxyFilesPath =
+    process.env.VSCODE_DEBUG_MODE === 'true' ? '../doxy' : './doxy'
+  const doxyFolderPathSource = path.join(__dirname, doxyFilesPath)
+  const doxyFolderPath = path.join(
+    process.projectDir,
+    folderPath,
+    'sasjs',
+    'doxy'
+  )
+  await copy(doxyFolderPathSource, doxyFolderPath)
+}

@@ -1,32 +1,26 @@
-import {
-  OutputChannel,
-  workspace,
-  window,
-  QuickPickItem,
-  QuickPickItemKind
-} from 'vscode'
+import { workspace, window, QuickPickItem, QuickPickItemKind } from 'vscode'
 
 import { Target, Configuration, TargetJson } from '@sasjs/utils/types'
 import { getTargetChoice } from './input'
 
 import { getGlobalConfiguration, getLocalConfiguration } from './config'
 import { createTarget } from './createTarget'
-import { isSasjsProject } from './utils'
+import { setConstants } from './setConstants'
 
 /**
  * This function will be called from execute command for selecting target before execution
  */
-export const selectTarget = async (outputChannel: OutputChannel) => {
+export const selectTarget = async () => {
   const globalTargets: TargetJson[] = []
   const localTargets: TargetJson[] = []
 
-  const global = (await getGlobalConfiguration(outputChannel)) as Configuration
+  const global = (await getGlobalConfiguration()) as Configuration
   if (global?.targets?.length) {
     globalTargets.push(...global.targets)
   }
 
-  if (await isSasjsProject()) {
-    const local = (await getLocalConfiguration(outputChannel)) as Configuration
+  if (process.isSasjsProject) {
+    const local = (await getLocalConfiguration()) as Configuration
     if (local?.targets?.length) {
       localTargets.push(...local.targets)
     }
@@ -37,7 +31,7 @@ export const selectTarget = async (outputChannel: OutputChannel) => {
   const isLocal = extConfig.get('isLocal') as boolean
 
   if (!targetFromExt) {
-    return await configureTarget(outputChannel)
+    return await configureTarget()
   }
 
   if (isLocal) {
@@ -50,9 +44,9 @@ export const selectTarget = async (outputChannel: OutputChannel) => {
       window.showErrorMessage(
         'Target specified in extension setting is not available in local config file. Please select another target.'
       )
-      return await configureTarget(outputChannel)
+      return await configureTarget()
     }
-    return await configureTarget(outputChannel)
+    return await configureTarget()
   }
 
   if (globalTargets.length) {
@@ -64,21 +58,21 @@ export const selectTarget = async (outputChannel: OutputChannel) => {
     window.showErrorMessage(
       'Target specified in extension setting is not available in global .sasjsrc file file. Please select another target.'
     )
-    return await configureTarget(outputChannel)
+    return await configureTarget()
   }
 
-  return await configureTarget(outputChannel)
+  return await configureTarget()
 }
 
 /**
  * This function will be called from select target command for configuration of setting
  */
-export const configureTarget = async (outputChannel: OutputChannel) => {
+export const configureTarget = async () => {
   const quickPickChoices: QuickPickItem[] = []
   const globalTargets: TargetJson[] = []
   const localTargets: TargetJson[] = []
 
-  const global = (await getGlobalConfiguration(outputChannel)) as Configuration
+  const global = (await getGlobalConfiguration()) as Configuration
   if (global?.targets?.length) {
     globalTargets.push(...global.targets)
     quickPickChoices.push({
@@ -93,8 +87,8 @@ export const configureTarget = async (outputChannel: OutputChannel) => {
     })
   }
 
-  if (await isSasjsProject()) {
-    const local = (await getLocalConfiguration(outputChannel)) as Configuration
+  if (process.isSasjsProject) {
+    const local = (await getLocalConfiguration()) as Configuration
     if (local?.targets?.length) {
       localTargets.push(...local.targets)
       quickPickChoices.push({
@@ -121,7 +115,7 @@ export const configureTarget = async (outputChannel: OutputChannel) => {
   let isLocal = false
 
   if (choice?.label === 'add and select new target') {
-    return await createTarget(outputChannel)
+    return await createTarget()
   }
 
   if (!!choice?.label) {
@@ -137,8 +131,9 @@ export const configureTarget = async (outputChannel: OutputChannel) => {
 
   if (target) {
     const extConfig = workspace.getConfiguration('sasjs-for-vscode')
-    await extConfig.update('target', target.name)
-    await extConfig.update('isLocal', isLocal)
+    await extConfig.update('target', target.name, true)
+    await extConfig.update('isLocal', isLocal, true)
+    await setConstants()
   }
   return { target, isLocal }
 }

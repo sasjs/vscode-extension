@@ -1,6 +1,5 @@
 import * as path from 'path'
-import * as os from 'os'
-import { OutputChannel, window, workspace } from 'vscode'
+import { window, workspace } from 'vscode'
 import { decodeFromBase64, fileExists } from '@sasjs/utils'
 import { Target, AuthConfig, ServerType, AuthConfigSas9 } from '@sasjs/utils'
 import * as dotenv from 'dotenv'
@@ -8,19 +7,15 @@ import { createFile, readFile } from './file'
 import { getChoiceInput } from './input'
 import { authenticateTarget } from './auth'
 import {
+  getGlobalConfigurationPath,
   getLocalConfigurationPath,
-  isSasjsProject,
   isSasJsServerInServerMode
 } from './utils'
 
-export async function saveToConfigFile(
-  buildTarget: Target,
-  isLocal: boolean,
-  outputChannel: OutputChannel
-) {
+export async function saveToConfigFile(buildTarget: Target, isLocal: boolean) {
   let config = isLocal
-    ? await getLocalConfiguration(outputChannel)
-    : await getGlobalConfiguration(outputChannel)
+    ? await getLocalConfiguration()
+    : await getGlobalConfiguration()
 
   const targetJson = buildTarget.toJson()
   if (config) {
@@ -42,13 +37,11 @@ export async function saveToConfigFile(
 
   const saveFunction = isLocal ? saveLocalConfigFile : saveGlobalRcFile
 
-  return await saveFunction(JSON.stringify(config, null, 2), outputChannel)
+  return await saveFunction(JSON.stringify(config, null, 2))
 }
 
-export async function removeTargetFromGlobalRcFile(
-  outputChannel: OutputChannel
-) {
-  const globalConfig = await getGlobalConfiguration(outputChannel)
+export async function removeTargetFromGlobalRcFile() {
+  const globalConfig = await getGlobalConfiguration()
 
   if (globalConfig) {
     if (!globalConfig?.targets.length) {
@@ -76,19 +69,13 @@ export async function removeTargetFromGlobalRcFile(
       await extConfig.update('target', '', true)
     }
 
-    return await saveGlobalRcFile(
-      JSON.stringify(globalConfig, null, 2),
-      outputChannel
-    )
+    return await saveGlobalRcFile(JSON.stringify(globalConfig, null, 2))
   }
 }
 
-export async function saveGlobalRcFile(
-  content: string,
-  outputChannel: OutputChannel
-) {
-  const rcFilePath = path.join(os.homedir(), '.sasjsrc')
-  outputChannel.appendLine(
+export async function saveGlobalRcFile(content: string) {
+  const rcFilePath = getGlobalConfigurationPath()
+  process.outputChannel.appendLine(
     `SASjs: Saving global configuration to ${rcFilePath}`
   )
 
@@ -97,26 +84,25 @@ export async function saveGlobalRcFile(
   return rcFilePath
 }
 
-export async function saveLocalConfigFile(
-  content: string,
-  outputChannel: OutputChannel
-) {
+export async function saveLocalConfigFile(content: string) {
   const configPath = getLocalConfigurationPath()
-  outputChannel.appendLine(`SASjs: Saving local configuration to ${configPath}`)
+  process.outputChannel.appendLine(
+    `SASjs: Saving local configuration to ${configPath}`
+  )
 
   await createFile(configPath, content)
 
   return configPath
 }
 
-export const getGlobalConfiguration = async (outputChannel: OutputChannel) => {
-  const sasjsConfigPath = path.join(os.homedir(), '.sasjsrc')
+export const getGlobalConfiguration = async () => {
+  const sasjsConfigPath = getGlobalConfigurationPath()
   let configFile
 
   try {
     configFile = await readFile(sasjsConfigPath)
   } catch {
-    outputChannel.appendLine(
+    process.outputChannel.appendLine(
       'A global SASjs config file was not found in your home directory.'
     )
     return null
@@ -126,7 +112,7 @@ export const getGlobalConfiguration = async (outputChannel: OutputChannel) => {
     const configJson = JSON.parse(configFile)
     return configJson
   } catch {
-    outputChannel.appendLine(
+    process.outputChannel.appendLine(
       'There was an error parsing your global SASjs config file.'
     )
     window.showErrorMessage(
@@ -140,14 +126,14 @@ export const getGlobalConfiguration = async (outputChannel: OutputChannel) => {
   }
 }
 
-export const getLocalConfiguration = async (outputChannel: OutputChannel) => {
+export const getLocalConfiguration = async () => {
   const sasjsConfigPath = getLocalConfigurationPath()
   let configFile
 
   try {
     configFile = await readFile(sasjsConfigPath)
   } catch {
-    outputChannel.appendLine('A local SASjs config file was not found.')
+    process.outputChannel.appendLine('A local SASjs config file was not found.')
     return null
   }
 
@@ -155,7 +141,7 @@ export const getLocalConfiguration = async (outputChannel: OutputChannel) => {
     const configJson = JSON.parse(configFile)
     return configJson
   } catch {
-    outputChannel.appendLine(
+    process.outputChannel.appendLine(
       'There was an error parsing your local SASjs config file.'
     )
     window.showErrorMessage(
@@ -170,8 +156,7 @@ export const getLocalConfiguration = async (outputChannel: OutputChannel) => {
 }
 
 export const getAuthConfig = async (
-  target: Target,
-  outputChannel: OutputChannel
+  target: Target
 ): Promise<AuthConfig | undefined> => {
   if (
     target.serverType === ServerType.Sasjs &&
@@ -187,9 +172,9 @@ export const getAuthConfig = async (
   const extConfig = workspace.getConfiguration('sasjs-for-vscode')
   const isLocal = extConfig.get('isLocal') as boolean
 
-  if ((await isSasjsProject()) && isLocal) {
+  if (process.isSasjsProject && isLocal) {
     const targetEnvFilePath = path.join(
-      workspace.workspaceFolders![0].uri.fsPath,
+      process.projectDir,
       `.env.${target.name}`
     )
 
@@ -202,10 +187,7 @@ export const getAuthConfig = async (
       return authConfigFromTargetEnv
     }
 
-    const envFilePath = path.join(
-      workspace.workspaceFolders![0].uri.fsPath,
-      '.env'
-    )
+    const envFilePath = path.join(process.projectDir, '.env')
 
     const authConfigFromEnv = (await getAuthConfigFromEnvFile(
       envFilePath,
@@ -217,20 +199,19 @@ export const getAuthConfig = async (
     }
   }
 
-  const targetJson = await authenticateTarget(target, isLocal, outputChannel)
+  const targetJson = await authenticateTarget(target, isLocal)
 
   if (targetJson?.authConfig) {
     const updatedTarget = new Target(targetJson)
-    await saveToConfigFile(updatedTarget, isLocal, outputChannel)
+    await saveToConfigFile(updatedTarget, isLocal)
     return targetJson.authConfig
   }
 
-  return await getAuthConfig(target, outputChannel)
+  return await getAuthConfig(target)
 }
 
 export const getAuthConfigSas9 = async (
-  target: Target,
-  outputChannel: OutputChannel
+  target: Target
 ): Promise<AuthConfigSas9> => {
   const authConfig = target.authConfigSas9
   if (authConfig) {
@@ -243,9 +224,9 @@ export const getAuthConfigSas9 = async (
   const extConfig = workspace.getConfiguration('sasjs-for-vscode')
   const isLocal = extConfig.get('isLocal') as boolean
 
-  if ((await isSasjsProject()) && isLocal) {
+  if (process.isSasjsProject && isLocal) {
     const targetEnvFilePath = path.join(
-      workspace.workspaceFolders![0].uri.fsPath,
+      process.projectDir,
       `.env.${target.name}`
     )
 
@@ -258,10 +239,7 @@ export const getAuthConfigSas9 = async (
       return authConfigFromTargetEnv
     }
 
-    const envFilePath = path.join(
-      workspace.workspaceFolders![0].uri.fsPath,
-      '.env'
-    )
+    const envFilePath = path.join(process.projectDir, '.env')
 
     const authConfigFromEnv = (await getAuthConfigFromEnvFile(
       envFilePath,
@@ -273,15 +251,15 @@ export const getAuthConfigSas9 = async (
     }
   }
 
-  const targetJson = await authenticateTarget(target, isLocal, outputChannel)
+  const targetJson = await authenticateTarget(target, isLocal)
 
   if (targetJson?.authConfigSas9) {
     const updatedTarget = new Target(targetJson)
-    await saveToConfigFile(updatedTarget, isLocal, outputChannel)
+    await saveToConfigFile(updatedTarget, isLocal)
     return targetJson.authConfigSas9
   }
 
-  return await getAuthConfigSas9(target, outputChannel)
+  return await getAuthConfigSas9(target)
 }
 
 const getAuthConfigFromEnvFile = async (

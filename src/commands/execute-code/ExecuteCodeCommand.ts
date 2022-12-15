@@ -1,28 +1,20 @@
-import SASjs from '@sasjs/adapter/node'
-import { ServerType, Target } from '@sasjs/utils'
-import * as os from 'os'
+import { Target } from '@sasjs/utils'
 import * as path from 'path'
 import {
   window,
   ExtensionContext,
   commands,
-  OutputChannel,
   ViewColumn,
   workspace
 } from 'vscode'
 import { getEditorContent } from '../../utils/editor'
 import { createFile } from '../../utils/file'
-import { getAuthConfig, getAuthConfigSas9 } from '../../utils/config'
 import { selectTarget } from '../../utils/target'
 import { getTimestamp } from '../../utils/utils'
-import SASjsChannel from '../../utils/outputChannel'
+import { executeCode } from '../../utils/executeCode'
 
 export class ExecuteCodeCommand {
-  private outputChannel: OutputChannel
-
-  constructor(private context: ExtensionContext) {
-    this.outputChannel = SASjsChannel.getOutputChannel()
-  }
+  constructor(private context: ExtensionContext) {}
 
   initialise = () => {
     const executeCodeCommand = commands.registerCommand(
@@ -33,17 +25,17 @@ export class ExecuteCodeCommand {
   }
 
   private executeCode = async () => {
-    this.outputChannel.appendLine('Initialising SASjs.')
+    process.outputChannel.appendLine('Initialising SASjs.')
     let target: Target | undefined
 
     try {
-      ;({ target } = await selectTarget(this.outputChannel))
+      ;({ target } = await selectTarget())
     } catch (error: any) {
-      this.outputChannel.appendLine('SASjs: Error selecting target: ')
-      this.outputChannel.appendLine(error)
-      this.outputChannel.appendLine(error.message)
-      this.outputChannel.appendLine(JSON.stringify(error, null, 2))
-      this.outputChannel.show()
+      process.outputChannel.appendLine('SASjs: Error selecting target: ')
+      process.outputChannel.appendLine(error)
+      process.outputChannel.appendLine(error.message)
+      process.outputChannel.appendLine(JSON.stringify(error, null, 2))
+      process.outputChannel.show()
     }
 
     if (!target) {
@@ -53,82 +45,40 @@ export class ExecuteCodeCommand {
       return
     }
 
-    const adapter = new SASjs({
-      serverUrl: target.serverUrl,
-      serverType: target.serverType,
-      appLoc: target.appLoc,
-      contextName: target.contextName,
-      httpsAgentOptions: target.httpsAgentOptions,
-      useComputeApi: true,
-      debug: true
-    })
-
     const execFilePath = window.activeTextEditor?.document.fileName
 
     const sasCodeInjection = `options set=SAS_EXECFILEPATH "${execFilePath}";`
 
     const currentFileContent = `${sasCodeInjection}\n${getEditorContent()}`
 
-    if (target.serverType === ServerType.SasViya) {
-      const authConfig = await getAuthConfig(target, this.outputChannel)
+    commands.executeCommand('setContext', 'isSasjsCodeExecuting', true)
 
-      await commands.executeCommand('setContext', 'isSasjsCodeExecuting', true)
-      adapter
-        .executeScript({
-          fileName: 'vscode-test-exec',
-          linesOfCode: (currentFileContent || '').split('\n'),
-          contextName: '',
-          authConfig
-        })
-        .then(async (res) => handleSuccessResponse(res, this.outputChannel))
-        .catch(async (e) => handleErrorResponse(e, this.outputChannel))
-    } else if (target.serverType === ServerType.Sas9) {
-      const { userName, password } = await getAuthConfigSas9(
-        target,
-        this.outputChannel
-      )
-
-      await commands.executeCommand('setContext', 'isSasjsCodeExecuting', true)
-      adapter
-        .executeScript({
-          linesOfCode: (currentFileContent || '').split('\n'),
-          authConfigSas9: { userName, password }
-        })
-        .then(async (res) => handleSuccessResponse(res, this.outputChannel))
-        .catch(async (e) => handleErrorResponse(e, this.outputChannel))
-    } else if (target.serverType === ServerType.Sasjs) {
-      const authConfig = await getAuthConfig(target, this.outputChannel)
-      await commands.executeCommand('setContext', 'isSasjsCodeExecuting', true)
-      adapter
-        .executeScript({
-          linesOfCode: (currentFileContent || '').split('\n'),
-          runTime: 'sas',
-          authConfig
-        })
-        .then(async (res) => handleSuccessResponse(res, this.outputChannel))
-        .catch(async (e) => handleErrorResponse(e, this.outputChannel))
-    }
+    await executeCode(target, currentFileContent || '')
+      .then(async ({ log }) => {
+        process.outputChannel.appendLine('SASjs: Code executed successfully!')
+        await handleSuccessResponse(log)
+      })
+      .catch(async (err) => {
+        await handleErrorResponse(err)
+      })
+      .finally(() => {
+        commands.executeCommand('setContext', 'isSasjsCodeExecuting', false)
+      })
   }
 }
 
-const createAndOpenLogFile = async (
-  log: string,
-  outputChannel: OutputChannel
-) => {
-  const timestamp = getTimestamp()
-  const resultsPath = workspace.workspaceFolders?.length
-    ? path.join(
-        workspace.workspaceFolders![0].uri.fsPath,
-        'sasjsresults',
-        `${timestamp}.log`
-      )
-    : path.join(os.homedir(), 'sasjsresults', `${timestamp}.log`)
+const createAndOpenLogFile = async (log: string) => {
+  const { buildDestinationResultsFolder: resultsFolder } =
+    process.sasjsConstants
 
-  outputChannel.appendLine(
+  const timestamp = getTimestamp()
+  const resultsPath = path.join(resultsFolder, `${timestamp}.log`)
+
+  process.outputChannel.appendLine(
     `SASjs: Attempting to create log file at ${resultsPath}.`
   )
 
-  outputChannel.show()
+  process.outputChannel.show()
 
   await createFile(resultsPath, log)
   const document = await workspace.openTextDocument(resultsPath)
@@ -137,32 +87,27 @@ const createAndOpenLogFile = async (
   })
 }
 
-const handleErrorResponse = async (e: any, outputChannel: OutputChannel) => {
-  outputChannel.appendLine('SASjs: Error executing code: ')
-  outputChannel.appendLine(e)
-  outputChannel.appendLine(e.message)
-  outputChannel.appendLine(JSON.stringify(e, null, 2))
-  outputChannel.show()
+const handleErrorResponse = async (e: any) => {
+  process.outputChannel.appendLine('SASjs: Error executing code: ')
+  process.outputChannel.appendLine(e)
+  process.outputChannel.appendLine(e.message)
+  process.outputChannel.appendLine(JSON.stringify(e, null, 2))
+  process.outputChannel.show()
 
   const { log } = e
   if (log) {
-    await createAndOpenLogFile(log, outputChannel)
+    await createAndOpenLogFile(log)
   } else if (e.message) {
-    await createAndOpenLogFile(e.message, outputChannel)
+    await createAndOpenLogFile(e.message)
   }
-
-  await commands.executeCommand('setContext', 'isSasjsCodeExecuting', false)
 }
 
-const handleSuccessResponse = async (
-  res: any,
-  outputChannel: OutputChannel
-) => {
-  outputChannel.appendLine('SASjs: Code executed successfully!')
-  if (typeof res === 'object') {
-    await createAndOpenLogFile(JSON.stringify(res, null, 2), outputChannel)
-  } else if (typeof res === 'string') {
-    await createAndOpenLogFile(res, outputChannel)
+const handleSuccessResponse = async (log: any) => {
+  if (typeof log === 'object') {
+    return await createAndOpenLogFile(JSON.stringify(log, null, 2))
   }
-  await commands.executeCommand('setContext', 'isSasjsCodeExecuting', false)
+
+  if (typeof log === 'string') {
+    return await createAndOpenLogFile(log)
+  }
 }
