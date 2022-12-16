@@ -25,10 +25,10 @@ Configuration is identical to the SASjs CLI, documented at [https://cli.sasjs.io
 Given that projects may be new to SASjs (without a `sasjs/sasjsconfig.json` file) the following workflow takes place:
 
 1. If workspace contains a `sasjs/sasjsconfig.json` file, go to Step 3
-2. If any of the parent directories contains a `sasjs/sasjsconfig.json` file, use this as the target, and go to Step 4.
-3. Create a workspace-level `sasjs` directory with `sasjsconfig.json` file (and doxy files), and use this as the target.
-4. Generate docs according to the target [`docConfig.outDirectory`](https://cli.sasjs.io/sasjsconfig.html#docConfig_outDirectory) property, which is `sasjsbuild/docs` by default.
-5. Put the `index.html` in focus
+2. If any parent directories contain a `sasjs/sasjsconfig.json` file, use this target, and go to Step 4.
+3. Create a workspace-level `sasjs/sasjsconfig.json` file (and doxy files), and use this as the target.
+4. Generate docs using target [`docConfig.outDirectory`](https://cli.sasjs.io/sasjsconfig.html#docConfig_outDirectory) property (`sasjsbuild/docs` by default)
+5. Put `index.html` in focus
 
 To view the `index.html` as a web page, open in Firefox, or right click and view with the [Live Server](https://marketplace.visualstudio.com/items?itemName=ritwickdey.LiveServer) extension (if installed).
 
