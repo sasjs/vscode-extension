@@ -8,7 +8,30 @@ This project contains the source code for the SASjs VS Code extension, available
 * Visual Studio Code Marketplace (suitable for VS Code):  https://marketplace.visualstudio.com/items?itemName=SASjs.sasjs-for-vscode
 * Open VSX (Suitable for VSCodium and Theia): https://open-vsx.org/extension/sasjs/sasjs-for-vscode
 
+If you have questions or would like support on the extension, visit our support group at [https://matrix.to/#/#sasjs:4gl.io](https://matrix.to/#/#sasjs:4gl.io).
+
 ## Features
+
+* Code Documentation
+* Code Execution
+* SAS Lint and Format
+
+### Code Documentation
+
+Generate HTML docs from your SAS code! Requires a local installation of [Doxygen](https://www.doxygen.nl/download.html). Video overview available [here](https://vid.4gl.io/w/7cbbpZwU9U2DNBnC5SHb7n).
+
+Configuration is identical to the SASjs CLI, documented at [https://cli.sasjs.io/doc](https://cli.sasjs.io/doc), driven by the [docConfig](https://cli.sasjs.io/sasjsconfig.html#docConfig) object.
+
+Given that projects may be new to SASjs (without a `sasjs/sasjsconfig.json` file) the following workflow takes place:
+
+1. If workspace contains a `sasjs/sasjsconfig.json` file, go to Step 3
+2. If any of the parent directories contains a `sasjs/sasjsconfig.json` file, use this as the target, and go to Step 4.
+3. Create a workspace-level `sasjs` directory with `sasjsconfig.json` file (and doxy files), and use this as the target.
+4. Generate docs according to the target [`docConfig.outDirectory`](https://cli.sasjs.io/sasjsconfig.html#docConfig_outDirectory) property, which is `sasjsbuild/docs` by default.
+5. Put the `index.html` in focus
+
+To view the `index.html` as a web page, open in Firefox, or right click and view with the [Live Server](https://marketplace.visualstudio.com/items?itemName=ritwickdey.LiveServer) extension (if installed).
+
 
 ### Code Execution
 
@@ -87,8 +110,6 @@ You can use this feature in two ways:
 
 2. By enabling automatic formatting of files on save/paste from the Settings menu.
 ![image](https://user-images.githubusercontent.com/2980428/117259572-15b41800-ae46-11eb-9c7f-b9700b77405b.png)
-
-
 
 ## Contributions
 
