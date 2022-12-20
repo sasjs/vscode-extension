@@ -5,7 +5,7 @@ import { createFile } from '../../utils/file'
 import { selectTarget } from '../../utils/target'
 import { executeCode } from '../../utils/executeCode'
 import { extractHashArray } from './internal/extractHashArray'
-import { getRelativePath } from '@sasjs/utils/file'
+import { getAbsolutePath, getRelativePath } from '@sasjs/utils/file'
 import {
   compareHashes,
   findResourcesNotPresentLocally,
@@ -95,7 +95,7 @@ export class SyncDirectoriesCommand {
         process.outputChannel.appendLine(
           `creating the hash of local folder ${localFolderPath}`
         )
-        const localHash = await getHash(localFolderPath)
+        const localHash = await getHash(getAbsolutePath(localFolderPath, process.projectDir))
         await saveFile(
           JSON.stringify(localHash, null, 2),
           path.join(resultsFolder, 'localHash.json')
@@ -103,10 +103,9 @@ export class SyncDirectoriesCommand {
 
         const remoteHashMap = remoteHashes.reduce(
           (map: { [key: string]: string }, item: any) => {
-            const relativePath = getRelativePath(
-              remoteFolderPath,
-              item.FILE_PATH
-            )
+            const from = remoteFolderPath.replace(/\//g, path.sep)
+            const to = (item.FILE_PATH as string).replace(/\//g, path.sep)
+            const relativePath = getRelativePath(from, to)
             map[relativePath] = item.FILE_HASH
             return map
           },
@@ -151,10 +150,9 @@ export class SyncDirectoriesCommand {
         )
         const syncedHashMap = syncedHash.reduce(
           (map: { [key: string]: string }, item: any) => {
-            const relativePath = getRelativePath(
-              remoteFolderPath,
-              item.FILE_PATH
-            )
+            const from = remoteFolderPath.replace(/\//g, path.sep)
+            const to = (item.FILE_PATH as string).replace(/\//g, path.sep)
+            const relativePath = getRelativePath(from, to)
             map[relativePath] = item.FILE_HASH
             return map
           },
