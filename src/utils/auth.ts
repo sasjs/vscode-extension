@@ -203,7 +203,8 @@ export const authenticateTarget = async (
       workspace.workspaceFolders![0].uri.fsPath,
       `.env.${targetJson.name}`
     )
-    return await createFile(envFilePath, envFileContent)
+    await createFile(envFilePath, envFileContent)
+    return targetJson
   }
 
   targetJson.authConfig = authConfig

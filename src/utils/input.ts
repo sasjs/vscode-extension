@@ -1,4 +1,5 @@
 import { window, QuickPickItem } from 'vscode'
+import { URL } from 'url'
 import * as validUrl from 'valid-url'
 import { ServerType } from '@sasjs/utils/types'
 
@@ -44,7 +45,9 @@ export const getServerUrl = async () => {
     defaultValue
   )
 
-  return serverUrl
+  const url = new URL(serverUrl)
+
+  return `${url.protocol}//${url.host}${url.port ? `:${url.port}` : ''}`
 }
 
 export const getServerType = async () => {
