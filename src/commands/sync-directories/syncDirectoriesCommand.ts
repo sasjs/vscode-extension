@@ -69,6 +69,7 @@ export class SyncDirectoriesCommand {
 
       const resultsFolder = path.join(
         buildDestinationResultsFolder,
+        'fs-sync',
         getTimestamp()
       )
 
@@ -95,7 +96,9 @@ export class SyncDirectoriesCommand {
         process.outputChannel.appendLine(
           `creating the hash of local folder ${localFolderPath}`
         )
-        const localHash = await getHash(getAbsolutePath(localFolderPath, process.projectDir))
+        const localHash = await getHash(
+          getAbsolutePath(localFolderPath, process.projectDir)
+        )
         await saveFile(
           JSON.stringify(localHash, null, 2),
           path.join(resultsFolder, 'localHash.json')

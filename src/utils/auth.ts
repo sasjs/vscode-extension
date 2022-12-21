@@ -21,7 +21,8 @@ import {
   getCreateNewTarget,
   getPassword,
   getUserName,
-  getTargetChoice
+  getTargetChoice,
+  getServerUrl
 } from './input'
 import { createTarget } from './createTarget'
 import { createFile } from './file'
@@ -114,9 +115,10 @@ export const selectAndAuthenticateTarget = async () => {
         await saveToConfigFile(target, false)
       } else {
         const selectedTarget = localTargets.find((t) => t.name === choice.label)
-        await authenticateTarget(selectedTarget!, true)
-        target = new Target(selectedTarget)
+        const targetJson = await authenticateTarget(selectedTarget!, true)
+        target = new Target(targetJson)
         isLocal = true
+        await saveToConfigFile(target, true)
       }
     }
 
@@ -135,6 +137,10 @@ export const authenticateTarget = async (
   targetJson: TargetJson,
   isLocal: boolean
 ) => {
+  if (!targetJson.serverUrl) {
+    targetJson.serverUrl = await getServerUrl()
+  }
+
   if (targetJson.serverType === ServerType.Sasjs) {
     const res = await axios.get(`${targetJson.serverUrl}/SASjsApi/info`)
     // if sasjs server is not running in server mode then no need to authenticate
