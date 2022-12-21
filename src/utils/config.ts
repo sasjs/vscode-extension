@@ -17,7 +17,7 @@ export async function saveToConfigFile(buildTarget: Target, isLocal: boolean) {
     ? await getLocalConfiguration()
     : await getGlobalConfiguration()
 
-  const targetJson = buildTarget.toJson()
+  const targetJson = buildTarget.toJson(false)
   if (config) {
     if (config.targets && config.targets.length) {
       const existingTargetIndex = config.targets.findIndex(
