@@ -245,7 +245,7 @@
   "dependencies": {
     "@sasjs/adapter": "4.0.1",
     "@sasjs/lint": "2.0.1",
-    "@sasjs/utils": "2.51.3",
+    "@sasjs/utils": "2.51.5",
     "axios": "0.26.1",
     "dotenv": "16.0.3",
     "esbuild-plugin-copy": "2.0.1",
