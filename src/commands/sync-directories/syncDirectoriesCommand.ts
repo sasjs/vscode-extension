@@ -4,14 +4,14 @@ import { window, ExtensionContext, commands, workspace } from 'vscode'
 import { createFile } from '../../utils/file'
 import { selectTarget } from '../../utils/target'
 import { executeCode } from '../../utils/executeCode'
-import { extractHashArray } from './internal/extractHashArray'
 import { getAbsolutePath, getRelativePath } from '@sasjs/utils/file'
 import {
   compareHashes,
   findResourcesNotPresentLocally,
   getHash,
   generateProgramToGetRemoteHash,
-  generateProgramToSyncHashDiff
+  generateProgramToSyncHashDiff,
+  extractHashArray
 } from '@sasjs/utils/fs'
 import { getTimestamp } from '../../utils/utils'
 import { SyncDirectoryMap, Target } from '@sasjs/utils'
