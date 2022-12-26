@@ -14,9 +14,10 @@ If you have questions or would like support on the extension, visit our support 
 
 * Code Documentation
 * Code Execution
+* Directory Synchronisation
 * SAS Lint and Format
 
-### Code Documentation
+## Code Documentation
 
 Generate HTML docs from your SAS code! Requires a local installation of [Doxygen](https://www.doxygen.nl/download.html). Video overview available [here](https://vid.4gl.io/w/7cbbpZwU9U2DNBnC5SHb7n).
 
@@ -33,7 +34,7 @@ Given that projects may be new to SASjs (without a `sasjs/sasjsconfig.json` file
 To view the `index.html` as a web page, open in Firefox, or right click and view with the [Live Server](https://marketplace.visualstudio.com/items?itemName=ritwickdey.LiveServer) extension (if installed).
 
 
-### Code Execution
+## Code Execution
 
 You can run code on SAS Viya, SAS 9 EBI or [SASjs Server](https://server.sasjs.io)!  Just set up the target, and click the running man to execute your SAS code.
 
@@ -74,7 +75,19 @@ For local desktop instances of SASjs Server, the serverUrl is likely to be http:
 
 If you are running SASjs Server in server mode, then you will need a client id - the default is `clientID1`
 
-### SAS Lint and Format
+## Directory Synchronisation
+
+Sometimes when working with SAS, you would like to supply some physical content (eg macros, format definitions, Excel, images, etc) to the remote SAS server.
+
+The [`syncDirectories`](https://cli.sasjs.io/sasjsconfig.html#syncDirectories) feature lets you map one or more LOCAL (on your laptop) directories with one or more REMOTE (on the SAS server) directories.
+
+It works by hashing the remote files, comparing the hashes with the local files, and deploying only the changed files.  No SSH access needed, all files are deployed using 100% SAS Code.
+
+More information is in the cli docs here:  https://cli.sasjs.io/fs
+
+To configure, just add the `syncDirectories` [object](https://cli.sasjs.io/sasjsconfig.html#syncDirectories) to your local `sasjs/sasjsconfig.json` file.  If this file does not exist, just click the Documentation icon to create one.
+
+## SAS Lint and Format
 Spend less time on code reviews and more time pushing code! Select VIEW->PROBLEMS (or ctrl+shift+M) to examine the currently opened SAS program for issues.
 
 ![image](https://user-images.githubusercontent.com/4420615/113478713-800e1d00-9482-11eb-90c1-10a80a41be1a.png)
