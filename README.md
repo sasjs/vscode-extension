@@ -12,10 +12,10 @@ If you have questions or would like support on the extension, visit our support 
 
 ## Features
 
-* Code Documentation
-* Code Execution
-* Directory Synchronisation
-* SAS Lint and Format
+* [Code Documentation](#code-documentation)
+* [Code Execution](#code-execution)
+* [Directory Synchronisation](#directory-synchronisation)
+* [SAS Lint and Format](#sas-lint-and-format)
 
 ## Code Documentation
 
@@ -83,9 +83,10 @@ The [`syncDirectories`](https://cli.sasjs.io/sasjsconfig.html#syncDirectories) f
 
 It works by hashing the remote files, comparing the hashes with the local files, and deploying only the changed files.  No SSH access needed, all files are deployed using 100% SAS Code.
 
-More information is in the cli docs here:  https://cli.sasjs.io/fs
+More information is in the [cli docs](https://cli.sasjs.io/fs) and this [explanatory video](https://vid.4gl.io/w/jKf6T8FxRTAdqQXWxUt36u). 
 
 To configure, just add the `syncDirectories` [object](https://cli.sasjs.io/sasjsconfig.html#syncDirectories) to your local `sasjs/sasjsconfig.json` file.  If this file does not exist, just click the Documentation icon to create one.
+
 
 ## SAS Lint and Format
 Spend less time on code reviews and more time pushing code! Select VIEW->PROBLEMS (or ctrl+shift+M) to examine the currently opened SAS program for issues.
