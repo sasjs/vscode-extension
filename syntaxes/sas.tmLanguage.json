@@ -340,7 +340,7 @@
       ]
     },
     "macrokeylist": {
-      "match": "%(?i:(by|do|else|end|global|goto|if|let|to|until|symdel|while|leave|cancel|scan|then|local|str|eval|len|put|sysfunc|compres|left|lowcase|qlowcase|qcmpres|qleft|qlowcase|qtrim|sysrc|trim|verify|bquote|nrbquote|index|length|nrstr|qscan|qsubstr|substr|qsubstr|superq|symexsit|symglobal|symlocal|sysget|upcase|qupcase))\\b",
+      "match": "%(?i:(by|do|else|end|global|gitgoto|if|let|to|until|symdel|while|leave|cancel|scan|then|local|str|eval|len|put|sysfunc|compres|left|lowcase|qlowcase|qcmpres|qleft|qlowcase|qtrim|sysrc|trim|verify|bquote|nrbquote|index|length|nrstr|qscan|qsubstr|substr|qsubstr|superq|symexsit|symglobal|symlocal|sysget|upcase|qupcase))\\b",
       "name": "keyword.control.general.sas"
     },
     "macrovar": {
