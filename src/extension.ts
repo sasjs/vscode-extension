@@ -19,6 +19,18 @@ const eventListeners: vscode.Disposable[] = []
 let statusBarItem: vscode.StatusBarItem
 
 export async function activate(context: vscode.ExtensionContext) {
+  if (vscode.workspace.workspaceFolders === undefined) {
+    vscode.commands.executeCommand('setContext', 'isWorkspaceOpened', false)
+    if (vscode.window.activeTextEditor?.document.languageId === 'sas') {
+      vscode.window.showErrorMessage(
+        'Sasjs extension is disabled! To use it open the file in a workspace.'
+      )
+    }
+    return
+  }
+
+  vscode.commands.executeCommand('setContext', 'isWorkspaceOpened', true)
+
   await setProcessVariables()
 
   const executeCodeCommand = new ExecuteCodeCommand(context)
