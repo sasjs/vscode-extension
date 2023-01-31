@@ -141,32 +141,32 @@
         {
           "command": "sasjs-for-vscode.executeCode",
           "group": "navigation",
-          "when": "editorLangId == sas && !isSasjsCodeExecuting"
+          "when": "editorLangId == sas && !isSasjsCodeExecuting && isWorkspaceOpened"
         },
         {
           "command": "sasjs-for-vscode.executingCode",
           "group": "navigation",
-          "when": "editorLangId == sas && isSasjsCodeExecuting"
+          "when": "editorLangId == sas && isSasjsCodeExecuting && isWorkspaceOpened"
         },
         {
           "command": "sasjs-for-vscode.selectTarget",
           "group": "navigation",
-          "when": "editorLangId == sas"
+          "when": "editorLangId == sas  && isWorkspaceOpened"
         },
         {
           "command": "sasjs-for-vscode.syncDirectories",
           "group": "navigation",
-          "when": "editorLangId == sas && !isSyncingDirectories"
+          "when": "editorLangId == sas && !isSyncingDirectories && isWorkspaceOpened"
         },
         {
           "command": "sasjs-for-vscode.syncingDirectories",
           "group": "navigation",
-          "when": "editorLangId == sas  && isSyncingDirectories"
+          "when": "editorLangId == sas  && isSyncingDirectories && isWorkspaceOpened"
         },
         {
           "command": "sasjs-for-vscode.docs",
           "group": "navigation",
-          "when": "editorLangId == sas"
+          "when": "editorLangId == sas && isWorkspaceOpened"
         }
       ]
     }
@@ -243,7 +243,7 @@
     "vscode-test": "^1.6.1"
   },
   "dependencies": {
-    "@sasjs/adapter": "4.0.1",
+    "@sasjs/adapter": "4.1.2",
     "@sasjs/lint": "2.2.0",
     "@sasjs/utils": "2.51.5",
     "axios": "0.26.1",

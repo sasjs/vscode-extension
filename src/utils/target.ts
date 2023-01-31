@@ -109,7 +109,7 @@ export const configureTarget = async () => {
   })
   const choice = await getTargetChoice(
     quickPickChoices,
-    'Please select a target'
+    'Please select from the list below'
   )
   let target: Target | undefined
   let isLocal = false
