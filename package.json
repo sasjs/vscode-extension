@@ -23,6 +23,14 @@
   "contributes": {
     "commands": [
       {
+        "command": "sasjs-for-vscode.compileBuildDeploy",
+        "title": "SASjs: Compile, Build, Deploy",
+        "icon": {
+          "dark": "./assets/images/cbd.png",
+          "light": "./assets/images/cbd.png"
+        }
+      },
+      {
         "command": "sasjs-for-vscode.executingCode",
         "title": "Your SAS Code is running!",
         "icon": {
@@ -139,6 +147,11 @@
     "menus": {
       "editor/title": [
         {
+          "command": "sasjs-for-vscode.compileBuildDeploy",
+          "group": "navigation@3",
+          "when": "resourceFilename == sasjsconfig.json || editorLangId == sas"
+        },
+        {
           "command": "sasjs-for-vscode.executeCode",
           "group": "navigation@2",
           "when": "editorLangId == sas && !isSasjsCodeExecuting"
@@ -244,8 +257,9 @@
   },
   "dependencies": {
     "@sasjs/adapter": "4.0.1",
+    "@sasjs/cli": "3.28.0",
     "@sasjs/lint": "2.1.0",
-    "@sasjs/utils": "2.51.5",
+    "@sasjs/utils": "3.0.1",
     "axios": "0.26.1",
     "dotenv": "16.0.3",
     "esbuild-plugin-copy": "2.0.1",

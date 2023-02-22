@@ -99,7 +99,7 @@ const createAndOpenLogFile = async (log: string) => {
   })
 }
 
-const handleErrorResponse = async (e: any, message: string) => {
+export const handleErrorResponse = async (e: any, message: string) => {
   process.outputChannel.appendLine(`SASjs: ${message}: `)
   process.outputChannel.appendLine(e)
   process.outputChannel.appendLine(e.message)
