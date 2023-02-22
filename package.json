@@ -236,7 +236,7 @@
   "devDependencies": {
     "@types/glob": "^7.1.4",
     "@types/mocha": "^9.0.0",
-    "@types/node": "^17.0.21",
+    "@types/node": "^18.14.0",
     "@types/shelljs.exec": "1.1.0",
     "@types/tough-cookie": "^4.0.1",
     "@types/valid-url": "^1.0.3",
@@ -256,10 +256,10 @@
     "vscode-test": "^1.6.1"
   },
   "dependencies": {
-    "@sasjs/cli": "3.28.0",
-    "@sasjs/utils": "3.0.1",
     "@sasjs/adapter": "4.1.2",
+    "@sasjs/cli": "3.28.0",
     "@sasjs/lint": "2.2.2",
+    "@sasjs/utils": "3.0.1",
     "axios": "0.26.1",
     "dotenv": "16.0.3",
     "esbuild-plugin-copy": "2.0.1",
