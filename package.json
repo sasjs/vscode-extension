@@ -79,8 +79,8 @@
         "command": "sasjs-for-vscode.docs",
         "title": "SASjs: Docs",
         "icon": {
-          "dark": "./assets/images/docs-dark.png",
-          "light": "./assets/images/docs-light.png"
+          "dark": "./assets/images/docs.png",
+          "light": "./assets/images/docs.png"
         }
       }
     ],
@@ -140,27 +140,27 @@
       "editor/title": [
         {
           "command": "sasjs-for-vscode.executeCode",
-          "group": "navigation",
+          "group": "navigation@2",
           "when": "editorLangId == sas && !isSasjsCodeExecuting"
         },
         {
           "command": "sasjs-for-vscode.executingCode",
-          "group": "navigation",
+          "group": "navigation@2",
           "when": "editorLangId == sas && isSasjsCodeExecuting"
         },
         {
           "command": "sasjs-for-vscode.selectTarget",
-          "group": "navigation",
+          "group": "navigation@1",
           "when": "editorLangId == sas"
         },
         {
           "command": "sasjs-for-vscode.syncDirectories",
-          "group": "navigation",
+          "group": "navigation@4",
           "when": "editorLangId == sas && !isSyncingDirectories"
         },
         {
           "command": "sasjs-for-vscode.syncingDirectories",
-          "group": "navigation",
+          "group": "navigation@4",
           "when": "editorLangId == sas  && isSyncingDirectories"
         },
         {
