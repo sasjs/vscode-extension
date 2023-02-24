@@ -45,9 +45,31 @@ export const getGlobalConfigurationPath = () =>
 
 export const getNodeModulePath = async (module: string): Promise<string> => {
   // Check if module is present in project's dependencies
-  const projectPath = path.join(process.projectDir, 'node_modules', module)
+  let projectPath = path.join(process.projectDir, 'node_modules', module)
 
-  if (await folderExists(projectPath)) return projectPath
+  if (await folderExists(projectPath)) {
+    return projectPath
+  }
+
+  const rootFolder = __dirname.split(path.sep)
+  rootFolder.pop()
+
+  projectPath = path.join(rootFolder.join(path.sep), 'node_modules', module)
+
+  if (await folderExists(projectPath)) {
+    return projectPath
+  } else {
+    // INFO: root folder is different for Debug Mode (F5)
+    const debugRootFolder = __dirname.match(/.*vscode-extension/)
+
+    if (debugRootFolder) {
+      projectPath = path.join(debugRootFolder[0], 'node_modules', module)
+
+      if (await folderExists(projectPath)) {
+        return projectPath
+      }
+    }
+  }
 
   return ''
 }

@@ -23,6 +23,11 @@
   "contributes": {
     "commands": [
       {
+        "command": "sasjs-for-vscode.compileBuildDeploy",
+        "title": "SASjs: Compile, Build, Deploy",
+        "icon": "./assets/images/cbd.png"
+      },
+      {
         "command": "sasjs-for-vscode.executingCode",
         "title": "Your SAS Code is running!",
         "icon": {
@@ -78,10 +83,7 @@
       {
         "command": "sasjs-for-vscode.docs",
         "title": "SASjs: Docs",
-        "icon": {
-          "dark": "./assets/images/docs-dark.png",
-          "light": "./assets/images/docs-light.png"
-        }
+        "icon": "./assets/images/docs.png"
       }
     ],
     "configuration": {
@@ -139,28 +141,33 @@
     "menus": {
       "editor/title": [
         {
+          "command": "sasjs-for-vscode.compileBuildDeploy",
+          "group": "navigation@3",
+          "when": "resourceFilename == sasjsconfig.json || editorLangId == sas && isWorkspaceOpened"
+        },
+        {
           "command": "sasjs-for-vscode.executeCode",
-          "group": "navigation",
+          "group": "navigation@2",
           "when": "editorLangId == sas && !isSasjsCodeExecuting && isWorkspaceOpened"
         },
         {
           "command": "sasjs-for-vscode.executingCode",
-          "group": "navigation",
+          "group": "navigation@2",
           "when": "editorLangId == sas && isSasjsCodeExecuting && isWorkspaceOpened"
         },
         {
           "command": "sasjs-for-vscode.selectTarget",
-          "group": "navigation",
-          "when": "editorLangId == sas  && isWorkspaceOpened"
+          "group": "navigation@1",
+          "when": "editorLangId == sas && isWorkspaceOpened"
         },
         {
           "command": "sasjs-for-vscode.syncDirectories",
-          "group": "navigation",
+          "group": "navigation@4",
           "when": "editorLangId == sas && !isSyncingDirectories && isWorkspaceOpened"
         },
         {
           "command": "sasjs-for-vscode.syncingDirectories",
-          "group": "navigation",
+          "group": "navigation@4",
           "when": "editorLangId == sas  && isSyncingDirectories && isWorkspaceOpened"
         },
         {
@@ -223,7 +230,7 @@
   "devDependencies": {
     "@types/glob": "^7.1.4",
     "@types/mocha": "^9.0.0",
-    "@types/node": "^17.0.21",
+    "@types/node": "^18.14.0",
     "@types/shelljs.exec": "1.1.0",
     "@types/tough-cookie": "^4.0.1",
     "@types/valid-url": "^1.0.3",
@@ -244,8 +251,9 @@
   },
   "dependencies": {
     "@sasjs/adapter": "4.1.2",
+    "@sasjs/cli": "3.28.0",
     "@sasjs/lint": "2.2.2",
-    "@sasjs/utils": "2.51.5",
+    "@sasjs/utils": "3.0.1",
     "axios": "0.26.1",
     "dotenv": "16.0.3",
     "esbuild-plugin-copy": "2.0.1",

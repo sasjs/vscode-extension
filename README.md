@@ -16,6 +16,7 @@ If you have questions or would like support on the extension, visit our support 
 * [Code Execution](#code-execution)
 * [Directory Synchronisation](#directory-synchronisation)
 * [SAS Lint and Format](#sas-lint-and-format)
+* [Compile, Build and Deploy](#compile-build-deploy)
 
 ## Code Documentation
 
@@ -47,7 +48,7 @@ The target 🎯 describes the server on which you intend to run the code.  The a
 The following attributes are needed for all server types:
 
  - Name.  An alias to represent the target.
- - Server Url.  The full URL (including port if needed) of your SAS server. 
+ - Server Url.  The full URL (including port if needed) of your SAS server.
  - Server Type.  Can be SASVIYA, SAS9 or SASJS.
 
 Below are the setup steps specific to each server type
@@ -83,7 +84,7 @@ The [`syncDirectories`](https://cli.sasjs.io/sasjsconfig.html#syncDirectories) f
 
 It works by hashing the remote files, comparing the hashes with the local files, and deploying only the changed files.  No SSH access needed, all files are deployed using 100% SAS Code.
 
-More information is in the [cli docs](https://cli.sasjs.io/fs) and this [explanatory video](https://vid.4gl.io/w/jKf6T8FxRTAdqQXWxUt36u). 
+More information is in the [cli docs](https://cli.sasjs.io/fs) and this [explanatory video](https://vid.4gl.io/w/jKf6T8FxRTAdqQXWxUt36u).
 
 To configure, just add the `syncDirectories` [object](https://cli.sasjs.io/sasjsconfig.html#syncDirectories) to your local `sasjs/sasjsconfig.json` file.  If this file does not exist, just click the Documentation icon to create one.
 
@@ -124,6 +125,18 @@ You can use this feature in two ways:
 
 2. By enabling automatic formatting of files on save/paste from the Settings menu.
 ![image](https://user-images.githubusercontent.com/2980428/117259572-15b41800-ae46-11eb-9c7f-b9700b77405b.png)
+
+## Compile, Build and Deploy
+
+### Single File
+
+If a `*.sas` file is selected and a `Compile, Build, Deploy` icon is clicked, then a single file will be compiled, built and deployed. Compiled and built files will be located in `sasjsbuild` folder at the root of the project. If an error appeared during the process, `log` file should be created in `sasjsresults` folder.
+![image](./assets/screenshots/cbd-single-file.png)
+
+### Project
+
+if a `sasjsconfig.json` file is selected and a `Compile, Build, Deploy` icon is clicked, then an entire project will be compiled, built and deployed. Compiled and built files will be located in `sasjsbuild` folder at the root of the project. If an error appeared during the process, `log` file should be created in `sasjsresults` folder.
+![image](./assets/screenshots/cbd-project.png)
 
 ## Contributions
 
