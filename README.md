@@ -133,7 +133,7 @@ You can use this feature in two ways:
 If a `*.sas` file is selected and a `Compile, Build, Deploy` icon is clicked, then a single file will be compiled, built and deployed. Compiled and built files will be located in `sasjsbuild` folder at the root of the project. If an error appeared during the process, `log` file should be created in `sasjsresults` folder.
 ![image](./assets/screenshots/cbd-single-file.png)
 
-### Whole Project
+### Project
 
 if a `sasjsconfig.json` file is selected and a `Compile, Build, Deploy` icon is clicked, then an entire project will be compiled, built and deployed. Compiled and built files will be located in `sasjsbuild` folder at the root of the project. If an error appeared during the process, `log` file should be created in `sasjsresults` folder.
 ![image](./assets/screenshots/cbd-project.png)
