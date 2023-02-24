@@ -25,10 +25,7 @@
       {
         "command": "sasjs-for-vscode.compileBuildDeploy",
         "title": "SASjs: Compile, Build, Deploy",
-        "icon": {
-          "dark": "./assets/images/cbd.png",
-          "light": "./assets/images/cbd.png"
-        }
+        "icon": "./assets/images/cbd.png"
       },
       {
         "command": "sasjs-for-vscode.executingCode",
@@ -86,10 +83,7 @@
       {
         "command": "sasjs-for-vscode.docs",
         "title": "SASjs: Docs",
-        "icon": {
-          "dark": "./assets/images/docs.png",
-          "light": "./assets/images/docs.png"
-        }
+        "icon": "./assets/images/docs.png"
       }
     ],
     "configuration": {
@@ -149,32 +143,32 @@
         {
           "command": "sasjs-for-vscode.compileBuildDeploy",
           "group": "navigation@3",
-          "when": "resourceFilename == sasjsconfig.json || editorLangId == sas"
+          "when": "resourceFilename == sasjsconfig.json || editorLangId == sas && isWorkspaceOpened"
         },
         {
           "command": "sasjs-for-vscode.executeCode",
           "group": "navigation@2",
-          "when": "editorLangId == sas && !isSasjsCodeExecuting"
+          "when": "editorLangId == sas && !isSasjsCodeExecuting && isWorkspaceOpened"
         },
         {
           "command": "sasjs-for-vscode.executingCode",
           "group": "navigation@2",
-          "when": "editorLangId == sas && isSasjsCodeExecuting"
+          "when": "editorLangId == sas && isSasjsCodeExecuting && isWorkspaceOpened"
         },
         {
           "command": "sasjs-for-vscode.selectTarget",
           "group": "navigation@1",
-          "when": "editorLangId == sas"
+          "when": "editorLangId == sas && isWorkspaceOpened"
         },
         {
           "command": "sasjs-for-vscode.syncDirectories",
           "group": "navigation@4",
-          "when": "editorLangId == sas && !isSyncingDirectories"
+          "when": "editorLangId == sas && !isSyncingDirectories && isWorkspaceOpened"
         },
         {
           "command": "sasjs-for-vscode.syncingDirectories",
           "group": "navigation@4",
-          "when": "editorLangId == sas  && isSyncingDirectories"
+          "when": "editorLangId == sas  && isSyncingDirectories && isWorkspaceOpened"
         },
         {
           "command": "sasjs-for-vscode.docs",
