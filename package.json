@@ -230,7 +230,7 @@
   "devDependencies": {
     "@types/glob": "^7.1.4",
     "@types/mocha": "^9.0.0",
-    "@types/node": "^18.14.0",
+    "@types/node": "^18.14.1",
     "@types/shelljs.exec": "1.1.0",
     "@types/tough-cookie": "^4.0.1",
     "@types/valid-url": "^1.0.3",
