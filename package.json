@@ -253,7 +253,7 @@
     "@sasjs/adapter": "4.1.2",
     "@sasjs/cli": "3.28.0",
     "@sasjs/lint": "2.2.2",
-    "@sasjs/utils": "3.0.1",
+    "@sasjs/utils": "3.1.1",
     "axios": "0.26.1",
     "dotenv": "16.0.3",
     "esbuild-plugin-copy": "2.0.1",
