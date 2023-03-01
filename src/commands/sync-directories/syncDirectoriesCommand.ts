@@ -1,8 +1,6 @@
-import * as os from 'os'
 import * as path from 'path'
 import { window, ExtensionContext, commands, workspace } from 'vscode'
 import { createFile } from '../../utils/file'
-import { selectTarget } from '../../utils/target'
 import { executeCode } from '../../utils/executeCode'
 import { getAbsolutePath, getRelativePath } from '@sasjs/utils/file'
 import {
@@ -13,15 +11,18 @@ import {
   generateProgramToSyncHashDiff,
   extractHashArray
 } from '@sasjs/utils/fs'
-import { getTimestamp } from '../../utils/utils'
+import { getTimestamp, handleErrorResponse } from '../../utils/utils'
 import { SyncDirectoryMap, Target } from '@sasjs/utils'
 import {
   getGlobalConfiguration,
   getLocalConfiguration
 } from '../../utils/config'
+import { TargetCommand } from '../../types/commands/targetCommand'
 
-export class SyncDirectoriesCommand {
-  constructor(private context: ExtensionContext) {}
+export class SyncDirectoriesCommand extends TargetCommand {
+  constructor(private context: ExtensionContext) {
+    super()
+  }
 
   initialise = () => {
     const syncDirectoriesCommand = commands.registerCommand(
@@ -32,23 +33,9 @@ export class SyncDirectoriesCommand {
   }
 
   private execute = async () => {
-    let target: Target | undefined
-    let isLocal: boolean = false
-
-    try {
-      ;({ target, isLocal } = await selectTarget())
-    } catch (error: any) {
-      process.outputChannel.appendLine('SASjs: Error selecting target: ')
-      process.outputChannel.appendLine(error)
-      process.outputChannel.appendLine(error.message)
-      process.outputChannel.appendLine(JSON.stringify(error, null, 2))
-      process.outputChannel.show()
-    }
+    const { target, isLocal } = await this.getTargetInfo()
 
     if (!target) {
-      window.showErrorMessage(
-        'An unexpected error occurred while selecting target.'
-      )
       return
     }
 
@@ -227,7 +214,7 @@ const getSyncDirectories = async (target: Target, isLocal: boolean) => {
     : await getGlobalConfiguration()
 
   const rootLevelSyncDirectories: SyncDirectoryMap[] =
-    config.syncDirectories || []
+    config?.syncDirectories || []
   const targetLevelSyncDirectories = target.syncDirectories || []
 
   return [...rootLevelSyncDirectories, ...targetLevelSyncDirectories]

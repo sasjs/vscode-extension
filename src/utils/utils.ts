@@ -1,7 +1,7 @@
 import * as path from 'path'
 import * as os from 'os'
 import axios from 'axios'
-import { window, workspace } from 'vscode'
+import { window, workspace, ViewColumn } from 'vscode'
 import {
   Target,
   timestampToYYYYMMDDHHMMSS,
@@ -9,6 +9,7 @@ import {
   folderExists,
   copy
 } from '@sasjs/utils'
+import { createFile } from './file'
 
 export const getTimestamp = () =>
   timestampToYYYYMMDDHHMMSS()
@@ -85,4 +86,39 @@ export async function setupDoxygen(folderPath: string): Promise<void> {
     'doxy'
   )
   await copy(doxyFolderPathSource, doxyFolderPath)
+}
+
+export const handleErrorResponse = async (e: any, message: string) => {
+  process.outputChannel.appendLine(`SASjs: ${message}: `)
+  process.outputChannel.appendLine(e)
+  process.outputChannel.appendLine(e.message)
+  process.outputChannel.appendLine(JSON.stringify(e, null, 2))
+  process.outputChannel.show()
+
+  const { log } = e
+  if (log) {
+    await createAndOpenLogFile(log)
+  } else if (e.message) {
+    await createAndOpenLogFile(e.message)
+  }
+}
+
+export const createAndOpenLogFile = async (log: string) => {
+  const { buildDestinationResultsFolder: resultsFolder } =
+    process.sasjsConstants
+
+  const timestamp = getTimestamp()
+  const resultsPath = path.join(resultsFolder, `${timestamp}.log`)
+
+  process.outputChannel.appendLine(
+    `SASjs: Attempting to create log file at ${resultsPath}.`
+  )
+
+  process.outputChannel.show()
+
+  await createFile(resultsPath, log)
+  const document = await workspace.openTextDocument(resultsPath)
+  window.showTextDocument(document, {
+    viewColumn: ViewColumn.Beside
+  })
 }
