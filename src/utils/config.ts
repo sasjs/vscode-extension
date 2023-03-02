@@ -1,7 +1,15 @@
 import * as path from 'path'
 import { window, workspace } from 'vscode'
-import { decodeFromBase64, fileExists } from '@sasjs/utils'
-import { Target, AuthConfig, ServerType, AuthConfigSas9 } from '@sasjs/utils'
+import {
+  AuthConfig,
+  AuthConfigSas9,
+  Configuration,
+  decodeFromBase64,
+  fileExists,
+  ServerType,
+  Target
+} from '@sasjs/utils'
+import {} from '@sasjs/utils'
 import * as dotenv from 'dotenv'
 import { createFile, readFile } from './file'
 import { getChoiceInput } from './input'
@@ -21,7 +29,7 @@ export async function saveToConfigFile(buildTarget: Target, isLocal: boolean) {
   if (config) {
     if (config.targets && config.targets.length) {
       const existingTargetIndex = config.targets.findIndex(
-        (t: Target) => t.name === buildTarget.name
+        (t) => t.name === buildTarget.name
       )
       if (existingTargetIndex > -1) {
         config.targets[existingTargetIndex] = targetJson
@@ -44,7 +52,7 @@ export async function removeTargetFromGlobalRcFile() {
   const globalConfig = await getGlobalConfiguration()
 
   if (globalConfig) {
-    if (!globalConfig?.targets.length) {
+    if (!globalConfig.targets?.length) {
       throw new Error('No target found in global config file!')
     }
 
@@ -58,7 +66,7 @@ export async function removeTargetFromGlobalRcFile() {
       throw new Error('No target selected!')
     }
     const targetIndex = globalConfig.targets.findIndex(
-      (t: Target) => t.name === targetName
+      (t) => t.name === targetName
     )
     globalConfig.targets.splice(targetIndex, 1)
 
@@ -95,7 +103,9 @@ export async function saveLocalConfigFile(content: string) {
   return configPath
 }
 
-export const getGlobalConfiguration = async () => {
+export const getGlobalConfiguration = async (): Promise<
+  Configuration | undefined
+> => {
   const sasjsConfigPath = getGlobalConfigurationPath()
   let configFile
 
@@ -105,7 +115,7 @@ export const getGlobalConfiguration = async () => {
     process.outputChannel.appendLine(
       'A global SASjs config file was not found in your home directory.'
     )
-    return null
+    return
   }
 
   try {
@@ -122,11 +132,13 @@ export const getGlobalConfiguration = async () => {
 
     const document = await workspace.openTextDocument(sasjsConfigPath)
     await window.showTextDocument(document)
-    return null
+    return
   }
 }
 
-export const getLocalConfiguration = async () => {
+export const getLocalConfiguration = async (): Promise<
+  Configuration | undefined
+> => {
   const sasjsConfigPath = getLocalConfigurationPath()
   let configFile
 
@@ -134,7 +146,7 @@ export const getLocalConfiguration = async () => {
     configFile = await readFile(sasjsConfigPath)
   } catch {
     process.outputChannel.appendLine('A local SASjs config file was not found.')
-    return null
+    return
   }
 
   try {
@@ -151,7 +163,7 @@ export const getLocalConfiguration = async () => {
 
     const document = await workspace.openTextDocument(sasjsConfigPath)
     await window.showTextDocument(document)
-    return null
+    return
   }
 }
 

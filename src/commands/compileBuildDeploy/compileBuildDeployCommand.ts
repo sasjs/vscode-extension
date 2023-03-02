@@ -12,11 +12,13 @@ import {
   getDestinationJobPath,
   getDestinationServicePath
 } from '@sasjs/cli/build/commands/compile/internal/getDestinationPath'
-import { Configuration } from '@sasjs/utils'
-import { handleErrorResponse } from '../docs/docsCommand'
+import { handleErrorResponse } from '../../utils/utils'
+import { TargetCommand } from '../../types/commands/targetCommand'
 
-export class CompileBuildDeployCommand {
-  constructor(private context: ExtensionContext) {}
+export class CompileBuildDeployCommand extends TargetCommand {
+  constructor(private context: ExtensionContext) {
+    super()
+  }
 
   async initialise() {
     const compileCommand = commands.registerCommand(
@@ -30,17 +32,6 @@ export class CompileBuildDeployCommand {
   private compileBuildDeployCommand = async () => {
     await this.executeCompileBuildDeploy()
   }
-
-  private getTargetInfo = async () =>
-    await selectTarget().catch((err) => {
-      handleErrorResponse(err, 'Error selecting target:')
-
-      window.showErrorMessage(
-        'An unexpected error occurred while selecting target.'
-      )
-
-      return { target: undefined, isLocal: false }
-    })
 
   private async executeCompileBuildDeploy() {
     let currentFolder: string = ''
@@ -70,17 +61,13 @@ export class CompileBuildDeployCommand {
         }
         let fileType: string = fileTypes.identify
 
-        const localConfig: Configuration = await getLocalConfiguration().catch(
-          (err) => {
-            this.handleError(err, 'Getting local config failed!')
-          }
-        )
+        const localConfig = await getLocalConfiguration()
 
         let serviceFolders = target.serviceConfig?.serviceFolders
         let jobFolders = target.jobConfig?.jobFolders
 
         if (serviceFolders === undefined) {
-          serviceFolders = localConfig.serviceConfig?.serviceFolders
+          serviceFolders = localConfig?.serviceConfig?.serviceFolders
         }
 
         if (serviceFolders && fileType === fileTypes.identify) {
@@ -92,7 +79,7 @@ export class CompileBuildDeployCommand {
         }
 
         if (jobFolders === undefined) {
-          jobFolders = localConfig.jobConfig?.jobFolders
+          jobFolders = localConfig?.jobConfig?.jobFolders
         }
 
         if (jobFolders && fileType === fileTypes.identify) {
