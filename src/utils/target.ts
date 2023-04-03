@@ -1,8 +1,6 @@
 import { workspace, window, QuickPickItem, QuickPickItemKind } from 'vscode'
-
 import { Target, Configuration, TargetJson } from '@sasjs/utils/types'
 import { getTargetChoice } from './input'
-
 import { getGlobalConfiguration, getLocalConfiguration } from './config'
 import { createTarget } from './createTarget'
 import { setConstants } from './setConstants'
@@ -111,6 +109,7 @@ export const configureTarget = async () => {
     quickPickChoices,
     'Please select from the list below'
   )
+
   let target: Target | undefined
   let isLocal = false
 
@@ -131,9 +130,12 @@ export const configureTarget = async () => {
 
   if (target) {
     const extConfig = workspace.getConfiguration('sasjs-for-vscode')
-    await extConfig.update('target', target.name, true)
+
+    await extConfig.update('target', target.name, !isLocal)
     await extConfig.update('isLocal', isLocal, true)
+
     await setConstants()
   }
+
   return { target, isLocal }
 }
