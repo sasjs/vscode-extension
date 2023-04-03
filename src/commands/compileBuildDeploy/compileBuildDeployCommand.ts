@@ -8,12 +8,9 @@ import {
   build,
   deploy
 } from '@sasjs/cli/build/commands'
-import {
-  getDestinationJobPath,
-  getDestinationServicePath
-} from '@sasjs/cli/build/commands/compile/internal/getDestinationPath'
 import { handleErrorResponse } from '../../utils/utils'
 import { TargetCommand } from '../../types/commands/targetCommand'
+import { isTestFile } from '@sasjs/utils'
 
 export class CompileBuildDeployCommand extends TargetCommand {
   constructor(private context: ExtensionContext) {
@@ -57,62 +54,72 @@ export class CompileBuildDeployCommand extends TargetCommand {
         const fileTypes = {
           job: 'job',
           service: 'service',
+          test: 'test',
           identify: 'identify'
         }
         let fileType: string = fileTypes.identify
 
-        const localConfig = await getLocalConfiguration()
+        if (isTestFile(fileName)) {
+          fileType = fileTypes.test
+        } else {
+          const localConfig = await getLocalConfiguration()
+          let serviceFolders = target.serviceConfig?.serviceFolders
+          let jobFolders = target.jobConfig?.jobFolders
 
-        let serviceFolders = target.serviceConfig?.serviceFolders
-        let jobFolders = target.jobConfig?.jobFolders
+          if (serviceFolders === undefined) {
+            serviceFolders = localConfig?.serviceConfig?.serviceFolders
+          }
 
-        if (serviceFolders === undefined) {
-          serviceFolders = localConfig?.serviceConfig?.serviceFolders
+          if (serviceFolders && fileType === fileTypes.identify) {
+            serviceFolders.forEach((folder) => {
+              if (fileName.includes(folder)) {
+                fileType = fileTypes.service
+              }
+            })
+          }
+
+          if (jobFolders === undefined) {
+            jobFolders = localConfig?.jobConfig?.jobFolders
+          }
+
+          if (jobFolders && fileType === fileTypes.identify) {
+            jobFolders.forEach((folder) => {
+              if (fileName.includes(folder)) {
+                fileType = fileTypes.job
+              }
+            })
+          }
         }
 
-        if (serviceFolders && fileType === fileTypes.identify) {
-          serviceFolders.forEach((folder) => {
-            if (fileName.includes(folder)) {
-              fileType = fileTypes.service
-            }
-          })
-        }
-
-        if (jobFolders === undefined) {
-          jobFolders = localConfig?.jobConfig?.jobFolders
-        }
-
-        if (jobFolders && fileType === fileTypes.identify) {
-          jobFolders.forEach((folder) => {
-            if (fileName.includes(folder)) {
-              fileType = fileTypes.job
-            }
-          })
-        }
-
-        let output = path.join(
-          process.sasjsConstants.buildDestinationFolder,
-          fileName.split(path.sep).pop() || ''
-        )
-
-        if (fileType === fileTypes.job) {
-          output = getDestinationJobPath(fileName)
-        } else if (fileType === fileTypes.service) {
-          output = getDestinationServicePath(fileName)
-        }
-
-        await compileSingleFile(
-          target,
-          fileType,
-          fileName,
-          output,
-          undefined,
-          currentFolder
-        ).catch((err) => {
-          this.handleError(err, 'Single file compile failed!')
-
+        if (fileType === fileTypes.identify) {
           isCBDFailed = true
-        })
+
+          this.handleError(
+            new Error(
+              `File type has not been identified as Service, Job or Test. Please fix service/job config for your target or name file as 'example.test.sas'.`
+            ),
+            'Compile failed!'
+          )
+        } else {
+          const output = path.join(
+            process.sasjsConstants.buildDestinationFolder,
+            `${fileType}s`,
+            target.name
+          )
+
+          await compileSingleFile(
+            target,
+            fileType,
+            fileName,
+            output,
+            undefined,
+            currentFolder
+          ).catch((err) => {
+            this.handleError(err, 'Single file compile failed!')
+
+            isCBDFailed = true
+          })
+        }
       }
 
       if (isCBDFailed) return
