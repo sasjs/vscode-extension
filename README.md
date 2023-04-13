@@ -94,6 +94,8 @@ Spend less time on code reviews and more time pushing code! Select VIEW->PROBLEM
 
 ![image](https://user-images.githubusercontent.com/4420615/113478713-800e1d00-9482-11eb-90c1-10a80a41be1a.png)
 
+### Rules
+
 Rules can be configured by creating a `.sasjslint` file in the root of your project as follows:
 
 ```json
@@ -112,10 +114,18 @@ Rules can be configured by creating a `.sasjslint` file in the root of your proj
     "maxLineLength": 80,
     "noNestedMacros": true,
     "noSpacesInFileNames": true,
-    "noTabIndentation": true,
+    "noTabs": true,
     "noTrailingSpaces": true
 }
 ```
+
+Settings in the project (workspace) root (`.sasjslint`) take the highest precedence, followed by the following locations:
+
+* VS Code (extension) settings (`sasjs-for-vscode.lintConfig`)
+* User Home directory (`~/.sasjslint`)
+* Default settings (see https://github.com/sasjs/lint#sas-lint-settings)
+
+### Formatting
 
 SASjs lint can automatically fix certain problems within SAS files, such as trailing spaces, missing Doxygen header blocks and missing macro names in `%mend` statements.
 You can use this feature in two ways:
