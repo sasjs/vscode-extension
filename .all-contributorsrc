@@ -97,6 +97,16 @@
         "test",
         "review"
       ]
+    },
+    {
+      "login": "SamSvet",
+      "name": "SamSvet",
+      "avatar_url": "https://avatars.githubusercontent.com/u/64905854?v=4",
+      "profile": "https://www.linkedin.com/mwlite/in/sam-svetlichnyy-77b9971a6",
+      "contributions": [
+        "doc",
+        "userTesting"
+      ]
     }
   ],
   "contributorsPerLine": 7,
