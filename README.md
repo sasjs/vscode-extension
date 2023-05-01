@@ -67,7 +67,7 @@ For a SAS9 server type, you need to provide your user and passsword in the promp
 
 https://user-images.githubusercontent.com/4420615/174494256-8676a5e3-9dd2-45a7-bc67-2a5c2355c182.mp4
 
-If you are using self-signed certificates and are unable to connect due to `Error while handling error. Unable to verify the first certificate` (but you ARE able to connect using the [sasjs cli](https://cli.sasjs.io) then you may need to make the following adjustments:
+If you are using self-signed certificates and are unable to connect due to `Error while handling error. Unable to verify the first certificate` - but you ARE able to connect using the [sasjs cli](https://cli.sasjs.io) - then you may need to make the following adjustments:
 
 1. Set `"http.proxySupport": "fallback"` in VS Code settings (instead of the default `"override"`)
 2. Set `"rejectUnauthorized": false` in the [httpsAgentOptions](https://cli.sasjs.io/sasjsconfig.html#httpsAgentOptions_rejectUnauthorized) object in the sasjsconfig file (`sasjs/sasjsconfig.json` or `~/.sasjsrc`)
