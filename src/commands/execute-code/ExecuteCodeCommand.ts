@@ -1,10 +1,19 @@
 import { window, ExtensionContext, commands } from 'vscode'
 import { getEditorContent } from '../../utils/editor'
-import { selectTarget } from '../../utils/target'
-import { createAndOpenLogFile, handleErrorResponse } from '../../utils/utils'
+import {
+  createAndOpenLogFile,
+  handleErrorResponse,
+  getTimestamp
+} from '../../utils/utils'
 import { executeCode } from '../../utils/executeCode'
-import { updateSasjsConstants } from '../../utils/setConstants'
 import { TargetCommand } from '../../types/commands/targetCommand'
+import { ScriptExecutionResult } from '@sasjs/adapter'
+import { createFile, createFolder } from '../../utils/file'
+import * as path from 'path'
+
+interface ExecutionArtifacts extends ScriptExecutionResult {
+  code?: string
+}
 
 export class ExecuteCodeCommand extends TargetCommand {
   constructor(private context: ExtensionContext) {
@@ -29,17 +38,21 @@ export class ExecuteCodeCommand extends TargetCommand {
     }
 
     const execFilePath = window.activeTextEditor?.document.fileName
-
     const sasCodeInjection = `options set=SAS_EXECFILEPATH "${execFilePath}";`
-
-    const currentFileContent = `${sasCodeInjection}\n${getEditorContent()}`
+    const editorContent = getEditorContent()
+    const currentFileContent = `${sasCodeInjection}\n${editorContent}`
 
     commands.executeCommand('setContext', 'isSasjsCodeExecuting', true)
 
     await executeCode(target, currentFileContent || '')
-      .then(async ({ log }) => {
+      .then(async (res) => {
         process.outputChannel.appendLine('SASjs: Code executed successfully!')
-        await handleSuccessResponse(log)
+
+        if (typeof res.log === 'object') {
+          res.log = JSON.stringify(res.log, null, 2)
+        }
+
+        await this.saveExecutionArtifacts({ ...res, code: editorContent })
       })
       .catch(async (err) => {
         await handleErrorResponse(err, 'Error executing code')
@@ -48,14 +61,27 @@ export class ExecuteCodeCommand extends TargetCommand {
         commands.executeCommand('setContext', 'isSasjsCodeExecuting', false)
       })
   }
-}
 
-const handleSuccessResponse = async (log: any) => {
-  if (typeof log === 'object') {
-    return await createAndOpenLogFile(JSON.stringify(log, null, 2))
-  }
+  private saveExecutionArtifacts = async (result: ExecutionArtifacts) => {
+    const { buildDestinationResultsFolder: resultsFolder } =
+      process.sasjsConstants
+    const timestamp = getTimestamp()
+    const folderPath = path.join(resultsFolder, timestamp)
 
-  if (typeof log === 'string') {
-    return await createAndOpenLogFile(log)
+    await createFolder(folderPath)
+
+    const { log, webout, printOutput, code } = result
+
+    if (webout) {
+      await createFile(path.join(folderPath, 'webout.txt'), webout)
+    }
+    if (printOutput) {
+      await createFile(path.join(folderPath, 'print.lst'), printOutput)
+    }
+    if (code) {
+      await createFile(path.join(folderPath, 'code.sas'), code)
+    }
+
+    await createAndOpenLogFile(log, path.join(folderPath, 'log.log'))
   }
 }

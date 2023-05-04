@@ -5,7 +5,6 @@ import { window, workspace, ViewColumn } from 'vscode'
 import {
   Target,
   timestampToYYYYMMDDHHMMSS,
-  fileExists,
   folderExists,
   copy
 } from '@sasjs/utils'
@@ -103,12 +102,12 @@ export const handleErrorResponse = async (e: any, message: string) => {
   }
 }
 
-export const createAndOpenLogFile = async (log: string) => {
+export const createAndOpenLogFile = async (log: string, filePath?: string) => {
   const { buildDestinationResultsFolder: resultsFolder } =
     process.sasjsConstants
 
   const timestamp = getTimestamp()
-  const resultsPath = path.join(resultsFolder, `${timestamp}.log`)
+  const resultsPath = filePath || path.join(resultsFolder, `${timestamp}.log`)
 
   process.outputChannel.appendLine(
     `SASjs: Attempting to create log file at ${resultsPath}.`
