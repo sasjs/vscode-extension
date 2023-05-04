@@ -1,6 +1,7 @@
 import { Target, ServerType, decodeFromBase64 } from '@sasjs/utils'
 import { getAuthConfig, getAuthConfigSas9 } from './config'
 import { getSASjs } from './getSASjs'
+import { ScriptExecutionResult } from '@sasjs/adapter'
 
 export const executeCode = async (target: Target, code: string) => {
   if (target.serverType === ServerType.SasViya) {
@@ -55,11 +56,11 @@ const executeOnSasJS = async (target: Target, code: string) => {
   const sasjs = getSASjs(target)
   const authConfig = await getAuthConfig(target)
 
-  const executionResult = await sasjs.executeScript({
+  const executionResult: ScriptExecutionResult = await sasjs.executeScript({
     linesOfCode: code.split('\n'),
     runTime: 'sas',
     authConfig
   })
 
-  return { log: executionResult }
+  return executionResult
 }

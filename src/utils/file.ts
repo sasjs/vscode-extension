@@ -9,3 +9,7 @@ export async function readFile(filePath: string) {
     .readFile(Uri.file(filePath))
     .then((content) => Buffer.from(content).toString('utf8'))
 }
+
+export async function createFolder(filePath: string) {
+  return await workspace.fs.createDirectory(Uri.file(filePath))
+}
