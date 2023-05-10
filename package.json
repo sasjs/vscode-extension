@@ -256,7 +256,7 @@
     "@sasjs/utils": "3.2.0",
     "axios": "0.26.1",
     "dotenv": "16.0.3",
-    "esbuild-plugin-copy": "2.0.1",
+    "esbuild-plugin-copy": "2.1.1",
     "node-graphviz": "0.1.1",
     "shelljs.exec": "1.1.8",
     "valid-url": "1.0.9"
