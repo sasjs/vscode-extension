@@ -46,13 +46,13 @@ export class ExecuteCodeCommand extends TargetCommand {
 
     await executeCode(target, currentFileContent || '')
       .then(async (res) => {
-        process.outputChannel.appendLine('SASjs: Code executed successfully!')
-
         if (typeof res.log === 'object') {
           res.log = JSON.stringify(res.log, null, 2)
         }
 
         await this.saveExecutionArtifacts({ ...res, code: editorContent })
+
+        process.outputChannel.appendLine('SASjs: Code executed successfully!')
       })
       .catch(async (err) => {
         await handleErrorResponse(err, 'Error executing code')
