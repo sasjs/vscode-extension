@@ -11,6 +11,7 @@ import { ShowTargetCommand } from './commands/show-target/showTargetCommand'
 import { DocsCommand } from './commands/docs/docsCommand'
 import { FormatCommand } from './commands/format/FormatCommand'
 import { CompileBuildDeployCommand } from './commands/compileBuildDeploy/compileBuildDeployCommand'
+import { AddRemoveCommentCommand } from './commands/addRemoveComment/addRemoveComment'
 import { lint, clearLintIssues } from './lint/lint'
 import { Configuration } from '@sasjs/utils/types'
 import { getGlobalConfiguration, getLocalConfiguration } from './utils/config'
@@ -67,10 +68,11 @@ export async function activate(context: vscode.ExtensionContext) {
   const formatCommand = new FormatCommand()
   formatCommand.initialise()
 
-  const compileBuildDeployCommandCommand = new CompileBuildDeployCommand(
-    context
-  )
-  compileBuildDeployCommandCommand.initialise()
+  const compileBuildDeployCommand = new CompileBuildDeployCommand(context)
+  compileBuildDeployCommand.initialise()
+
+  const commentOutLineCommand = new AddRemoveCommentCommand(context)
+  commentOutLineCommand.initialise()
 
   statusBarItem = vscode.window.createStatusBarItem(
     vscode.StatusBarAlignment.Right,
