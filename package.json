@@ -86,6 +86,14 @@
         "icon": "./assets/images/docs.png"
       }
     ],
+    "keybindings": [
+      {
+        "command": "sasjs-for-vscode.addRemoveComment",
+        "key": "ctrl+alt+l",
+        "mac": "cmd+/",
+        "win": "ctr+/"
+      }
+    ],
     "configuration": {
       "title": "SASJS",
       "properties": {
