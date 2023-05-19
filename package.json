@@ -91,7 +91,7 @@
         "command": "sasjs-for-vscode.addRemoveComment",
         "key": "ctrl+alt+l",
         "mac": "cmd+/",
-        "win": "ctr+/"
+        "win": "ctrl+/"
       }
     ],
     "configuration": {
