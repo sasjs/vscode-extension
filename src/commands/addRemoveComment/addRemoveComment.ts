@@ -68,8 +68,7 @@ export class AddRemoveCommentCommand {
       const editedLines = lines
         .reduce((acc: string[], line: string, i: number) => {
           if (i >= start.line && i <= end.line) {
-            // INFO: \r has to be removed due to line ending differences between Windows and Unix systems
-            acc.push(this.addRemoveCommentToLine(line.replace(/\r/, '')))
+            acc.push(this.addRemoveCommentToLine(line))
           }
 
           return acc
