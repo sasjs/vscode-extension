@@ -2,7 +2,7 @@ import { AddRemoveCommentCommand } from './addRemoveComment'
 import { MockedActiveEditor } from '../../types/spec/activeEditor'
 import { asyncForEach } from '@sasjs/utils'
 
-describe('commentOutLine', () => {
+describe('AddRemoveCommentCommand', () => {
   const context = {} as any
 
   const commentOutLineCommand = new AddRemoveCommentCommand(context)
