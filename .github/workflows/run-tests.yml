@@ -21,6 +21,9 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
 
+      - name: Clear npm cache
+        run: npm cache clear --force
+
       - name: Check npm audit
         run: npm audit --production --audit-level=low
 
