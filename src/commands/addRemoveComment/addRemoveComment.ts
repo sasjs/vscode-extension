@@ -68,7 +68,8 @@ export class AddRemoveCommentCommand {
       const editedLines = lines
         .reduce((acc: string[], line: string, i: number) => {
           if (i >= start.line && i <= end.line) {
-            acc.push(this.addRemoveCommentToLine(line))
+            // INFO: temporary removal of carriage returns (added back if relevant in join below)
+            acc.push(this.addRemoveCommentToLine(line.replace(lineEnding, '')))
           }
 
           return acc
