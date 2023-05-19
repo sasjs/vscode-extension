@@ -54,7 +54,16 @@ export class AddRemoveCommentCommand {
     if (activeEditor) {
       const { start, end } = activeEditor.selection
       const text = activeEditor.document.getText()
-      const lines = text.split(`\n`) || []
+
+      enum LineEndings {
+        CRLF = `\r\n`,
+        LF = `\n`
+      }
+      const lineEnding = new RegExp(LineEndings.CRLF + `$`).test(text)
+        ? LineEndings.CRLF
+        : LineEndings.LF
+
+      const lines = text.split(lineEnding) || []
 
       const editedLines = lines
         .reduce((acc: string[], line: string, i: number) => {
@@ -65,7 +74,7 @@ export class AddRemoveCommentCommand {
 
           return acc
         }, [])
-        .join(`\n`)
+        .join(lineEnding)
 
       // INFO: exit point for unit test
       if (mockedActiveEditor) {
