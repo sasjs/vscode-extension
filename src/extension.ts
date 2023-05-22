@@ -71,8 +71,8 @@ export async function activate(context: vscode.ExtensionContext) {
   const compileBuildDeployCommand = new CompileBuildDeployCommand(context)
   compileBuildDeployCommand.initialise()
 
-  const commentOutLineCommand = new AddRemoveCommentCommand(context)
-  commentOutLineCommand.initialise()
+  const addRemoveCommand = new AddRemoveCommentCommand(context)
+  addRemoveCommand.initialise()
 
   statusBarItem = vscode.window.createStatusBarItem(
     vscode.StatusBarAlignment.Right,

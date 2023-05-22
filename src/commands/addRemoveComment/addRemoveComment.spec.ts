@@ -5,11 +5,11 @@ import { asyncForEach } from '@sasjs/utils'
 describe('AddRemoveCommentCommand', () => {
   const context = {} as any
 
-  const commentOutLineCommand = new AddRemoveCommentCommand(context)
+  const addRemoveCommentCommand = new AddRemoveCommentCommand(context)
 
   describe('isWrappedWithComments', () => {
     const isWrappedWithComments = (line: string) =>
-      commentOutLineCommand['isWrappedWithComments'](line)
+      addRemoveCommentCommand['isWrappedWithComments'](line)
 
     it('should return false if an empty string provided', () => {
       expect(isWrappedWithComments('')).toEqual(false)
@@ -31,7 +31,7 @@ describe('AddRemoveCommentCommand', () => {
 
   describe('addRemoveCommentToLine', () => {
     const addRemoveCommentToLine = (line: string) =>
-      commentOutLineCommand['addRemoveCommentToLine'](line)
+      addRemoveCommentCommand['addRemoveCommentToLine'](line)
     const testLine = 'test;'
     const wrappedLine = `/* ${testLine} */`
 
@@ -46,7 +46,7 @@ describe('AddRemoveCommentCommand', () => {
 
   describe('addRemoveComment', () => {
     const addRemoveComment = (activeEditor?: MockedActiveEditor) =>
-      commentOutLineCommand['addRemoveComment'](activeEditor)
+      addRemoveCommentCommand['addRemoveComment'](activeEditor)
 
     const getMockedActiveEditor = (
       text: string,
