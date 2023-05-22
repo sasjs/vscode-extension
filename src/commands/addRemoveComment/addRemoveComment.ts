@@ -17,12 +17,12 @@ export class AddRemoveCommentCommand {
   constructor(private context: ExtensionContext) {}
 
   initialise = () => {
-    const commentOutLineCommand = commands.registerCommand(
+    const addRemoveCommentCommand = commands.registerCommand(
       'sasjs-for-vscode.addRemoveComment',
       () => this.addRemoveComment()
     )
 
-    this.context.subscriptions.push(commentOutLineCommand)
+    this.context.subscriptions.push(addRemoveCommentCommand)
   }
 
   private isWrappedWithComments(line: string) {
