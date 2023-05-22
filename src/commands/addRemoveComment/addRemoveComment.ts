@@ -59,7 +59,7 @@ export class AddRemoveCommentCommand {
         CRLF = `\r\n`,
         LF = `\n`
       }
-      const lineEnding = new RegExp(LineEndings.CRLF + `$`).test(text)
+      const lineEnding = new RegExp(LineEndings.CRLF).test(text)
         ? LineEndings.CRLF
         : LineEndings.LF
 
@@ -68,8 +68,7 @@ export class AddRemoveCommentCommand {
       const editedLines = lines
         .reduce((acc: string[], line: string, i: number) => {
           if (i >= start.line && i <= end.line) {
-            // INFO: temporary removal of carriage returns (added back if relevant in join below)
-            acc.push(this.addRemoveCommentToLine(line.replace(lineEnding, '')))
+            acc.push(this.addRemoveCommentToLine(line))
           }
 
           return acc
