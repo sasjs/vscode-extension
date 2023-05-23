@@ -1,4 +1,4 @@
-import { workspace } from 'vscode'
+import { window, workspace } from 'vscode'
 
 import { Target } from '@sasjs/utils/types'
 import {
@@ -22,6 +22,7 @@ export const createTarget = async () => {
     serverType,
     appLoc: '/Public/app'
   }
+
   let isLocal = false
 
   if (process.isSasjsProject) {
@@ -32,12 +33,20 @@ export const createTarget = async () => {
       [globalConfigPath, localConfigPath],
       'Where do you want to save your target?'
     )
+
     if (choice !== globalConfigPath) {
       isLocal = true
     }
   }
 
-  await authenticateTarget(targetJson, isLocal)
+  await authenticateTarget(targetJson, isLocal).catch((err) => {
+    const errTitle = `Error while authenticating target '${name}'.`
+    window.showErrorMessage(errTitle)
+
+    // TODO: create a utility
+    process.outputChannel.appendLine([errTitle, err.toString()].join(' '))
+    process.outputChannel.show()
+  })
 
   const target = new Target(targetJson)
 
@@ -46,6 +55,7 @@ export const createTarget = async () => {
   const extConfig = workspace.getConfiguration('sasjs-for-vscode')
   await extConfig.update('target', target.name, true)
   await extConfig.update('isLocal', isLocal, true)
+
   await setConstants()
 
   return { target, isLocal }
