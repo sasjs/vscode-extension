@@ -122,7 +122,9 @@ export class CompileBuildDeployCommand extends TargetCommand {
         }
       }
 
-      if (isCBDFailed) return
+      if (isCBDFailed) {
+        return
+      }
 
       await build(target).catch((err) => {
         this.handleError(err, 'Build failed!')
@@ -130,7 +132,9 @@ export class CompileBuildDeployCommand extends TargetCommand {
         isCBDFailed = true
       })
 
-      if (isCBDFailed) return
+      if (isCBDFailed) {
+        return
+      }
 
       await deploy(target, isLocal).catch((err) => {
         this.handleError(err, 'Deploy failed!')

@@ -1,7 +1,7 @@
 import { window, QuickPickItem } from 'vscode'
 import { URL } from 'url'
-import * as validUrl from 'valid-url'
 import { ServerType } from '@sasjs/utils/types'
+import { validateServerUrl } from '@sasjs/utils/types/targetValidators'
 
 export const getTargetName = async () => {
   const targetName = await getTextInput(
@@ -31,23 +31,32 @@ export const getTarget = async () => {
   return targetName
 }
 
+const serverUrlPlaceholder = 'Please enter your SAS server URL'
 export const getServerUrl = async () => {
   const defaultValue = 'https://'
+
   const serverUrl = await getTextInput(
-    'Please enter your SAS server URL',
+    serverUrlPlaceholder,
     (value: string) => {
-      if (validUrl.isHttpUri(value) || validUrl.isHttpsUri(value)) {
-        return null
+      try {
+        validateServerUrl(value)
+      } catch (err) {
+        return err as string
       }
-      return 'Server URL is not valid'
+
+      return null
     },
     false,
     defaultValue
   )
 
+  if (serverUrl === '') {
+    return serverUrl
+  }
+
   const url = new URL(serverUrl)
 
-  return `${url.protocol}//${url.host}${url.port ? `:${url.port}` : ''}`
+  return `${url.protocol}//${url.host}`
 }
 
 export const getServerType = async () => {
@@ -55,6 +64,10 @@ export const getServerType = async () => {
     [ServerType.SasViya, ServerType.Sas9, ServerType.Sasjs],
     'Please select a SAS server type'
   )
+
+  if (typeof serverType === 'string') {
+    return serverType as ServerType
+  }
 
   return serverType
 }
@@ -121,10 +134,12 @@ export const getTextInput = async (
   })
 
   if (!input) {
-    throw new Error('Input is invalid.')
+    if (placeHolder !== serverUrlPlaceholder) {
+      throw new Error('Input is invalid.')
+    }
   }
 
-  return input
+  return input as string
 }
 
 export const getChoiceInput = async (
