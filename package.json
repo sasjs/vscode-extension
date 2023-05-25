@@ -89,7 +89,7 @@
     "keybindings": [
       {
         "command": "sasjs-for-vscode.addRemoveComment",
-        "key": "ctrl+alt+l",
+        "key": "ctrl+/",
         "mac": "cmd+/",
         "win": "ctrl+/",
         "linux": "ctrl+/",
