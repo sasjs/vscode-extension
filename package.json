@@ -92,6 +92,7 @@
         "key": "ctrl+alt+l",
         "mac": "cmd+/",
         "win": "ctrl+/",
+        "linux": "ctrl+/",
         "when": "editorLangId == sas && isWorkspaceOpened"
       }
     ],
