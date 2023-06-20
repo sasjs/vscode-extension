@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>scopeName</key>
+    <string>code.log</string>
+    <key>fileTypes</key>
+    <array>
+      <string>log</string>
+    </array>
+    <key>name</key>
+    <string>Log file</string>
+    <key>patterns</key>
+    <array>
+      <dict>
+        <key>match</key>
+        <string>^ERROR\s.*</string>
+        <key>name</key>
+        <string>invalid</string>
+      </dict>
+      <dict>
+        <key>match</key>
+        <string>^NOTE:\s.*</string>
+        <key>name</key>
+        <string>storage</string>
+      </dict>
+      <dict>
+        <key>match</key>
+        <string>^WARNING:\s.*</string>
+        <key>name</key>
+        <string>comment.line</string>
+      </dict>
+    </array>
+    <key>uuid</key>
+    <string>ab259404-3072-4cd4-a943-7cbbd32e373f</string>
+  </dict>
+</plist>

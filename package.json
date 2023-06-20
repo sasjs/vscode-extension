@@ -132,6 +132,23 @@
         "extensions": [
           ".sasjslint"
         ]
+      },
+      {
+        "id": "log",
+        "aliases": [
+          "log"
+        ],
+        "extensions": [
+          ".log"
+        ],
+        "configuration": "./languages/log.configuration.json",
+        "mimetypes": [
+          "log",
+          "text/log",
+          "text/x-log",
+          "text/x-code-output",
+          "x-code-output"
+        ]
       }
     ],
     "grammars": [
@@ -139,6 +156,11 @@
         "language": "sas",
         "scopeName": "source.sas",
         "path": "./syntaxes/sas.tmLanguage.json"
+      },
+      {
+        "language": "log",
+        "scopeName": "code.log",
+        "path": "./syntaxes/log.tmLanguage"
       }
     ],
     "jsonValidation": [
