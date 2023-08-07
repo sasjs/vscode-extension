@@ -1,5 +1,4 @@
 import { commands, ExtensionContext, window, workspace } from 'vscode'
-import { selectTarget } from '../../utils/target'
 import { getLocalConfiguration } from '../../utils/config'
 import * as path from 'path'
 import {
