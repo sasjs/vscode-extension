@@ -17,6 +17,7 @@ If you have questions or would like support on the extension, visit our support 
 * [Directory Synchronisation](#directory-synchronisation)
 * [SAS Lint and Format](#sas-lint-and-format)
 * [Compile, Build and Deploy](#compile-build-deploy)
+* [SASjs VS Code Snippets](#sasjs-vscode-snippets)
 
 ## Code Documentation
 
@@ -152,6 +153,12 @@ If a `*.sas` file is selected and a `Compile, Build, Deploy` icon is clicked, th
 
 if a `sasjsconfig.json` file is selected and a `Compile, Build, Deploy` icon is clicked, then an entire project will be compiled, built and deployed. Compiled and built files will be located in `sasjsbuild` folder at the root of the project. If an error appeared during the process, `log` file should be created in `sasjsresults` folder.
 ![image](./assets/screenshots/cbd-project.png)
+
+
+## SASjs VS Code Snippets
+
+SASjs VS Code extension is using VS Code snippets generated from a @sasjs/core package that is a SAS Macro library. The documentation of these SAS Macros can be found here(https://core.sasjs.io/). To use SASjs VS Code snippets, just start typing SAS macro name. For example:
+![image](./assets/screenshots/vscode-snippets.png)
 
 ## Contributions
 
