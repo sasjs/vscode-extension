@@ -27,7 +27,7 @@ jobs:
       - name: Semantic Release
         uses: cycjimmy/semantic-release-action@v3
         env:
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VSCE_PAT: ${{ secrets.VS_CODE_PUBLISH_TOKEN }}
 
       - name: Publish to Open VSX Registry
