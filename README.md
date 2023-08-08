@@ -17,7 +17,7 @@ If you have questions or would like support on the extension, visit our support 
 * [Directory Synchronisation](#directory-synchronisation)
 * [SAS Lint and Format](#sas-lint-and-format)
 * [Compile, Build and Deploy](#compile-build-deploy)
-* [SAS code auto-completion and SASjs VS Code Snippets](#sas-code-auto-completion-and-sasjs-vscode-snippets)
+* [Snippets for Base & SASjs Core](#snippets)
 
 ## Code Documentation
 
@@ -155,10 +155,9 @@ if a `sasjsconfig.json` file is selected and a `Compile, Build, Deploy` icon is 
 ![image](./assets/screenshots/cbd-project.png)
 
 
-## SAS code auto-completion and SASjs VS Code Snippets
+## Snippets
 
-SASjs VS Code extension provides SAS code auto-completion together with SASjs SAS Macros.
-SASjs VS Code extension is using VS Code snippets generated from a @sasjs/core package that is a SAS Macro library. The documentation of these SAS Macros can be found [here](https://core.sasjs.io/). To use SASjs VS Code snippets, just start typing SAS macro name. For example:
+Snippets (code-completion) is provided both for Base SAS (using the official SAS VS Code Extension files) and SASjs Core (using the snippets generator of the SASjs CLI). The full documentation of the SASjs Core Macros can be found [here](https://core.sasjs.io/). To use snippets, just start typing SAS macro name. For example:
 
 ![image](./assets/screenshots/vscode-snippets.png)
 
