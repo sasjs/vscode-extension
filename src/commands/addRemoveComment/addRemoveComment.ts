@@ -7,7 +7,7 @@ import {
   Position
 } from 'vscode'
 import { MockedActiveEditor } from '../../types/spec/activeEditor'
-import { isWindows } from '@sasjs/utils'
+import { isWindows, getLineEnding } from '@sasjs/utils'
 
 export class AddRemoveCommentCommand {
   private commentStartRegExp = /^\/\*\s{0,1}/
@@ -55,13 +55,7 @@ export class AddRemoveCommentCommand {
       const { start, end } = activeEditor.selection
       const text = activeEditor.document.getText()
 
-      enum LineEndings {
-        CRLF = `\r\n`,
-        LF = `\n`
-      }
-      const lineEnding = new RegExp(LineEndings.CRLF).test(text)
-        ? LineEndings.CRLF
-        : LineEndings.LF
+      const lineEnding = getLineEnding(text)
 
       const lines = text.split(lineEnding) || []
 
