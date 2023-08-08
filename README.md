@@ -163,7 +163,7 @@ Snippets (code-completion) are provided both for Base SAS (using the [official S
 
 ## Contributions
 
-SASjs is an open source project, and contributions are warmly welcomed!)
+SASjs is an open source project, and contributions are warmly welcomed!
 
 ## Contributors ✨
 
