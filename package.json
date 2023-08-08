@@ -250,8 +250,9 @@
     "test:unit": "jest --config=jest.config.js --coverage",
     "semantic-release": "semantic-release -d",
     "package:lib": "vsce package",
+    "sas:snippets": "degit sassoftware/vscode-sas-extension/snippets snippets",
     "sasjs:snippets": "npx sasjs snippets -o ./snippets/sasjs-macro-snippets.json",
-    "postinstall": "npm run sasjs:snippets && [ -d .git ] && git config core.hooksPath ./.git-hooks || true"
+    "postinstall": "npm run sas:snippets && npm run sasjs:snippets && [ -d .git ] && git config core.hooksPath ./.git-hooks || true"
   },
   "devDependencies": {
     "@types/glob": "^7.1.4",
@@ -264,6 +265,7 @@
     "@typescript-eslint/eslint-plugin": "^5.33.1",
     "@typescript-eslint/parser": "^5.33.1",
     "all-contributors-cli": "^6.20.0",
+    "degit": "2.8.4",
     "esbuild": "^0.15.7",
     "eslint": "^8.10.0",
     "glob": "^8.0.1",
