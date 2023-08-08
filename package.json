@@ -250,7 +250,7 @@
     "test:unit": "jest --config=jest.config.js --coverage",
     "semantic-release": "semantic-release -d",
     "package:lib": "vsce package",
-    "sas:snippets": "degit sassoftware/vscode-sas-extension/snippets snippets",
+    "sas:snippets": "degit sassoftware/vscode-sas-extension/snippets snippets --force",
     "sasjs:snippets": "npx sasjs snippets -o ./snippets/sasjs-macro-snippets.json",
     "postinstall": "npm run sas:snippets && npm run sasjs:snippets && [ -d .git ] && git config core.hooksPath ./.git-hooks || true"
   },
