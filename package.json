@@ -251,7 +251,7 @@
     "semantic-release": "semantic-release -d",
     "package:lib": "vsce package",
     "sasjs:snippets": "npx sasjs snippets -o ./snippets/sasjs-macro-snippets.json",
-    "postinstall": "[ -d .git ] && git config core.hooksPath ./.git-hooks || true && npm run sasjs:snippets"
+    "postinstall": "npm run sasjs:snippets && [ -d .git ] && git config core.hooksPath ./.git-hooks || true"
   },
   "devDependencies": {
     "@types/glob": "^7.1.4",
