@@ -157,13 +157,13 @@ if a `sasjsconfig.json` file is selected and a `Compile, Build, Deploy` icon is 
 
 ## Snippets
 
-Snippets (code-completion) is provided both for Base SAS (using the official SAS VS Code Extension files) and SASjs Core (using the snippets generator of the SASjs CLI). The full documentation of the SASjs Core Macros can be found [here](https://core.sasjs.io/). To use snippets, just start typing SAS macro name. For example:
+Snippets (code-completion) is provided both for Base SAS (using the [official SAS VS Code Extension](https://github.com/sassoftware/vscode-sas-extension) files and SASjs Core (using the snippets generator of the SASjs CLI). The full documentation of the SASjs Core Macros can be found [here](https://core.sasjs.io/). To use snippets, just start typing SAS macro name. For example:
 
 ![image](./assets/screenshots/vscode-snippets.png)
 
 ## Contributions
 
-SASjs is an open source project, and contributions are warmly welcomed!
+SASjs is an open source project, and contributions are warmly welcomed!)
 
 ## Contributors ✨
 
