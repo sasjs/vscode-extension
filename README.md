@@ -161,6 +161,10 @@ Snippets (code-completion) are provided both for Base SAS (using the [official S
 
 ![image](./assets/screenshots/vscode-snippets.png)
 
+NOTE: If you don't see a snippet description, you might need to click the `Read More` icon, and snippet description will appear for all snippets, eg:
+
+![image](./assets/screenshots/vscode-snippets-read-more.png)
+
 ## Contributions
 
 SASjs is an open source project, and contributions are warmly welcomed!
