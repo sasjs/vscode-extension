@@ -20,7 +20,6 @@ import { build } from 'esbuild'
     bundle: true,
     sourcemap: sourcemap,
     minify: minify,
-    watch: watch,
     plugins: [
       copy({
         resolveFrom: 'cwd',
