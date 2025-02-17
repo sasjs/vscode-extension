@@ -8,6 +8,7 @@
   "engines": {
     "vscode": "^1.64.0"
   },
+  "type": "module",
   "categories": [
     "Programming Languages",
     "Data Science",
