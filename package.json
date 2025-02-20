@@ -6,7 +6,7 @@
   "icon": "logo.png",
   "description": "Execute code on any SAS server, plus SAS Linting and Syntax Highlighting",
   "engines": {
-    "vscode": "^1.64.0"
+    "vscode": "^1.96.0"
   },
   "categories": [
     "Programming Languages",
