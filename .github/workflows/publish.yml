@@ -11,11 +11,18 @@ on:
 jobs:
   release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # to be able to publish a GitHub release
+      issues: write # to be able to comment on released issues
+      pull-requests: write # to be able to comment on released pull requests
+
+
+
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
       - run: npm ci
 
       - name: Build Project
@@ -25,14 +32,17 @@ jobs:
 #      - name: Install VSCE
 #        run: sudo npm install -g vsce
 
-      - name: Run Semantic Release
-        uses: cycjimmy/semantic-release-action@v4
+
+      - run: npm audit signatures
+      - run: npx semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-#          VSCE_PAT: ${{ secrets.VS_CODE_PUBLISH_TOKEN }}
+          # In case you want to publish to Visual Studio Marketplace
+          # VSCE_PAT: ${{ secrets.VSCE_PAT }}
+          # In case you want to publish to Open VSX Registry
+          OVSX_PAT: ${{ secrets.OPEN_VSX_TOKEN }}
 
-      - name: Publish to Open VSX Registry
-        uses: HaaLeo/publish-vscode-extension@v2
-        with:
-          pat: ${{ secrets.OPEN_VSX_TOKEN }}
+
+
+
 
