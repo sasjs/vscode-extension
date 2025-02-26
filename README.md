@@ -3,10 +3,7 @@
 [![All Contributors](https://img.shields.io/badge/all_contributors-8-orange.svg?style=flat-square)](#contributors-)
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
 
-This project contains the source code for the SASjs VS Code extension, available in the following locations:
-
-* Visual Studio Code Marketplace (suitable for VS Code):  https://marketplace.visualstudio.com/items?itemName=SASjs.sasjs-for-vscode
-* Open VSX (Suitable for VSCodium and Theia): https://open-vsx.org/extension/sasjs/sasjs-for-vscode
+This project contains the source code for the SASjs VS Code extension, available on Open VSX only:  https://open-vsx.org/extension/sasjs/sasjs-for-vscode
 
 If you have questions or would like support on the extension, visit our support group at [https://matrix.to/#/#sasjs:4gl.io](https://matrix.to/#/#sasjs:4gl.io).
 

@@ -21,14 +21,15 @@ jobs:
       - name: Build Project
         run: npm run vscode:prepublish
 
-      - name: Install VSCE
-        run: sudo npm install -g vsce
-
-      - name: Run Semantic Release
-        uses: cycjimmy/semantic-release-action@v4
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VSCE_PAT: ${{ secrets.VS_CODE_PUBLISH_TOKEN }}
+#  Unable to publish to VS Code marketplace due to azure issues
+#      - name: Install VSCE
+#        run: sudo npm install -g vsce
+#
+#      - name: Run Semantic Release
+#        uses: cycjimmy/semantic-release-action@v4
+#        env:
+#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#          VSCE_PAT: ${{ secrets.VS_CODE_PUBLISH_TOKEN }}
 
       - name: Publish to Open VSX Registry
         uses: HaaLeo/publish-vscode-extension@v0
