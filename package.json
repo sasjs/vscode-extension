@@ -280,11 +280,11 @@
     "vscode-test": "^1.6.1"
   },
   "dependencies": {
-    "@sasjs/adapter": "^4.12.2",
-    "@sasjs/cli": "^4.11.1",
+    "@sasjs/adapter": "^4.14.0",
+    "@sasjs/cli": "^4.12.11",
     "@sasjs/lint": "^2.4.1",
     "@sasjs/utils": "^3.4.0",
-    "axios": "1.10.0",
+    "axios": "^1.12.2",
     "dotenv": "16.4.7",
     "esbuild-plugin-copy": "2.1.1",
     "node-graphviz": "0.1.1",
