@@ -280,8 +280,8 @@
     "vscode-test": "^1.6.1"
   },
   "dependencies": {
-    "@sasjs/adapter": "^4.14.0",
-    "@sasjs/cli": "^4.12.11",
+    "@sasjs/adapter": "^4.16.0",
+    "@sasjs/cli": "^4.12.14",
     "@sasjs/lint": "^2.4.1",
     "@sasjs/utils": "^3.4.0",
     "axios": "^1.12.2",
