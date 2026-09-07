@@ -7,6 +7,17 @@ The SASjs VS Code extension is **only available on Open VSX**:  https://open-vsx
 
 If you have questions or would like support, visit [https://matrix.to/#/#sasjs:4gl.io](https://matrix.to/#/#sasjs:4gl.io).
 
+## Developing
+
+Lifecycle scripts are disabled on install (`.npmrc` sets `ignore-scripts=true` — no dependency `postinstall` runs automatically). After cloning, bootstrap once with:
+
+```bash
+npm ci
+npm run setup
+```
+
+`npm run setup` generates the SAS snippets (`degit` + `npx sasjs snippets`) and wires the local git hooks. Snippets are gitignored — CI runs the same `setup` step after `npm ci`.
+
 ## Features
 
 * [Code Documentation](#code-documentation)

@@ -252,7 +252,7 @@
     "package:lib": "vsce package",
     "sas:snippets": "degit sassoftware/vscode-sas-extension/snippets snippets --force",
     "sasjs:snippets": "npx sasjs snippets -o ./snippets/sasjs-macro-snippets.json",
-    "postinstall": "npm run sas:snippets && npm run sasjs:snippets && [ -d .git ] && git config core.hooksPath ./.git-hooks || true"
+    "setup": "npm run sas:snippets && npm run sasjs:snippets && [ -d .git ] && git config core.hooksPath ./.git-hooks || true"
   },
   "devDependencies": {
     "@types/glob": "^8.1.0",
