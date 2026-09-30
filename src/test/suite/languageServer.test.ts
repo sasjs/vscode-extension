@@ -41,8 +41,21 @@ suite('SAS Language Server', () => {
     )
     await vscode.window.showTextDocument(document)
 
-    // Give the client time to start the server and index the document.
-    await new Promise((resolve) => setTimeout(resolve, 15000))
+    // Wait until the server actually answers a feature request instead of a
+    // fixed sleep: the server's first start indexes its help tree, which is
+    // slow on a cold cache and quick when the OS page cache is warm.
+    const deadline = Date.now() + 60000
+    for (;;) {
+      const hovers = await vscode.commands.executeCommand<vscode.Hover[]>(
+        'vscode.executeHoverProvider',
+        document.uri,
+        new vscode.Position(1, 2)
+      )
+      if (hovers?.length || Date.now() > deadline) {
+        break
+      }
+      await new Promise((resolve) => setTimeout(resolve, 500))
+    }
   })
 
   suiteTeardown(() => {

@@ -81,8 +81,13 @@ export const stopSasLanguageServer = async (): Promise<void> => {
     return
   }
 
-  await client.stop()
-  client = undefined
+  try {
+    await client.stop()
+  } finally {
+    // The reference clears even when stop() rejects, so a later start
+    // does not return early and leave the server permanently down.
+    client = undefined
+  }
 }
 
 /** Whether the server is running, for tests and status reporting. */
