@@ -283,12 +283,14 @@
     "@sasjs/adapter": "4.19.0",
     "@sasjs/cli": "4.20.2",
     "@sasjs/lint": "2.5.0",
+    "@sasjs/sas-language": "^0.2.2",
     "@sasjs/utils": "3.6.2",
     "axios": "1.20.0",
     "dotenv": "17.4.2",
     "esbuild-plugin-copy": "2.1.1",
     "node-graphviz": "0.1.1",
-    "shelljs.exec": "1.1.8"
+    "shelljs.exec": "1.1.8",
+    "vscode-languageclient": "9.0.1"
   },
   "overrides": {
     "tmp": "0.2.7"

@@ -24,8 +24,23 @@ npm run setup
 * [Code Execution](#code-execution)
 * [Directory Synchronisation](#directory-synchronisation)
 * [SAS Lint and Format](#sas-lint-and-format)
+* [Language Server](#language-server)
 * [Compile, Build and Deploy](#compile-build-deploy)
 * [Snippets for Base & SASjs Core](#snippets)
+
+## Language Server
+
+The extension runs the SAS language server shipped by
+[@sasjs/sas-language](https://github.com/sasjs/sas-language) (the SAS extension
+for VS Code's server, built from source at a pinned upstream commit), staged
+into `out/server/` at build time and spawned over IPC on activation. It adds
+hover documentation, completions, document symbols, signature help, folding
+ranges, semantic tokens and formatting for SAS documents.
+
+The SASjs lint stays the source of diagnostics: the server reports none (SAS
+errors surface from the log of a run). Both this extension's formatter
+(`@sasjs/lint`, which honours `.sasjslint`) and the server's formatting are
+registered; VS Code's default-formatter pick decides between them.
 
 ## Code Documentation
 
