@@ -6,6 +6,7 @@
  * without VS Code.
  */
 import * as assert from 'assert'
+import * as path from 'path'
 
 const startedClients: Array<{
   id: string
@@ -85,9 +86,13 @@ describe('the SAS language server wiring', () => {
       run: { module: string; transport: string }
     }
 
+    // Composed the same way the wiring composes it, so the assertion checks
+    // the shape and the depth rather than the platform's separators.
     assert.strictEqual(
       options.run.module,
-      '/installed/extension/out/server/dist/node/server.js'
+      ['/installed/extension', 'out', 'server', 'dist', 'node', 'server.js'].join(
+        path.sep
+      )
     )
     assert.strictEqual(options.run.transport, 'ipc')
   })
