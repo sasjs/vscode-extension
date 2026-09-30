@@ -6,7 +6,6 @@
  * without VS Code.
  */
 import * as assert from 'assert'
-import * as path from 'path'
 
 const startedClients: Array<{
   id: string
@@ -86,14 +85,20 @@ describe('the SAS language server wiring', () => {
       run: { module: string; transport: string }
     }
 
-    // Composed the same way the wiring composes it, so the assertion checks
-    // the shape and the depth rather than the platform's separators.
-    assert.strictEqual(
-      options.run.module,
-      ['/installed/extension', 'out', 'server', 'dist', 'node', 'server.js'].join(
-        path.sep
-      )
-    )
+    // Compared as segments split on either separator, so the assertion checks
+    // the shape and the depth on every platform, whatever separators the
+    // wiring's path.join produced. The mock's prefix contributes one leading
+    // empty segment, which is dropped.
+    const segments = options.run.module.split(/[\\/]/).filter((s) => s.length > 0)
+    assert.deepStrictEqual(segments, [
+      'installed',
+      'extension',
+      'out',
+      'server',
+      'dist',
+      'node',
+      'server.js'
+    ])
     assert.strictEqual(options.run.transport, 'ipc')
   })
 
