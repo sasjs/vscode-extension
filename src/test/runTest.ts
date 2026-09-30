@@ -1,4 +1,5 @@
 import * as path from 'path'
+import * as fs from 'fs'
 
 import { runTests } from '@vscode/test-electron'
 
@@ -12,8 +13,17 @@ async function main() {
     // Passed to --extensionTestsPath
     const extensionTestsPath = path.resolve(__dirname, './suite/index')
 
+    // An empty workspace the tests can rely on being open: several suites
+    // (the language server's among them) write a document and open it.
+    const testWorkspace = path.resolve(__dirname, '../../out/test/workspace')
+    fs.mkdirSync(testWorkspace, { recursive: true })
+
     // Download VS Code, unzip it and run the integration test
-    await runTests({ extensionDevelopmentPath, extensionTestsPath })
+    await runTests({
+      extensionDevelopmentPath,
+      extensionTestsPath,
+      launchArgs: [testWorkspace]
+    })
   } catch (err) {
     console.error('Failed to run tests')
     process.exit(1)

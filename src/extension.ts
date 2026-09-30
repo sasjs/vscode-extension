@@ -13,6 +13,10 @@ import { FormatCommand } from './commands/format/FormatCommand'
 import { CompileBuildDeployCommand } from './commands/compileBuildDeploy/compileBuildDeployCommand'
 import { AddRemoveCommentCommand } from './commands/addRemoveComment/addRemoveComment'
 import { lint, clearLintIssues } from './lint/lint'
+import {
+  startSasLanguageServer,
+  stopSasLanguageServer
+} from './languageServer/languageServer'
 import { Configuration } from '@sasjs/utils/types'
 import { getGlobalConfiguration, getLocalConfiguration } from './utils/config'
 import { setProcessVariables } from './utils/setProcessVariables'
@@ -34,6 +38,12 @@ export async function activate(context: vscode.ExtensionContext) {
   vscode.commands.executeCommand('setContext', 'isWorkspaceOpened', true)
 
   await setProcessVariables()
+
+  // The SAS language server adds hover, completions, symbols, signature help
+  // and folding for SAS documents. It is started after the extension's own
+  // setup so a failure in it never blocks the commands below, and its output
+  // channel is separate from this extension's.
+  await startSasLanguageServer(context)
 
   const executeCodeCommand = new ExecuteCodeCommand(context)
   executeCodeCommand.initialise()
@@ -123,6 +133,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
 export function deactivate() {
   eventListeners.forEach((listener) => listener.dispose())
+  void stopSasLanguageServer()
 }
 
 async function configurationChangeHandler() {
