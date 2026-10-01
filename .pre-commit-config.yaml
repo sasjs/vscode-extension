@@ -1,0 +1,13 @@
+# Minimum pre-commit hooks for this repo.
+#
+# The .git-hooks/pre-commit gitleaks scan stays the primary hook, but it is
+# only wired up by `npm run setup` and .npmrc sets ignore-scripts=true, so a
+# fresh clone commits unscanned until that command is run by hand. This config
+# carries a repo-local gitleaks hook as the fallback for contributors who
+# install hooks with the pre-commit framework rather than npm. CI runs a
+# full-repo gitleaks scan as the enforcement point.
+repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks
