@@ -283,7 +283,7 @@
   "dependencies": {
     "@sasjs/adapter": "4.19.0",
     "@sasjs/cli": "4.20.4",
-    "@sasjs/lint": "2.7.0",
+    "@sasjs/lint": "4.1.0",
     "@sasjs/sas-language": "0.2.2",
     "@sasjs/utils": "3.6.2",
     "axios": "1.20.0",
