@@ -287,7 +287,7 @@
     "@sasjs/sas-language": "0.2.2",
     "@sasjs/utils": "3.6.2",
     "axios": "1.20.0",
-    "dotenv": "17.4.2",
+    "dotenv": "18.0.4",
     "esbuild-plugin-copy": "2.1.1",
     "node-graphviz": "0.1.1",
     "shelljs.exec": "1.1.8",
