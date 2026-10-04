@@ -281,11 +281,11 @@
     "typescript": "5.9.3"
   },
   "dependencies": {
-    "@sasjs/adapter": "4.19.1",
-    "@sasjs/cli": "4.20.4",
-    "@sasjs/lint": "4.1.0",
-    "@sasjs/sas-language": "0.2.2",
-    "@sasjs/utils": "3.6.2",
+    "@sasjs/adapter": "4.19.2",
+    "@sasjs/cli": "4.20.9",
+    "@sasjs/lint": "4.1.2",
+    "@sasjs/sas-language": "0.3.0",
+    "@sasjs/utils": "3.6.5",
     "axios": "1.20.0",
     "dotenv": "17.4.2",
     "esbuild-plugin-copy": "2.1.1",
