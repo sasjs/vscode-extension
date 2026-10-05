@@ -248,7 +248,6 @@
     "lint": "eslint src",
     "test": "node ./out/test/runTest.js",
     "test:unit": "jest --config=jest.config.js --coverage",
-    "semantic-release": "semantic-release -d",
     "package:lib": "vsce package",
     "sas:snippets": "degit sassoftware/vscode-sas-extension/snippets snippets --force",
     "sasjs:snippets": "npx sasjs snippets -o ./snippets/sasjs-macro-snippets.json",
@@ -274,8 +273,6 @@
     "glob": "11.1.0",
     "jest": "30.5.1",
     "mocha": "12.0.0",
-    "semantic-release": "25.0.9",
-    "semantic-release-vsce": "6.1.7",
     "ts-jest": "29.4.12",
     "ts-node": "10.9.2",
     "typescript": "5.9.3"
