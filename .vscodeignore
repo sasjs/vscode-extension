@@ -10,3 +10,6 @@ vsc-extension-quickstart.md
 **/*.map
 **/*.ts
 .all-contributorsrc
+# The release toolchain's manifest and lockfile, installed by the publish
+# workflow with `npm ci --prefix release`. Not part of the extension.
+release/**

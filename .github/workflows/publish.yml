@@ -37,13 +37,16 @@ jobs:
 
 
       - run: npm audit signatures
+      - name: Install the release tooling
+        # Its own locked tree, installed here rather than carried as a
+        # devDependency: that tree is where the unfixable advisories live, so
+        # keeping it out of the package's dependencies keeps it out of the
+        # package's `npm audit`. Locked, so the resolved versions and their
+        # integrity hashes are pinned rather than fetched fresh at release time.
+        run: npm ci --prefix release --ignore-scripts
+
       - name: Semantic release
-        # semantic-release is not a devDependency: its tree is where the
-        # unfixable advisories live (micromatch -> braces, and the npm package
-        # @semantic-release/npm bundles). npx fetches the pinned pair for the
-        # release run only, so none of it enters the lockfile. Same shape as
-        # sasjs/cli, which has released this way since 4.20.5.
-        run: npx -p semantic-release-vsce@6.1.7 -p semantic-release@25.0.9 -- semantic-release
+        run: release/node_modules/.bin/semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # In case you want to publish to Visual Studio Marketplace
