@@ -1,5 +1,55 @@
-import { copy } from 'esbuild-plugin-copy'
+import * as fs from 'fs'
+import * as path from 'path'
 import { build } from 'esbuild'
+
+/**
+ * Copies a file tree from one place to another, creating directories as
+ * needed. Files are copied with mode preserved, so the staged server tree
+ * stays executable where it was executable.
+ */
+const copyTree = (from: string, to: string): void => {
+  fs.mkdirSync(to, { recursive: true })
+  for (const entry of fs.readdirSync(from, { withFileTypes: true })) {
+    const source = path.join(from, entry.name)
+    const target = path.join(to, entry.name)
+    if (entry.isDirectory()) {
+      copyTree(source, target)
+    } else {
+      fs.copyFileSync(source, target)
+    }
+  }
+}
+
+/**
+ * Stages the files the packaged extension needs next to out/extension.js:
+ * the doxygen layout, and the SAS language server's node tree, which the
+ * bundle reads parts of itself from disk at runtime (impl/, typeshed/, the
+ * help tree), so it ships with its layout intact - the entry point lands at
+ * out/server/dist/node/server.js and every relative path it computes still
+ * resolves. Licence notices travel with it (see server/provenance.json).
+ */
+const stageAssets = (): void => {
+  copyTree('./src/doxy', './out/doxy')
+
+  copyTree(
+    './node_modules/@sasjs/sas-language/server/node',
+    './out/server/dist/node'
+  )
+
+  for (const file of [
+    'LICENSE.txt',
+    'LICENSE.typeshed.txt',
+    'LICENSE.pyright.txt',
+    'LICENSE.server.js.txt',
+    'provenance.json'
+  ]) {
+    const source = path.join('./node_modules/@sasjs/sas-language/server', file)
+    if (fs.existsSync(source)) {
+      fs.copyFileSync(source, path.join('./out/server', file))
+    }
+  }
+}
+
 ;(async () => {
   const sourcemap = process.argv.includes('--sourcemap')
   const minify = process.argv.includes('--minify')
@@ -29,36 +79,8 @@ import { build } from 'esbuild'
     bundle: true,
     sourcemap: sourcemap,
     minify: minify,
-    plugins: [
-      copy({
-        resolveFrom: 'cwd',
-        assets: [
-          {
-            from: ['./src/doxy/**/*'],
-            to: ['./out/doxy']
-          },
-          {
-            // The SAS language server's node build: a bundle that reads parts
-            // of itself from disk at runtime (impl/, typeshed/, the help
-            // tree), so the whole tree is copied with its layout intact -
-            // the entry point lands at out/server/dist/node/server.js and
-            // every relative path it computes still resolves. Licence
-            // notices travel with it (see server/provenance.json).
-            from: ['./node_modules/@sasjs/sas-language/server/node/**/*'],
-            to: ['./out/server/']
-          },
-          {
-            from: [
-              './node_modules/@sasjs/sas-language/server/LICENSE.txt',
-              './node_modules/@sasjs/sas-language/server/LICENSE.typeshed.txt',
-              './node_modules/@sasjs/sas-language/server/LICENSE.pyright.txt',
-              './node_modules/@sasjs/sas-language/server/LICENSE.server.js.txt',
-              './node_modules/@sasjs/sas-language/server/provenance.json'
-            ],
-            to: ['./out/server']
-          }
-        ]
-      })
-    ]
+    plugins: []
   })
+
+  stageAssets()
 })()

@@ -288,10 +288,9 @@
     "@sasjs/utils": "3.6.5",
     "axios": "1.20.0",
     "dotenv": "17.4.2",
-    "esbuild-plugin-copy": "2.1.1",
     "node-graphviz": "0.1.1",
     "shelljs.exec": "1.1.8",
-    "vscode-languageclient": "9.0.1"
+    "vscode-languageclient": "10.1.2"
   },
   "overrides": {
     "tmp": "0.2.7",
