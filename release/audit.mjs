@@ -7,8 +7,11 @@
  * with publish credentials, so it must not be invisible either. This reports it
  * in its own scope, by name.
  *
- * Anything not listed in EXEMPT fails the build, and an exemption that stops
- * appearing is reported so it can be deleted rather than left to rot.
+ * Anything not listed in EXEMPT fails the build, and so does an exemption that
+ * stops appearing: the list is a claim about the locked tree, and a claim that
+ * no longer holds is deleted rather than left to rot. Both are failures because
+ * a stale entry is invisible in a passing build, and a list that only warns
+ * drifts out of step with the tree it describes.
  *
  * The list is short because the locked npm is current: npm 11.21.1 vendors
  * fixed brace-expansion, http-cache-semantics, ip-address,
@@ -111,13 +114,9 @@ for (const entry of found.values()) {
 }
 
 // An exemption that is no longer needed should be deleted, not left to rot.
+// Aggregated with the failing gate, so an unexempted advisory is never masked
+// by a stale-exemption report (or vice versa).
 const stale = [...EXEMPT.keys()].filter((id) => !found.has(id))
-if (stale.length) {
-  console.log(
-    '\nexempt advisories that no longer appear, so the exemption can go:'
-  )
-  for (const id of stale) console.log(`  ${id}  ${EXEMPT.get(id)}`)
-}
 
 if (failing.length) {
   console.error(
@@ -130,8 +129,16 @@ if (failing.length) {
     '\nThe toolchain is not shipped, but it runs with publish credentials. Fix it,\n' +
       'or add it to EXEMPT in release/audit.mjs with the reason it cannot be fixed.'
   )
-  process.exit(1)
 }
+
+if (stale.length) {
+  console.error(
+    '\nexempt advisories that no longer appear, so the exemption can go:'
+  )
+  for (const id of stale) console.error(`  ${id}  ${EXEMPT.get(id)}`)
+}
+
+if (failing.length || stale.length) process.exit(1)
 
 console.log(
   `\nno advisory in the release toolchain outside the documented exemptions` +
