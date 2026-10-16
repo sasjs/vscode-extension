@@ -34,6 +34,15 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
+      - name: Install the release toolchain
+        # Validates the locked release tree against its manifest on every PR.
+        # `node release/audit.mjs` reads the lockfile only (--package-lock-only),
+        # so it cannot see drift between release/package.json and
+        # release/package-lock.json; `npm ci` fails on that drift, which would
+        # otherwise surface only at publish time on main. sasjs/adapter runs the
+        # same step in its PR workflow (build-unit-tests.yml).
+        run: npm ci --prefix release --ignore-scripts
+
       - name: Scan for secrets (gitleaks)
         # CI is the enforcement point: the local pre-commit hook is wired by
         # `npm run setup`, which a fresh clone has not run, and .npmrc's
