@@ -86,6 +86,34 @@
         }
       ]
     },
+    "specialparser_sql": {
+      "patterns": [
+        {
+          "include": "#double_quoted_string"
+        },
+        {
+          "include": "#single_quoted_string"
+        },
+        {
+          "include": "#block_comment_string"
+        },
+        {
+          "include": "#macro_line_comment_string"
+        },
+        {
+          "include": "#macro"
+        },
+        {
+          "include": "#constant"
+        },
+        {
+          "include": "#format"
+        },
+        {
+          "include": "#operator"
+        }
+      ]
+    },
     "options": {
       "begin": "(?i:\\b(options)\\b)",
       "end": ";",
@@ -339,6 +367,22 @@
         }
       ]
     },
+    "macro_line_comment_string": {
+      "name": "comment.line.sas",
+      "begin": "(^[\\s]*%+\\*)",
+      "end": ";",
+      "beginCaptures": {
+        "0": {
+          "name": "punctuation.definition.comment"
+        }
+      },
+      "patterns": [
+        {
+          "name": "constant.character.escape.sas",
+          "match": "\\\\."
+        }
+      ]
+    },
     "macrokeylist": {
       "match": "%(?i:(by|do|else|end|global|gitgoto|if|let|to|until|symdel|while|leave|cancel|scan|then|local|str|eval|len|put|sysfunc|compres|left|lowcase|qlowcase|qcmpres|qleft|qlowcase|qtrim|sysrc|trim|verify|bquote|nrbquote|index|length|nrstr|qscan|qsubstr|substr|qsubstr|superq|symexsit|symglobal|symlocal|sysget|upcase|qupcase))\\b",
       "name": "keyword.control.general.sas"
@@ -476,7 +520,7 @@
       },
       "patterns": [
         {
-          "include": "#specialparser"
+          "include": "#specialparser_sql"
         },
         {
           "match": "(?i:\\b(informat|num|insert|values|title\\d*|create +table|separated +by|select|noprint|from|order +by|group +by|having|into|when|case|else|length|format|label|then|where|keep|drop|end|(left|right|inner) +join|union( +corr| +all)|except( +corr| +all))\\b)",

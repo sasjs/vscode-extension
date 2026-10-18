@@ -278,7 +278,9 @@
     "semantic-release-vsce": "6.1.7",
     "ts-jest": "29.4.12",
     "ts-node": "10.9.2",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "vscode-oniguruma": "2.0.1",
+    "vscode-textmate": "9.3.2"
   },
   "dependencies": {
     "@sasjs/adapter": "4.19.2",
