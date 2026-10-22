@@ -7,17 +7,6 @@ The SASjs VS Code extension is **only available on Open VSX**:  https://open-vsx
 
 If you have questions or would like support, visit [https://matrix.to/#/#sasjs:4gl.io](https://matrix.to/#/#sasjs:4gl.io).
 
-## Developing
-
-Lifecycle scripts are disabled on install (`.npmrc` sets `ignore-scripts=true` — no dependency `postinstall` runs automatically). After cloning, bootstrap once with:
-
-```bash
-npm ci
-npm run setup
-```
-
-`npm run setup` generates the SAS snippets (`degit` + `npx sasjs snippets`) and wires the local git hooks. Snippets are gitignored — CI runs the same `setup` step after `npm ci`.
-
 ## Features
 
 * [Code Documentation](#code-documentation)
@@ -127,7 +116,7 @@ Rules can be configured by creating a `.sasjslint` file in the root of your proj
     "hasMacroNameInMend": true,
     "hasMacroParentheses": true,
     "ignoreList": [
-      "sajsbuild/",
+      "sasjsbuild/",
       "sasjsresults/"
     ],
     "indentationMultiple": 2,
@@ -140,10 +129,10 @@ Rules can be configured by creating a `.sasjslint` file in the root of your proj
 }
 ```
 
-Settings in the project (workspace) root (`.sasjslint`) take the highest precedence, followed by the following locations:
+Settings in the project (workspace) root (`.sasjslint`) take the highest precedence, followed by:
 
-* VS Code (extension) settings (`sasjs-for-vscode.lintConfig`)
 * User Home directory (`~/.sasjslint`)
+* VS Code (extension) settings (`sasjs-for-vscode.lintConfig`) - used only when neither `.sasjslint` file can be read
 * Default settings (see https://github.com/sasjs/lint#sas-lint-settings)
 
 ### Formatting
@@ -183,6 +172,8 @@ NOTE: If you don't see a snippet description, you might need to click the `Read 
 ## Contributions
 
 SASjs is an open source project, and contributions are warmly welcomed!
+
+Bootstrap steps, the code layout, the two test harnesses, what CI enforces and how releases are cut are in [CONTRIBUTING.md](.github/CONTRIBUTING.md).
 
 ## Contributors ✨
 
