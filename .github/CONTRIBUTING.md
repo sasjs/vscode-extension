@@ -37,7 +37,7 @@ Press `F5` to launch an Extension Development Host with the extension loaded, th
 - `src/commands/format/FormatCommand.ts` - registers the SAS document formatting provider that format-on-save calls.
 - `src/languageServer/` - staging and spawning the language server.
 - `src/doxy/` - Doxygen doc generation.
-- `src/syntaxes/` - the TextMate grammar and language configuration.
+- `syntaxes/sas.tmLanguage.json` - the TextMate grammar, and `languages/sas.json` - the language configuration. Both are wired from `package.json` `contributes`; `src/syntaxes/spec/sasGrammar.spec.ts` is the grammar's spec.
 - `src/utils/` - shared helpers, including `getLintConfig.ts` for configuration precedence.
 - `src/test/` - the integration harness; `src/__mocks__/` - jest mocks.
 - `build.ts` - the esbuild bundle and the `out/` staging step.
@@ -56,7 +56,7 @@ npm test             # the VS Code integration harness (node ./out/test/runTest.
 
 There is **no enforced coverage threshold**: `jest.config.js` keeps `coverageThreshold` commented out. Write the tests a change needs rather than relying on a gate to catch their absence.
 
-When changing lint behaviour, the specs under `src/lint/` and `src/commands/format/` are the ones that pin it.
+The lint integration has **no specs**: `src/lint/lint.ts` and `src/commands/format/FormatCommand.ts` are the only files in `src/lint/` and `src/commands/format/`, and no spec imports either, so a change to lint or format behaviour is verified by running the extension against a real document. The unit specs that do exist cover the comment toggle (`src/commands/addRemoveComment/addRemoveComment.spec.ts`), the language server wiring (`src/languageServer/languageServer.spec.ts`), the TextMate grammar (`src/syntaxes/spec/sasGrammar.spec.ts`), and `createTarget` / `input` (`src/utils/spec/`).
 
 ## Lint and style
 
@@ -93,7 +93,7 @@ The pre-commit hook needs the `@nogoo9/gitleaks` devDependency installed, so mak
 
 ## CI and releasing
 
-`run-tests.yml` runs: a production-scoped `npm audit --omit=dev --audit-level=low`, `release/audit.mjs`, `npm ci`, a full-history gitleaks scan, `npm run setup`, `npm run lint`, `npm run test:unit` and `npm run vscode:prepublish`. The gitleaks step is the reason its checkout sets `fetch-depth: 0` - a depth-1 tree would scan only the head commit. `run-tests-windows.yml` is a portability check rather than a second gate: it runs `npm ci`, `npm run setup`, `npm run test:unit` and `npm run vscode:prepublish` only, so audit, lint and the secret scan are the Linux job's work. Green CI is the merge bar; the local hooks are convenience.
+`run-tests.yml` runs, in order: a production-scoped `npm audit --omit=dev --audit-level=low`, `release/audit.mjs`, `npm ci`, `npm ci --prefix release --ignore-scripts` (the locked release toolchain, so `release/package.json` is validated against its lockfile on every PR), a full-history gitleaks scan, `npm run setup`, `npm run lint`, `npm run test:unit` and `npm run vscode:prepublish`. The gitleaks step is the reason its checkout sets `fetch-depth: 0` - a depth-1 tree would scan only the head commit. `run-tests-windows.yml` is a portability check rather than a second gate: it runs `npm ci`, `npm run setup`, `npm run test:unit` and `npm run vscode:prepublish` only, so audit, lint and the secret scan are the Linux job's work. Green CI is the merge bar; the local hooks are convenience.
 
 Merging to `main` runs `publish.yml`: `npm ci`, `npm run setup`, `npm run vscode:prepublish`, `npm audit signatures`, `release/audit.mjs`, `npm ci --prefix release`, then `semantic-release` with `semantic-release-vsce`, which packages the `.vsix`, attaches it to the GitHub release and publishes it.
 
