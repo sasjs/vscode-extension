@@ -6,7 +6,7 @@ For using the extension, see the [README](../README.md). For the linting engine 
 
 ## Bootstrap
 
-Lifecycle scripts are disabled on install (`.npmrc` sets `ignore-scripts=true`, so no dependency `postinstall` runs automatically). Node 22 or later is required. After cloning, bootstrap once with:
+Lifecycle scripts are disabled on install (`.npmrc` sets `ignore-scripts=true`, so no dependency `postinstall` runs automatically). Node 22 or later is required, declared as `engines.node` in `package.json` and pinned by `.nvmrc` for `nvm use`. After cloning, bootstrap once with:
 
 ```bash
 npm ci
@@ -93,7 +93,7 @@ The pre-commit hook needs the `@nogoo9/gitleaks` devDependency installed, so mak
 
 ## CI and releasing
 
-`run-tests.yml` (and its Windows counterpart) runs: a production-scoped `npm audit --omit=dev --audit-level=low`, `release/audit.mjs`, `npm ci`, a full-history gitleaks scan, `npm run setup`, `npm run lint`, `npm run test:unit` and `npm run vscode:prepublish`. Green CI is the merge bar; the local hooks are convenience.
+`run-tests.yml` runs: a production-scoped `npm audit --omit=dev --audit-level=low`, `release/audit.mjs`, `npm ci`, a full-history gitleaks scan, `npm run setup`, `npm run lint`, `npm run test:unit` and `npm run vscode:prepublish`. The gitleaks step is the reason its checkout sets `fetch-depth: 0` - a depth-1 tree would scan only the head commit. `run-tests-windows.yml` is a portability check rather than a second gate: it runs `npm ci`, `npm run setup`, `npm run test:unit` and `npm run vscode:prepublish` only, so audit, lint and the secret scan are the Linux job's work. Green CI is the merge bar; the local hooks are convenience.
 
 Merging to `main` runs `publish.yml`: `npm ci`, `npm run setup`, `npm run vscode:prepublish`, `npm audit signatures`, `release/audit.mjs`, `npm ci --prefix release`, then `semantic-release` with `semantic-release-vsce`, which packages the `.vsix`, attaches it to the GitHub release and publishes it.
 
