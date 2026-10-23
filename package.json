@@ -279,7 +279,7 @@
   },
   "dependencies": {
     "@sasjs/adapter": "5.1.1",
-    "@sasjs/cli": "5.0.3",
+    "@sasjs/cli": "6.0.0",
     "@sasjs/lint": "4.3.0",
     "@sasjs/sas-language": "0.3.3",
     "@sasjs/utils": "4.0.1",
