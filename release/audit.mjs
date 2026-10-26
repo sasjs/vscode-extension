@@ -48,6 +48,18 @@ const EXEMPT = new Map([
   [
     'GHSA-rxp7-6hxx-x8q5',
     'ip-address 10.7.2, bundled inside npm 11.21.1, which @semantic-release/npm resolves from its npm ^11.6.2 range. 11.21.1 is the newest 11.x, and the version npm bundles cannot be overridden from here - adding `overrides` for ip-address to release/package.json leaves the lockfile at 10.7.2, which was measured. RISK ACCEPTANCE, not unreachability: the parse runs only on a proxy address that carries an Address6 zone identifier; the exposure is a stall during publish, and that string can arrive from standard npm proxy configuration (`npm_config_proxy`, `HTTPS_PROXY`), so the input path is reachable and the accepted risk is a publish-time stall rather than a package-supplied one. No bump in this repo moves it: forcing npm 12.2.1 inside the toolchain was measured too, and its own bundled tree still vendors ip-address 10.7.2. It clears only when npm ships ip-address >= 10.7.4 in its own bundled tree; the advisory then disappears and this entry fails the gate until it is deleted.'
+  ],
+  [
+    'GHSA-4qv8-2p9j-2685',
+    'undici 6.29.0, bundled inside npm 11.21.1 and reached through @semantic-release/npm\'s npm ^11.6.2 range. The advisory range is >=6.5.0 <6.29.1, and the two copies this repo can see are outside it - node_modules/undici 7.30.1 and the 6.29.1 under @actions/http-client - so what fails here is npm\'s own vendored copy. No `overrides` entry reaches a dependency vendored inside npm\'s tarball; that was measured for ip-address above, and forcing npm 12 inside the toolchain does not help. RISK ACCEPTANCE: this parser runs inside npm\'s own network operations during the publish step, on responses from the registry over TLS, so the input path is reachable and the exposure is a stall during publish. It clears when npm ships undici >= 6.29.1 in its bundle, and this entry then fails the gate until it is deleted.'
+  ],
+  [
+    'GHSA-xjj6-f33q-929c',
+    'Same undici 6.29.0 bundled inside npm 11.21.1 (range >=6.23.0 <6.29.1), same reasoning as GHSA-4qv8-2p9j-2685: the copies this repo resolves are 7.30.1 and 6.29.1, both outside the affected range, and the vendored one cannot be overridden. RISK ACCEPTANCE, exposure is a publish-time stall.'
+  ],
+  [
+    'GHSA-xcx6-jx8p-x3h5',
+    'msal-node 6.0.1, resolved by @azure/identity ^4.1.0 (through @vscode/vsce) which requires @azure/msal-node ^6.0.0. The advisory range is >=5.0.0-beta.0 <7.1.0 and 6.0.1 is the newest 6.x, so no in-range bump exists; @azure/identity has no 5.x, so lifting it does not move msal either. Forcing msal-node 7 through `overrides` would be a major version change in the publish authentication path, which is the higher risk here. RISK ACCEPTANCE, not unreachability: the advisory concerns the authorization-code flow (browser sign-in), and this repo publishes to Open VSX with OVSX_PAT and packages with vsce, neither of which runs that flow - the VS Marketplace credential is commented out in publish.yml. It clears when @azure/identity moves to msal-node >= 7.1.0.'
   ]
 ])
 
