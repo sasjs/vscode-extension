@@ -84,6 +84,22 @@ const EXEMPT = new Map([
   ]
 ])
 
+/**
+ * An advisory is exempt only when every instance npm reported sits on one of the
+ * paths its entry names. A copy of the same package reached through a repo-owned
+ * dependency lands on a different path, so it fails rather than inheriting an
+ * argument written about npm's bundled copy.
+ */
+export const exemptionCovers = (entry, exemptions) => {
+  const rule = exemptions.get(entry.id)
+
+  if (!rule) return false
+
+  if (!entry.nodes?.size) return false
+
+  return [...entry.nodes].every((node) => rule.paths.includes(node))
+}
+
 const run = () => {
   // A report can be supplied directly, which is how the gate is tested: the
   // matcher decides whether an exemption applies, and that decision has to be
@@ -108,104 +124,103 @@ const run = () => {
   }
 }
 
-let report
-try {
-  report = JSON.parse(run())
-} catch {
-  console.error('could not read the npm audit report for release/')
-  process.exit(1)
-}
-
-const ghsaOf = (via) => {
-  if (typeof via === 'string') return undefined
-  const match = /GHSA-[a-z0-9-]+/i.exec(via?.url ?? '')
-  return match ? match[0] : undefined
-}
-
-const found = new Map()
-for (const vulnerability of Object.values(report.vulnerabilities ?? {})) {
-  for (const via of vulnerability.via ?? []) {
-    const id = ghsaOf(via)
-    if (!id) continue
-    if (!found.has(id)) {
-      found.set(id, {
-        id,
-        title: via.title ?? '',
-        severity: via.severity ?? vulnerability.severity,
-        packages: new Set(),
-        nodes: new Set()
-      })
-    }
-    found.get(id).packages.add(vulnerability.name)
-    for (const node of vulnerability.nodes ?? []) found.get(id).nodes.add(node)
-  }
-}
-
 /**
- * An advisory is exempt only when every instance npm reported sits on the path
- * its entry names. A copy of the same package reached through a repo-owned
- * dependency lands on a different path, so it fails rather than inheriting an
- * argument written about npm's bundled copy.
+ * The gate itself, behind a function so this module can be imported: the matcher
+ * above is the part worth testing, and an import that runs npm audit and exits
+ * would test nothing.
  */
-export const exemptionCovers = (entry, exemptions = EXEMPT) => {
-  const rule = exemptions.get(entry.id)
-
-  if (!rule) return false
-
-  if (!entry.nodes?.size) return false
-
-  return [...entry.nodes].every((node) => rule.paths.includes(node))
-}
-
-const exempt = [...found.values()].filter((entry) => exemptionCovers(entry))
-const failing = [...found.values()].filter((entry) => !exemptionCovers(entry))
-
-console.log(`release toolchain: ${found.size} advisory(s)`)
-for (const entry of found.values()) {
-  const mark = exemptionCovers(entry) ? 'exempt' : 'FAIL  '
-  console.log(
-    `  ${mark} ${entry.severity.padEnd(8)} ${entry.id}  ${[
-      ...entry.packages
-    ].join(', ')}`
-  )
-  console.log(`         ${entry.title}`)
-  for (const node of entry.nodes) console.log(`         at ${node}`)
-}
-
-// An exemption that is no longer needed should be deleted, not left to rot.
-// Aggregated with the failing gate, so an unexempted advisory is never masked
-// by a stale-exemption report (or vice versa).
-const stale = [...EXEMPT.keys()].filter((id) => !found.has(id))
-
-if (failing.length) {
-  console.error(
-    `\n${failing.length} advisory(s) in the release toolchain outside the documented exemptions:`
-  )
-  for (const entry of failing) {
-    const why = EXEMPT.has(entry.id)
-      ? `exempt only at ${EXEMPT.get(entry.id).paths.join(' or ')}, found at ${
-          [...entry.nodes].join(', ') || 'an unrecorded path'
-        }`
-      : 'not exempt'
-    console.error(`  ${entry.severity} ${entry.id}  ${entry.title}  (${why})`)
+const gate = () => {
+  let report
+  try {
+    report = JSON.parse(run())
+  } catch {
+    console.error('could not read the npm audit report for release/')
+    process.exit(1)
   }
-  console.error(
-    '\nThe toolchain is not shipped, but it runs with publish credentials. Fix it,\n' +
-      'or add it to EXEMPT in release/audit.mjs with the reason it cannot be fixed.'
+
+  const ghsaOf = (via) => {
+    if (typeof via === 'string') return undefined
+    const match = /GHSA-[a-z0-9-]+/i.exec(via?.url ?? '')
+    return match ? match[0] : undefined
+  }
+
+  const found = new Map()
+  for (const vulnerability of Object.values(report.vulnerabilities ?? {})) {
+    for (const via of vulnerability.via ?? []) {
+      const id = ghsaOf(via)
+      if (!id) continue
+      if (!found.has(id)) {
+        found.set(id, {
+          id,
+          title: via.title ?? '',
+          severity: via.severity ?? vulnerability.severity,
+          packages: new Set(),
+          nodes: new Set()
+        })
+      }
+      found.get(id).packages.add(vulnerability.name)
+      for (const node of vulnerability.nodes ?? [])
+        found.get(id).nodes.add(node)
+    }
+  }
+
+  const exempt = [...found.values()].filter((entry) =>
+    exemptionCovers(entry, EXEMPT)
+  )
+  const failing = [...found.values()].filter(
+    (entry) => !exemptionCovers(entry, EXEMPT)
+  )
+
+  console.log(`release toolchain: ${found.size} advisory(s)`)
+  for (const entry of found.values()) {
+    const mark = exemptionCovers(entry, EXEMPT) ? 'exempt' : 'FAIL  '
+    console.log(
+      `  ${mark} ${entry.severity.padEnd(8)} ${entry.id}  ${[
+        ...entry.packages
+      ].join(', ')}`
+    )
+    console.log(`         ${entry.title}`)
+    for (const node of entry.nodes) console.log(`         at ${node}`)
+  }
+
+  // An exemption that is no longer needed should be deleted, not left to rot.
+  // Aggregated with the failing gate, so an unexempted advisory is never masked
+  // by a stale-exemption report (or vice versa).
+  const stale = [...EXEMPT.keys()].filter((id) => !found.has(id))
+
+  if (failing.length) {
+    console.error(
+      `\n${failing.length} advisory(s) in the release toolchain outside the documented exemptions:`
+    )
+    for (const entry of failing) {
+      const why = EXEMPT.has(entry.id)
+        ? `exempt only at ${EXEMPT.get(entry.id).paths.join(
+            ' or '
+          )}, found at ${[...entry.nodes].join(', ') || 'an unrecorded path'}`
+        : 'not exempt'
+      console.error(`  ${entry.severity} ${entry.id}  ${entry.title}  (${why})`)
+    }
+    console.error(
+      '\nThe toolchain is not shipped, but it runs with publish credentials. Fix it,\n' +
+        'or add it to EXEMPT in release/audit.mjs with the reason it cannot be fixed.'
+    )
+  }
+
+  if (stale.length) {
+    console.error(
+      '\nexempt advisories that no longer appear, so the exemption can go:'
+    )
+    for (const id of stale)
+      console.error(`  ${id}  (exempt at ${EXEMPT.get(id).paths.join(', ')})`)
+  }
+
+  if (failing.length || stale.length) process.exit(1)
+
+  console.log(
+    `\nno advisory in the release toolchain outside the documented exemptions` +
+      (exempt.length ? ` (${exempt.length} exempt)` : '')
   )
 }
 
-if (stale.length) {
-  console.error(
-    '\nexempt advisories that no longer appear, so the exemption can go:'
-  )
-  for (const id of stale)
-    console.error(`  ${id}  (exempt at ${EXEMPT.get(id).paths.join(', ')})`)
-}
-
-if (failing.length || stale.length) process.exit(1)
-
-console.log(
-  `\nno advisory in the release toolchain outside the documented exemptions` +
-    (exempt.length ? ` (${exempt.length} exempt)` : '')
-)
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1])
+  gate()
