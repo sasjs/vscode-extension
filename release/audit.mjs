@@ -13,12 +13,16 @@
  * a stale entry is invisible in a passing build, and a list that only warns
  * drifts out of step with the tree it describes.
  *
- * The list is short because the locked npm is current: npm 11.21.1 vendors
- * fixed brace-expansion, http-cache-semantics, postcss-selector-parser and
- * undici, so the advisories against those do not appear. A lockfile that pinned
- * npm back would bring them back, and they would fail this gate until they are
- * listed again. The ip-address advisory published after that npm release does
- * appear - npm vendors the affected version - and is exempted below.
+ * The list has four entries, all of them code vendored inside npm 11.21.1 or
+ * inside a package the publish path resolves: one ip-address advisory and two
+ * undici ones in npm's bundled tree, and one msal-node advisory under
+ * @azure/identity. brace-expansion, http-cache-semantics and
+ * postcss-selector-parser are fixed in that npm and do not appear.
+ *
+ * Each entry names the path it covers, and an advisory is exempt only when every
+ * reported instance sits on that path. Keying on the GHSA id alone would let an
+ * in-range copy arriving through a repo-owned dependency pass under an argument
+ * written about npm's bundled one.
  *
  * Every exemption carries its own argument - where the affected code sits,
  * whether this repo's release path runs it, and whose input reaches it. An
@@ -47,19 +51,35 @@ const releaseDir = dirname(fileURLToPath(import.meta.url))
 const EXEMPT = new Map([
   [
     'GHSA-rxp7-6hxx-x8q5',
-    'ip-address 10.7.2, bundled inside npm 11.21.1, which @semantic-release/npm resolves from its npm ^11.6.2 range. 11.21.1 is the newest 11.x, and the version npm bundles cannot be overridden from here - adding `overrides` for ip-address to release/package.json leaves the lockfile at 10.7.2, which was measured. RISK ACCEPTANCE, not unreachability: the parse runs only on a proxy address that carries an Address6 zone identifier; the exposure is a stall during publish, and that string can arrive from standard npm proxy configuration (`npm_config_proxy`, `HTTPS_PROXY`), so the input path is reachable and the accepted risk is a publish-time stall rather than a package-supplied one. No bump in this repo moves it: forcing npm 12.2.1 inside the toolchain was measured too, and its own bundled tree still vendors ip-address 10.7.2. It clears only when npm ships ip-address >= 10.7.4 in its own bundled tree; the advisory then disappears and this entry fails the gate until it is deleted.'
+    {
+      path: 'node_modules/npm/node_modules/ip-address',
+      reason:
+        'ip-address 10.7.2, bundled inside npm 11.21.1, which @semantic-release/npm resolves from its npm ^11.6.2 range. 11.21.1 is the newest 11.x, and the version npm bundles cannot be overridden from here - adding `overrides` for ip-address to release/package.json leaves the lockfile at 10.7.2, which was measured. RISK ACCEPTANCE, not unreachability: the parse runs only on a proxy address that carries an Address6 zone identifier; the exposure is a stall during publish, and that string can arrive from standard npm proxy configuration (`npm_config_proxy`, `HTTPS_PROXY`), so the input path is reachable and the accepted risk is a publish-time stall rather than a package-supplied one. No bump in this repo moves it: forcing npm 12.2.1 inside the toolchain was measured too, and its own bundled tree still vendors ip-address 10.7.2. It clears only when npm ships ip-address >= 10.7.4 in its own bundled tree; the advisory then disappears and this entry fails the gate until it is deleted.'
+    }
   ],
   [
     'GHSA-4qv8-2p9j-2685',
-    'undici 6.29.0, bundled inside npm 11.21.1 and reached through @semantic-release/npm\'s npm ^11.6.2 range. The advisory range is >=6.5.0 <6.29.1, and the two copies this repo can see are outside it - node_modules/undici 7.30.1 and the 6.29.1 under @actions/http-client - so what fails here is npm\'s own vendored copy. No `overrides` entry reaches a dependency vendored inside npm\'s tarball; that was measured for ip-address above, and forcing npm 12 inside the toolchain does not help. RISK ACCEPTANCE: this parser runs inside npm\'s own network operations during the publish step, on responses from the registry over TLS, so the input path is reachable and the exposure is a stall during publish. It clears when npm ships undici >= 6.29.1 in its bundle, and this entry then fails the gate until it is deleted.'
+    {
+      path: 'node_modules/npm/node_modules/undici',
+      reason:
+        'undici 6.29.0, bundled inside npm 11.21.1 and reached through @semantic-release/npm\'s npm ^11.6.2 range. The advisory range is >=6.5.0 <6.29.1, and the two copies this repo can see are outside it - node_modules/undici 7.30.1 and the 6.29.1 under @actions/http-client - so what fails here is npm\'s own vendored copy. No `overrides` entry reaches a dependency vendored inside npm\'s tarball; that was measured for ip-address above, and forcing npm 12 inside the toolchain does not help. RISK ACCEPTANCE: this parser runs inside npm\'s own network operations during the publish step, on responses from the registry over TLS, so the input path is reachable and the exposure is a stall during publish. It clears when npm ships undici >= 6.29.1 in its bundle, and this entry then fails the gate until it is deleted.'
+    }
   ],
   [
     'GHSA-xjj6-f33q-929c',
-    'Same undici 6.29.0 bundled inside npm 11.21.1 (range >=6.23.0 <6.29.1), same reasoning as GHSA-4qv8-2p9j-2685: the copies this repo resolves are 7.30.1 and 6.29.1, both outside the affected range, and the vendored one cannot be overridden. RISK ACCEPTANCE, exposure is a publish-time stall.'
+    {
+      path: 'node_modules/npm/node_modules/undici',
+      reason:
+        'Same undici 6.29.0 bundled inside npm 11.21.1 (range >=6.23.0 <6.29.1), same reasoning as GHSA-4qv8-2p9j-2685: the copies this repo resolves are 7.30.1 and 6.29.1, both outside the affected range, and the vendored one cannot be overridden. RISK ACCEPTANCE, exposure is a publish-time stall.'
+    }
   ],
   [
     'GHSA-xcx6-jx8p-x3h5',
-    'msal-node 6.0.1, resolved by @azure/identity ^4.1.0 (through @vscode/vsce) which requires @azure/msal-node ^6.0.0. The advisory range is >=5.0.0-beta.0 <7.1.0 and 6.0.1 is the newest 6.x, so no in-range bump exists; @azure/identity has no 5.x, so lifting it does not move msal either. Forcing msal-node 7 through `overrides` would be a major version change in the publish authentication path, which is the higher risk here. RISK ACCEPTANCE, not unreachability: the advisory concerns the authorization-code flow (browser sign-in), and this repo publishes to Open VSX with OVSX_PAT and packages with vsce, neither of which runs that flow - the VS Marketplace credential is commented out in publish.yml. It clears when @azure/identity moves to msal-node >= 7.1.0.'
+    {
+      path: 'node_modules/@azure/msal-node',
+      reason:
+        'msal-node 6.0.1, resolved by @azure/identity ^4.1.0 (through @vscode/vsce) which requires @azure/msal-node ^6.0.0. The advisory range is >=5.0.0-beta.0 <7.1.0 and 6.0.1 is the newest 6.x, so no in-range bump exists; @azure/identity has no 5.x, so lifting it does not move msal either. Forcing msal-node 7 through `overrides` would be a major version change in the publish authentication path, which is the higher risk here. RISK ACCEPTANCE, not unreachability: the advisory concerns the authorization-code flow (browser sign-in), and this repo publishes to Open VSX with OVSX_PAT and packages with vsce, neither of which runs that flow - the VS Marketplace credential is commented out in publish.yml. It clears when @azure/identity moves to msal-node >= 7.1.0.'
+    }
   ]
 ])
 
@@ -105,25 +125,47 @@ for (const vulnerability of Object.values(report.vulnerabilities ?? {})) {
         id,
         title: via.title ?? '',
         severity: via.severity ?? vulnerability.severity,
-        packages: new Set()
+        packages: new Set(),
+        nodes: new Set()
       })
     }
     found.get(id).packages.add(vulnerability.name)
+    for (const node of vulnerability.nodes ?? []) found.get(id).nodes.add(node)
   }
 }
 
-const exempt = [...found.keys()].filter((id) => EXEMPT.has(id))
-const failing = [...found.values()].filter((entry) => !EXEMPT.has(entry.id))
+/**
+ * An advisory is exempt only when every instance npm reported sits on the path
+ * its entry names. A copy of the same package reached through a repo-owned
+ * dependency lands on a different path, so it fails rather than inheriting an
+ * argument written about npm's bundled copy.
+ */
+const exemptionCovers = (entry) => {
+  const rule = EXEMPT.get(entry.id)
+
+  if (!rule) return false
+
+  if (!entry.nodes.size) return false
+
+  return [...entry.nodes].every((node) => node === rule.path)
+}
+
+const exempt = [...found.values()].filter(exemptionCovers)
+const failing = [...found.values()].filter((entry) => !exemptionCovers(entry))
+const mismatched = [...found.values()].filter(
+  (entry) => EXEMPT.has(entry.id) && !exemptionCovers(entry)
+)
 
 console.log(`release toolchain: ${found.size} advisory(s)`)
 for (const entry of found.values()) {
-  const mark = EXEMPT.has(entry.id) ? 'exempt' : 'FAIL  '
+  const mark = exemptionCovers(entry) ? 'exempt' : 'FAIL  '
   console.log(
     `  ${mark} ${entry.severity.padEnd(8)} ${entry.id}  ${[
       ...entry.packages
     ].join(', ')}`
   )
   console.log(`         ${entry.title}`)
+  for (const node of entry.nodes) console.log(`         at ${node}`)
 }
 
 // An exemption that is no longer needed should be deleted, not left to rot.
@@ -136,7 +178,12 @@ if (failing.length) {
     `\n${failing.length} advisory(s) in the release toolchain outside the documented exemptions:`
   )
   for (const entry of failing) {
-    console.error(`  ${entry.severity} ${entry.id}  ${entry.title}`)
+    const why = EXEMPT.has(entry.id)
+      ? `exempt only at ${EXEMPT.get(entry.id).path}, found at ${[
+          ...entry.nodes
+        ].join(', ') || 'an unrecorded path'}`
+      : 'not exempt'
+    console.error(`  ${entry.severity} ${entry.id}  ${entry.title}  (${why})`)
   }
   console.error(
     '\nThe toolchain is not shipped, but it runs with publish credentials. Fix it,\n' +
