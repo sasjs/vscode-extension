@@ -152,9 +152,6 @@ const exemptionCovers = (entry) => {
 
 const exempt = [...found.values()].filter(exemptionCovers)
 const failing = [...found.values()].filter((entry) => !exemptionCovers(entry))
-const mismatched = [...found.values()].filter(
-  (entry) => EXEMPT.has(entry.id) && !exemptionCovers(entry)
-)
 
 console.log(`release toolchain: ${found.size} advisory(s)`)
 for (const entry of found.values()) {
@@ -195,7 +192,8 @@ if (stale.length) {
   console.error(
     '\nexempt advisories that no longer appear, so the exemption can go:'
   )
-  for (const id of stale) console.error(`  ${id}  ${EXEMPT.get(id)}`)
+  for (const id of stale)
+    console.error(`  ${id}  (exempt at ${EXEMPT.get(id).path})`)
 }
 
 if (failing.length || stale.length) process.exit(1)
