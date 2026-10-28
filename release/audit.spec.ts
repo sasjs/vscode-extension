@@ -58,9 +58,12 @@ const VENDORED = 'node_modules/npm/node_modules/undici'
 
 describe('release audit exemptions', () => {
   it('should pass when every advisory sits at the path its entry names', () => {
-    // all four entries covered, so the gate is green: this is the tree the
+    // every entry covered, so the gate is green: this is the tree the
     // exemptions describe
     const result = run([
+      { id: 'GHSA-2m5v-pch6-74hx', package: 'undici', nodes: [VENDORED] },
+      { id: 'GHSA-qrxm-fqhp-jwvm', package: 'undici', nodes: [VENDORED] },
+      { id: 'GHSA-9fm3-97px-rjf6', package: 'undici', nodes: [VENDORED] },
       { id: 'GHSA-4qv8-2p9j-2685', package: 'undici', nodes: [VENDORED] },
       { id: 'GHSA-xjj6-f33q-929c', package: 'undici', nodes: [VENDORED] },
       {
