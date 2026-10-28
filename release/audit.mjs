@@ -75,6 +75,30 @@ const EXEMPT = new Map([
     }
   ],
   [
+    'GHSA-2m5v-pch6-74hx',
+    {
+      paths: ['node_modules/npm/node_modules/undici'],
+      reason:
+        'Same undici 6.29.0 bundled inside npm 11.21.1, patched in 6.29.1, unreachable by `overrides` because a bundled dependency is not a resolvable node, and unchanged by npm 12.2.1 (measured: that tarball also bundles 6.29.0). This one drops TLS options in an Agent, so it applies to the HTTP client npm uses during publish - which talks to the registry and the marketplace over TLS with the CA bundle the runner ships, and nothing in that exchange lets a peer pick the agent options. Clears when npm ships undici >= 6.29.1 bundled; this entry then fails the gate until it is deleted.'
+    }
+  ],
+  [
+    'GHSA-qrxm-fqhp-jwvm',
+    {
+      paths: ['node_modules/npm/node_modules/undici'],
+      reason:
+        'Same undici 6.29.0 inside npm 11.21.1, patched in 6.29.1, unreachable by `overrides`, unchanged by npm 12.2.1. The TLS 1.2 certificate-changing renegotiation path needs a peer that renegotiates mid-connection; Node disables renegotiation by default and the publish endpoints are the registry and the marketplace, so nothing in this repo supplies that peer. RISK ACCEPTANCE on the publish path, not unreachability.'
+    }
+  ],
+  [
+    'GHSA-9fm3-97px-rjf6',
+    {
+      paths: ['node_modules/npm/node_modules/undici'],
+      reason:
+        'Same undici 6.29.0 inside npm 11.21.1, patched in 6.29.1, unreachable by `overrides`, unchanged by npm 12.2.1. This one is WebSocket PONG buffering; the release toolchain never opens a WebSocket, so the affected code is not instantiated on the publish path at all. Clears with the same npm bump.'
+    }
+  ],
+  [
     'GHSA-xcx6-jx8p-x3h5',
     {
       paths: ['node_modules/@azure/msal-node'],
