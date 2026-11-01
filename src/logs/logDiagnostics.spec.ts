@@ -64,7 +64,7 @@ class Diagnostic implements FakeDiagnostic {
 
 jest.mock('vscode', () => ({
   Diagnostic,
-  DiagnosticSeverity: { Error: 0, Warning: 1 },
+  DiagnosticSeverity: { Error: 0, Warning: 1, Information: 2 },
   OverviewRulerLane: { Right: 4 },
   Position,
   Range,
@@ -116,14 +116,18 @@ const LOG = [
   ''
 ].join('\n')
 
-const document = (fileName = '/tmp/project/sasjsresults/run.log', version = 1) => ({
+const document = (
+  fileName = '/tmp/project/sasjsresults/run.log',
+  version = 1,
+  text = LOG
+) => ({
   fileName,
   version,
   uri: {
     toString: () => `file://${fileName}`,
     fsPath: fileName
   },
-  getText: () => LOG
+  getText: () => text
 })
 
 const context = { subscriptions: [] as unknown[] } as any
@@ -252,6 +256,40 @@ describe('log issues', () => {
     await analyse(document('/tmp/project/sasjsresults/run.sas') as any)
 
     expect(parseLog()).not.toHaveBeenCalled()
+  })
+
+  it('publishes a notable note as information', async () => {
+    const text = [
+      'NOTE: Variable x is uninitialized.',
+      'NOTE: There were 19 observations read from the data set SASHELP.CLASS.',
+      ''
+    ].join('\n')
+
+    await analyse(document('/tmp/project/sasjsresults/notes.log', 1, text) as any)
+
+    const [, diagnostics] = diagnosticsSet.mock.calls[0] as [
+      unknown,
+      FakeDiagnostic[]
+    ]
+
+    expect(diagnostics).toHaveLength(1)
+    expect(diagnostics[0].severity).toBe(2)
+    expect(diagnostics[0].message).toBe('Variable x is uninitialized.')
+  })
+
+  it('does not colour a notable note', async () => {
+    const text = 'NOTE: Variable x is uninitialized.\n'
+    const editor = {
+      document: document('/tmp/project/sasjsresults/uncoloured.log', 1, text),
+      setDecorations
+    }
+    ;(window as any).visibleTextEditors = [editor]
+
+    await analyse(editor.document as any)
+
+    expect(setDecorations).toHaveBeenCalledTimes(2)
+    expect(setDecorations.mock.calls[0][1]).toHaveLength(0)
+    expect(setDecorations.mock.calls[1][1]).toHaveLength(0)
   })
 
   it('registers its subscriptions on activation', () => {

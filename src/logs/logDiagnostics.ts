@@ -60,8 +60,8 @@ const warningColour = (): TextEditorDecorationType =>
   }))
 
 /**
- * Publishes the errors and warnings of a SAS log as diagnostics, and colours
- * them in the editor.
+ * Publishes the errors, the warnings and the notable notes of a SAS log as
+ * diagnostics, and colours the errors and warnings in the editor.
  *
  * A diagnostic is what puts a line in the Problems panel, which is what makes
  * F8 and Shift+F8 move between them without this extension binding anything;
@@ -165,9 +165,7 @@ const toDiagnostic = (issue: LogIssue): Diagnostic => {
   const diagnostic = new Diagnostic(
     new Range(issue.line, issue.column, issue.line, issue.endColumn),
     issue.message,
-    issue.severity === 'error'
-      ? DiagnosticSeverity.Error
-      : DiagnosticSeverity.Warning
+    severityOf(issue)
   )
 
   diagnostic.source = 'SASjs log'
@@ -178,6 +176,11 @@ const toDiagnostic = (issue: LogIssue): Diagnostic => {
   return diagnostic
 }
 
+/**
+ * Colours the errors and the warnings, and not the notable notes: a log carries
+ * enough of them that colouring them too would drown the two lines that stopped
+ * the run. They are still in the Problems panel, under Information.
+ */
 const decorate = (document: TextDocument, issues: LogIssue[]): void => {
   const editors = window.visibleTextEditors.filter(
     (editor) => editor.document.uri.toString() === document.uri.toString()
@@ -195,6 +198,18 @@ const decorate = (document: TextDocument, issues: LogIssue[]): void => {
     )
   })
 }
+
+/**
+ * A notable note is Information, which is the severity VS Code groups under its
+ * own filter in the Problems panel - the notes section a reader scans after the
+ * errors and warnings.
+ */
+const severityOf = (issue: LogIssue): DiagnosticSeverity =>
+  issue.severity === 'error'
+    ? DiagnosticSeverity.Error
+    : issue.severity === 'warning'
+    ? DiagnosticSeverity.Warning
+    : DiagnosticSeverity.Information
 
 /** A whole-line range over the issue and every line SAS wrapped into it. */
 const toDecorationRange = (issue: LogIssue): Range =>
