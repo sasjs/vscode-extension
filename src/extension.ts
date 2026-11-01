@@ -18,7 +18,10 @@ import {
   startSasLanguageServer,
   stopSasLanguageServer
 } from './languageServer/languageServer'
-import { registerLogDiagnostics } from './logs/logDiagnostics'
+import {
+  registerLogDiagnostics,
+  registerLogEditorContext
+} from './logs/logDiagnostics'
 import { Configuration } from '@sasjs/utils/types'
 import { getGlobalConfiguration, getLocalConfiguration } from './utils/config'
 import { setProcessVariables } from './utils/setProcessVariables'
@@ -93,8 +96,10 @@ export async function activate(context: vscode.ExtensionContext) {
   previousLogIssueCommand.initialise()
 
   // Logs written by a compile, build or run are opened beside the editor, so
-  // their errors and warnings are published as they appear.
+  // their errors and warnings are published as they appear, and the title-bar
+  // navigation follows the editor the user is in.
   registerLogDiagnostics(context)
+  registerLogEditorContext(context)
 
   statusBarItem = vscode.window.createStatusBarItem(
     vscode.StatusBarAlignment.Right,

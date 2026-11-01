@@ -6,9 +6,11 @@ import {
   OverviewRulerLane,
   Range,
   TextDocument,
+  TextEditor,
   TextEditorDecorationType,
   ThemeColor,
   Uri,
+  commands,
   languages,
   window,
   workspace
@@ -85,6 +87,34 @@ export const registerLogDiagnostics = (context: ExtensionContext): void => {
   )
 
   window.visibleTextEditors.forEach((editor) => void analyse(editor.document))
+}
+
+/**
+ * The context key the manifest reads to decide whether to show the next and
+ * previous buttons in the editor title bar.
+ */
+export const LOG_EDITOR_KEY = 'sasjsLogEditor'
+
+/**
+ * Publishes whether the active editor is a log, so the title-bar buttons show for
+ * one and only for one.
+ *
+ * The manifest could test the filename itself, with `resourceExtname == .log`, but
+ * that comparison is case-sensitive while {@link analyse} matches the extension
+ * case-insensitively: a `RUN.LOG` would publish diagnostics and show no buttons.
+ * One predicate answers both halves.
+ */
+export const registerLogEditorContext = (context: ExtensionContext): void => {
+  const update = (editor: TextEditor | undefined): void =>
+    void commands.executeCommand(
+      'setContext',
+      LOG_EDITOR_KEY,
+      !!editor && isLogDocument(editor.document)
+    )
+
+  context.subscriptions.push(window.onDidChangeActiveTextEditor(update))
+
+  update(window.activeTextEditor)
 }
 
 /**

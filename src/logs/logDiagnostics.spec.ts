@@ -1,7 +1,7 @@
 /**
- * Asserts the log wiring: that a log in a SASjs project gets one diagnostic per
- * issue with the severity and range a reader needs, that the same issues colour
- * the visible editor, and that a .log outside a SASjs project is left alone.
+ * Asserts the log wiring: that a log gets one diagnostic per issue with the
+ * severity and range a reader needs, that the same issues colour the visible
+ * editor, and that the title-bar navigation follows the active editor.
  *
  * The parser itself is the real one - a log is parsed in these tests, not
  * stubbed - and it is wrapped so the tests can also assert that a document that
@@ -26,6 +26,9 @@ const diagnosticsSet = jest.fn()
 const diagnosticsDelete = jest.fn()
 const setDecorations = jest.fn()
 const revealRange = jest.fn()
+const executeCommand = jest.fn()
+/** The handler the module registers for an editor change, so a test can fire it. */
+const activeEditorHandlers: Array<(editor: unknown) => void> = []
 
 class Position {
   constructor(public line: number, public character: number) {}
@@ -78,13 +81,18 @@ jest.mock('vscode', () => ({
       dispose: jest.fn()
     })
   },
+  commands: { executeCommand },
   window: {
     visibleTextEditors: [],
+    activeTextEditor: undefined,
     createTextEditorDecorationType: (options: unknown) => ({
       options,
       dispose: jest.fn()
     }),
-    onDidChangeActiveTextEditor: () => ({ dispose: jest.fn() })
+    onDidChangeActiveTextEditor: (handler: (editor: unknown) => void) => {
+      activeEditorHandlers.push(handler)
+      return { dispose: jest.fn() }
+    }
   },
   workspace: {
     onDidOpenTextDocument: () => ({ dispose: jest.fn() }),
@@ -103,7 +111,13 @@ jest.mock('@sasjs/utils/logs', () => {
 })
 
 import { window } from 'vscode'
-import { analyse, clear, registerLogDiagnostics } from './logDiagnostics'
+import {
+  LOG_EDITOR_KEY,
+  analyse,
+  clear,
+  registerLogDiagnostics,
+  registerLogEditorContext
+} from './logDiagnostics'
 
 const LOG = [
   '1    data want;',
@@ -142,6 +156,8 @@ describe('log issues', () => {
     diagnosticsDelete.mockClear()
     setDecorations.mockClear()
     parseLog().mockClear()
+    executeCommand.mockClear()
+    activeEditorHandlers.length = 0
     ;(window as any).visibleTextEditors = []
   })
 
@@ -292,5 +308,47 @@ describe('log issues', () => {
     registerLogDiagnostics(context)
 
     expect(context.subscriptions.length).toBeGreaterThan(0)
+  })
+
+  it('tells the manifest whether the active editor is a log', () => {
+    registerLogEditorContext(context)
+
+    expect(executeCommand).toHaveBeenLastCalledWith(
+      'setContext',
+      LOG_EDITOR_KEY,
+      false
+    )
+
+    const activate = (editor: unknown) =>
+      activeEditorHandlers.forEach((handler) => handler(editor))
+
+    // Upper case counts: the analysis matches .log case-insensitively, so the
+    // buttons must follow the same rule as the diagnostics.
+    activate({ document: document('/tmp/RUN.LOG') })
+    expect(executeCommand).toHaveBeenLastCalledWith(
+      'setContext',
+      LOG_EDITOR_KEY,
+      true
+    )
+
+    activate({ document: document('/tmp/program.sas') })
+    expect(executeCommand).toHaveBeenLastCalledWith(
+      'setContext',
+      LOG_EDITOR_KEY,
+      false
+    )
+
+    activate(undefined)
+    expect(executeCommand).toHaveBeenLastCalledWith(
+      'setContext',
+      LOG_EDITOR_KEY,
+      false
+    )
+  })
+
+  it('registers the editor listener once, on activation', () => {
+    registerLogEditorContext(context)
+
+    expect(activeEditorHandlers).toHaveLength(1)
   })
 })
