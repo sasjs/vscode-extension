@@ -1,0 +1,67 @@
+name: Coverage baseline
+
+# Publishes the coverage a pull request is measured against. It runs on every
+# push to main, so the baseline is the tree the next pull request is diffed
+# against, and on demand, so it can be refreshed after a failed run.
+#
+# The pull request workflow (.github/workflows/run-tests.yml, step "Ratchet the
+# coverage") downloads this artifact and fails a pull request that lowers any
+# metric. See CONTRIBUTING.md.
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  # Deliberately not cancel-in-progress: a baseline is per commit, and a pull
+  # request based on that commit needs it after a newer commit on main has
+  # landed. Cancelling the older run would leave that commit with no baseline at
+  # all, which is worse than running two suites a few minutes apart.
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  baseline:
+    name: baseline
+    # A dispatch from a branch would publish a summary for a commit that never
+    # landed on main, and the pull request lookup matches artifacts by head_sha
+    # alone - a stacked pull request based on that commit would then ratchet
+    # against coverage that is not on main. Only main publishes a baseline.
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js lts/jod
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/jod
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup snippets and git hooks
+        # Mirrors the pull request workflow: the baseline has to be measured
+        # under the same conditions as the run it is compared with, or a spec
+        # that reads generated snippets could pass in one and not the other.
+        run: npm run setup
+
+      - name: Generate the coverage summary
+        # plain jest rather than a coverage reporting action: there is no pull
+        # request to comment on here, and a reporting action's failure would
+        # skip the upload that this workflow exists to produce.
+        run: npm run test:unit
+
+      - name: Publish the coverage baseline
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-summary
+          path: coverage/coverage-summary.json
+          retention-days: 90

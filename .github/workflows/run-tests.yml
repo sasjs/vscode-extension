@@ -10,6 +10,14 @@ jobs:
   test:
     runs-on: ubuntu-latest
 
+    # `actions: read` downloads the coverage baseline artifact, `issues: write`
+    # posts the coverage comment. Everything else is read-only.
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: write
+      issues: write
+
     strategy:
       matrix:
         node-version: [lts/jod]
@@ -60,8 +68,186 @@ jobs:
       - name: Check Code Style
         run: npm run lint
 
+      - name: Test the coverage ratchet
+        # node's own runner: this needs no dependencies beyond the node the job
+        # already sets up, and it runs in well under a second
+        run: node --test .github/scripts/coverage-ratchet.test.mjs
+
       - name: Run Unit Tests
+        # produces coverage/coverage-summary.json, which the ratchet reads
         run: npm run test:unit
+
+      - name: Find the coverage baseline
+        id: coverage-baseline
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          # The baseline this pull request is measured against, chosen in this
+          # order and never by "whatever is newest":
+          #
+          # 1. the run for the base commit itself - the tree the pull request is
+          #    diffed against;
+          # 2. a run for a commit the base commit descends from, when the base
+          #    commit has none (a stacked pull request, or a baseline run that
+          #    has not finished yet). An ancestor is a tree this pull request
+          #    extends, so the comparison cannot invent a pass out of someone
+          #    else's later work, and the note in the comment names the commit;
+          # 3. nothing - the job fails.
+          #
+          # Listed by workflow, not by artifact name: an unrelated workflow that
+          # one day uploads a `coverage-summary` artifact is not a candidate.
+          # `|| true`: this endpoint 404s until the workflow exists on the
+          # default branch, which is exactly the state of the pull request that
+          # introduces it - an empty list is handled below, a failed step is not.
+          echo "Looking for a coverage baseline for base commit ${BASE_SHA}."
+          list_status=0
+          runs=$(gh api --paginate \
+            "repos/${GITHUB_REPOSITORY}/actions/workflows/coverage-baseline.yml/runs?per_page=100" \
+            --jq '.workflow_runs[] | select(.conclusion == "success") | "\(.head_sha) \(.id)"' \
+            2>/dev/null) || list_status=$?
+
+          if [ "$list_status" -ne 0 ]; then
+            # gh writes the JSON error body to stdout as well as exiting non-zero,
+            # so a failed list has to be discarded rather than parsed: on a 404
+            # (the workflow is not on the default branch yet) that body would
+            # otherwise be read as a candidate sha.
+            echo "::warning::Could not list the published coverage baselines (gh exited ${list_status}). Treating the list as empty."
+            runs=
+          fi
+
+          # only well-formed "sha id" lines are candidates
+          runs=$(printf '%s\n' "$runs" | grep -E '^[0-9a-f]{40} [0-9]+$' || true)
+          echo "published baselines found: $(printf '%s\n' "$runs" | awk 'NF' | wc -l)"
+
+          run_id=$(printf '%s\n' "$runs" | awk -v sha="$BASE_SHA" '$1 == sha { print $2 }' | head -1)
+          source="the baseline published for the base commit ${BASE_SHA}"
+          missing=fail
+
+          if [ -z "$run_id" ]; then
+            # At most ten candidates: a stacked pull request is a commit or two
+            # behind, and an unbounded loop turns one rate limit into a run full
+            # of failed comparisons.
+            candidates=$(printf '%s\n' "$runs" | awk 'NF > 0 { print $1 }' | head -10)
+            undetermined=
+
+            for candidate in $candidates; do
+              # "ahead" means the base commit is ahead of the candidate, so the
+              # candidate is an ancestor; "identical" is the same commit.
+              #
+              # The exit status is checked rather than discarded: a rate-limited
+              # or failing call answers nothing, and swallowing that would look
+              # exactly like "not an ancestor" and fail the pull request with a
+              # message about a baseline that is in fact there.
+              if ! status=$(gh api \
+                "repos/${GITHUB_REPOSITORY}/compare/${candidate}...${BASE_SHA}" \
+                --jq '.status' 2>"${RUNNER_TEMP:-/tmp}/compare-error.txt"); then
+                undetermined=1
+                echo "::error::Could not compare ${candidate} with ${BASE_SHA} - $(head -c 200 "${RUNNER_TEMP:-/tmp}/compare-error.txt" | tr '\n' ' ')"
+                break
+              fi
+
+              if [ "$status" = "ahead" ] || [ "$status" = "identical" ]; then
+                run_id=$(printf '%s\n' "$runs" | awk -v sha="$candidate" '$1 == sha { print $2 }' | head -1)
+                source="the baseline published for ${candidate}, the newest commit the base commit ${BASE_SHA} descends from"
+                echo "::warning::No baseline was published for the base commit ${BASE_SHA}. Comparing against ${candidate}, which the base commit descends from."
+                break
+              fi
+            done
+
+            if [ -n "$undetermined" ]; then
+              # Ancestry unknown is not "no baseline": stopping here means the
+              # job fails with this line rather than with the ratchet's message
+              # about a baseline that may well exist. Re-running is the fix.
+              echo "::error::Ancestry of the base commit ${BASE_SHA} could not be determined, so the coverage comparison cannot be made. Re-run the job."
+              exit 1
+            fi
+          fi
+
+          if [ -z "$run_id" ]; then
+            # The pull request that introduces the mechanism has a base commit
+            # with no baseline, and cannot get one until this lands. Proven by
+            # the workflow file being absent at that commit, and by reading the
+            # HTTP status rather than a pipeline's exit code - `gh api` fails on
+            # a 404, so a shell that ran with `pipefail` would invert an exit-code
+            # test here. The skip retires itself: once the workflow is on the
+            # base branch the file is found and a missing baseline fails again.
+            probe=$(gh api --include \
+              "repos/${GITHUB_REPOSITORY}/contents/.github/workflows/coverage-baseline.yml?ref=${BASE_SHA}" \
+              2>/dev/null || true)
+            status=$(printf '%s\n' "$probe" | awk 'NR == 1 { print $2 }')
+
+            if [ "$status" = "404" ]; then
+              missing=skip
+              echo "::warning::The base commit ${BASE_SHA} predates the coverage-baseline workflow, so this pull request has nothing to compare against."
+            fi
+          fi
+
+          echo "run-id=${run_id}" >> "$GITHUB_OUTPUT"
+          echo "source=${source}" >> "$GITHUB_OUTPUT"
+          echo "missing=${missing}" >> "$GITHUB_OUTPUT"
+
+      - name: Download the coverage baseline
+        # fails the job when there is nothing to download: a missing baseline is
+        # a broken gate, and the step that notices should be this one rather
+        # than a green tick with a warning buried in the log
+        if: github.event_name == 'pull_request' && steps.coverage-baseline.outputs.run-id != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: >-
+          gh run download ${{ steps.coverage-baseline.outputs.run-id }}
+          --name coverage-summary
+          --dir coverage-base
+
+      - name: Ratchet the coverage
+        id: ratchet
+        # continue-on-error so the comment below is posted either way; the
+        # "Fail on a coverage regression" step turns the outcome into the job's
+        # result. See the script's header for why the comparison is the gate.
+        continue-on-error: true
+        if: github.event_name == 'pull_request'
+        run: >-
+          node .github/scripts/coverage-ratchet.mjs
+          --head coverage/coverage-summary.json
+          --base coverage-base/coverage-summary.json
+          --markdown coverage-comment.md
+          --missing-baseline ${{ steps.coverage-baseline.outputs.missing }}
+          --note "Compared against ${{ steps.coverage-baseline.outputs.source }}."
+
+      - name: Report the coverage
+        # One comment per pull request, edited in place on each push.
+        #
+        # Skipped for a pull request from a fork: GITHUB_TOKEN is read-only
+        # there whatever `permissions` says, so the POST/PATCH below would 403
+        # and turn the job red for every external contribution. The comparison
+        # itself still runs and still fails the job - it is the comment that is
+        # dropped, and the numbers are in the ratchet step's log.
+        if: >-
+          github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name == github.repository &&
+          hashFiles('coverage-comment.md') != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          existing=$(gh api --paginate \
+            "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments?per_page=100" \
+            --jq '.[] | select(.body | startswith("<!-- coverage-ratchet -->")) | .id' | head -1)
+
+          if [ -n "$existing" ]; then
+            gh api -X PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/${existing}" \
+              -f body="$(cat coverage-comment.md)" > /dev/null
+          else
+            gh api -X POST "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" \
+              -f body="$(cat coverage-comment.md)" > /dev/null
+          fi
+
+      - name: Fail on a coverage regression
+        if: github.event_name == 'pull_request' && steps.ratchet.outcome != 'success'
+        run: |
+          echo "::error::The coverage ratchet did not pass - see the coverage comment."
+          exit 1
 
       - name: Build Package
         run: npm run vscode:prepublish
