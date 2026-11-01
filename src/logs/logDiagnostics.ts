@@ -71,8 +71,8 @@ const warningColour = (): TextEditorDecorationType =>
  * from one parse of one document, and both are addressed from the issue list,
  * so neither path rewrites the log.
  *
- * There is no project test: the marker has to start a line and be one SAS
- * writes, which is what tells a SAS log apart from somebody else's.
+ * There is no project test: a log is analysed wherever it lives, because the run
+ * that wrote it may have happened in a folder without a sasjsconfig.
  */
 export const registerLogDiagnostics = (context: ExtensionContext): void => {
   context.subscriptions.push(
