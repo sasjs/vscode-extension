@@ -89,14 +89,14 @@ If you are running SASjs Server in server mode, then you will need a client id -
 
 ## SAS Log Errors and Warnings
 
-A SAS log is mostly notes, and the two lines that matter - the `ERROR:` and the `WARNING:` - are somewhere in the middle of it. Open a `.log` file and the extension finds them:
+A SAS log is mostly notes; the lines that matter are the `ERROR:` and `WARNING:` ones. Open a `.log` and the extension marks them:
 
-* the error and warning lines are coloured in the log itself, and the arrows in the editor title bar step to the next or previous one, starting from the cursor and wrapping at the end;
-* they are listed in VIEW->PROBLEMS (ctrl+shift+M) alongside lint issues, so **F8** and **Shift+F8** walk them in either direction and clicking one jumps to the line;
-* notable notes are listed there too, as information - an uninitialized variable, invalid data, a W.D format too small for the number, values silently converted to another type, repeats of BY values in a merge. They are the notes a reviewer acts on, and they are not coloured in the log, so the errors and warnings stay the thing you see first;
+* the error and warning lines are coloured in the log, and the arrows in the editor title bar step between them from the cursor, wrapping at the end;
+* they are listed in VIEW->PROBLEMS (ctrl+shift+M) next to lint issues, so **F8** and **Shift+F8** walk them and a click jumps to the line;
+* notable notes are listed there as information - an uninitialized variable, invalid data, a format too small for its value, a silent type conversion, repeated BY values in a merge - but not coloured, so the errors stay on top;
 * a message SAS wrapped over several lines is one problem, not one per line.
 
-Ordinary notes ("19 observations read from the data set") and `INFO` lines are not listed, and neither is a line that merely contains the word ERROR - only a marker at the start of a line counts.
+Only a marker at the start of a line counts, and SAS's own message code travels with it (`ERROR 22-322:`). Ordinary notes ("19 observations read from the data set") and `INFO` lines are not listed.
 
 ## Directory Synchronisation
 
