@@ -15,7 +15,7 @@ import {
   window,
   workspace
 } from 'vscode'
-import { LogIssue, parseLog } from '@sasjs/utils/logs'
+import { LogIssue, isSasLog, parseLog } from '@sasjs/utils/logs'
 
 /** Logs this large are not worth parsing on every keystroke; SAS logs are not usually near it. */
 const MAX_LOG_LENGTH = 32 * 1024 * 1024
@@ -72,7 +72,9 @@ const warningColour = (): TextEditorDecorationType =>
  * so neither path rewrites the log.
  *
  * There is no project test: a log is analysed wherever it lives, because the run
- * that wrote it may have happened in a folder without a sasjsconfig.
+ * that wrote it may have happened in a folder without a sasjsconfig. What is
+ * tested is the text - see {@link analyse} - because another tool's `.log` writes
+ * the same markers.
  */
 export const registerLogDiagnostics = (context: ExtensionContext): void => {
   context.subscriptions.push(
@@ -120,11 +122,14 @@ export const registerLogEditorContext = (context: ExtensionContext): void => {
 /**
  * Parses a log and applies the result, replacing whatever was there.
  *
- * Every `.log` is analysed, project or not: a log is the output of a SAS run,
- * and the run may happen in a folder without a sasjsconfig - the logs the
- * extension itself writes are the obvious case, and so are the ones fetched from
- * a remote server. A document that is not a log has nothing published for it, so
- * it is cleared rather than left with a stale result from an earlier life.
+ * A log is analysed wherever it lives, project or not, but only when SAS wrote it:
+ * the run that produced it may have happened in a folder without a sasjsconfig -
+ * the logs the extension itself writes are the obvious case - and a `.log` from
+ * another tool is left alone, since Python's logging and a shell build log both
+ * write `ERROR:` at the start of a line. `isSasLog` is what tells them apart.
+ *
+ * A document that holds neither is cleared rather than left with a stale result
+ * from an earlier life.
  */
 export const analyse = async (document: TextDocument): Promise<void> => {
   const key = document.uri.toString()
@@ -135,6 +140,12 @@ export const analyse = async (document: TextDocument): Promise<void> => {
   }
 
   const text = document.getText()
+
+  if (!isSasLog(text)) {
+    clear(document.uri)
+    return
+  }
+
   const cached = parsed.get(key)
 
   if (cached && cached.version === document.version) {

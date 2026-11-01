@@ -1,7 +1,8 @@
 /**
- * Asserts the log wiring: that a log gets one diagnostic per issue with the
+ * Asserts the log wiring: that a SAS log gets one diagnostic per issue with the
  * severity and range a reader needs, that the same issues colour the visible
- * editor, and that the title-bar navigation follows the active editor.
+ * editor, that a `.log` another tool wrote is left alone, and that the title-bar
+ * navigation follows the active editor.
  *
  * The parser itself is the real one - a log is parsed in these tests, not
  * stubbed - and it is wrapped so the tests can also assert that a document that
@@ -270,8 +271,24 @@ describe('log issues', () => {
     expect(parseLog()).not.toHaveBeenCalled()
   })
 
+  it('leaves a .log another tool wrote alone', async () => {
+    const python = [
+      'INFO:root:starting the build',
+      'ERROR:root:boom',
+      'WARNING:root:careful',
+      ''
+    ].join('\n')
+
+    await analyse(document('/tmp/elsewhere/build.log', 1, python) as any)
+
+    expect(parseLog()).not.toHaveBeenCalled()
+    expect(diagnosticsSet).not.toHaveBeenCalled()
+    expect(diagnosticsDelete).toHaveBeenCalledTimes(1)
+  })
+
   it('publishes a notable note as information', async () => {
     const text = [
+      'NOTE: SAS (r) Proprietary Software 9.4 (TS1M9 MBCS3170)',
       'NOTE: Variable x is uninitialized.',
       'NOTE: There were 19 observations read from the data set SASHELP.CLASS.',
       ''
@@ -290,7 +307,9 @@ describe('log issues', () => {
   })
 
   it('does not colour a notable note', async () => {
-    const text = 'NOTE: Variable x is uninitialized.\n'
+    const text =
+      'NOTE: SAS (r) Proprietary Software 9.4 (TS1M9 MBCS3170)\n' +
+      'NOTE: Variable x is uninitialized.\n'
     const editor = {
       document: document('/tmp/project/sasjsresults/uncoloured.log', 1, text),
       setDecorations

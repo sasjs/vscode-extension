@@ -89,14 +89,16 @@ If you are running SASjs Server in server mode, then you will need a client id -
 
 ## SAS Log Errors and Warnings
 
-A SAS log is mostly notes; the lines that matter are the `ERROR:` and `WARNING:` ones. Open a `.log` and the extension marks them:
+A SAS log is mostly notes; the lines that matter are the `ERROR:` and `WARNING:` ones. Open a SAS log and the extension marks them:
 
 * the error and warning lines are coloured in the log, and the arrows in the editor title bar step between them from the cursor, wrapping at the end;
 * they are listed in VIEW->PROBLEMS (ctrl+shift+M) next to lint issues, so **F8** and **Shift+F8** walk them and a click jumps to the line;
 * notable notes are listed there as information - an uninitialized variable, invalid data, a format too small for its value, a silent type conversion, repeated BY values in a merge - but not coloured, so the errors stay on top;
 * a message SAS wrapped over several lines is one problem, not one per line.
 
-Only a marker at the start of a line counts, and SAS's own message code travels with it (`ERROR 22-322:`). Ordinary notes ("19 observations read from the data set") and `INFO` lines are not listed.
+A marker counts when it begins the line, in capitals: `ERROR:` or `WARNING:`, or the marker and a space (`ERROR Libref X is not assigned.`), with SAS's message code travelling alongside where there is one (`ERROR 22-322:`). Ordinary notes ("19 observations read from the data set") and `INFO` lines are not listed.
+
+A `.log` written by something other than SAS is left alone. Python's logging writes `ERROR:root:boom` and a shell build log writes `ERROR: Command failed with exit code 1`, so the marker alone proves nothing - the extension looks for what SAS prints about itself: its banner, its message codes and its numbered steps.
 
 ## Directory Synchronisation
 
