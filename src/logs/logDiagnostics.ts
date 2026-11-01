@@ -119,12 +119,21 @@ export const LOG_EDITOR_KEY = 'sasjsLogEditor'
  * One predicate answers both halves.
  */
 export const registerLogEditorContext = (context: ExtensionContext): void => {
-  const update = (editor: TextEditor | undefined): void =>
-    void commands.executeCommand(
-      'setContext',
-      LOG_EDITOR_KEY,
-      !!editor && isLogDocument(editor.document)
-    )
+  const update = (editor: TextEditor | undefined): void => {
+    commands
+      .executeCommand(
+        'setContext',
+        LOG_EDITOR_KEY,
+        !!editor && isLogDocument(editor.document)
+      )
+      .then(undefined, (error: unknown) =>
+        // A rejected setContext otherwise vanishes, leaving the buttons on their
+        // previous value with nothing to say why.
+        process.outputChannel.appendLine(
+          `SASjs: could not update the log editor state - ${String(error)}`
+        )
+      )
+  }
 
   context.subscriptions.push(window.onDidChangeActiveTextEditor(update))
 

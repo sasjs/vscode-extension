@@ -162,7 +162,8 @@ describe('log issues', () => {
     diagnosticsDelete.mockClear()
     setDecorations.mockClear()
     parseLog().mockClear()
-    executeCommand.mockClear()
+    executeCommand.mockReset()
+    executeCommand.mockImplementation(() => Promise.resolve())
     activeEditorHandlers.length = 0
     documentChangeHandlers.length = 0
     ;(window as any).visibleTextEditors = []
@@ -397,6 +398,22 @@ describe('log issues', () => {
       'setContext',
       LOG_EDITOR_KEY,
       false
+    )
+  })
+
+  it('reports a context update that fails', async () => {
+    const appendLine = jest.fn()
+    ;(process as any).outputChannel = { appendLine }
+
+    executeCommand.mockRejectedValueOnce(new Error('no such context'))
+
+    registerLogEditorContext(context)
+
+    await Promise.resolve()
+    await Promise.resolve()
+
+    expect(appendLine).toHaveBeenCalledWith(
+      expect.stringContaining('could not update the log editor state')
     )
   })
 
