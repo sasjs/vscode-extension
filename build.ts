@@ -1,24 +1,13 @@
 import * as fs from 'fs'
 import * as path from 'path'
 import { build } from 'esbuild'
-
-/**
- * Copies a file tree from one place to another, creating directories as
- * needed. Files are copied with mode preserved, so the staged server tree
- * stays executable where it was executable.
- */
-const copyTree = (from: string, to: string): void => {
-  fs.mkdirSync(to, { recursive: true })
-  for (const entry of fs.readdirSync(from, { withFileTypes: true })) {
-    const source = path.join(from, entry.name)
-    const target = path.join(to, entry.name)
-    if (entry.isDirectory()) {
-      copyTree(source, target)
-    } else {
-      fs.copyFileSync(source, target)
-    }
-  }
-}
+import {
+  copyTree,
+  serverEntrySegments,
+  serverTreeSource,
+  serverTreeTarget,
+  stageServerTree
+} from './src/languageServer/serverTree'
 
 /**
  * Stages the files the packaged extension needs next to out/extension.js:
@@ -31,10 +20,7 @@ const copyTree = (from: string, to: string): void => {
 const stageAssets = (): void => {
   copyTree('./src/doxy', './out/doxy')
 
-  copyTree(
-    './node_modules/@sasjs/sas-language/server/node',
-    './out/server/dist/node'
-  )
+  stageServerTree(serverTreeSource, serverTreeTarget)
 
   for (const file of [
     'LICENSE.txt',
@@ -47,6 +33,17 @@ const stageAssets = (): void => {
     if (fs.existsSync(source)) {
       fs.copyFileSync(source, path.join('./out/server', file))
     }
+  }
+
+  // A packaged extension that cannot find the server crashes the language
+  // client on every activation, so fail the build rather than ship one. The
+  // path is the same definition serverModulePath reads, and the data has to
+  // be two levels above it for the bundle's own requires to resolve.
+  const entryPoint = path.join(serverTreeTarget, ...serverEntrySegments)
+  if (!fs.existsSync(entryPoint)) {
+    throw new Error(
+      `SAS language server entry point missing from the staged tree: ${entryPoint}`
+    )
   }
 }
 

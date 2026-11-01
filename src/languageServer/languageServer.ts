@@ -6,6 +6,7 @@ import {
   ServerOptions,
   TransportKind
 } from 'vscode-languageclient/node'
+import { serverEntrySegments, serverTreeTarget } from './serverTree'
 
 /**
  * The SAS language server, run from the node build that @sasjs/sas-language
@@ -27,9 +28,7 @@ let client: LanguageClient | undefined
  * relative to itself.
  */
 export const serverModulePath = (context: vscode.ExtensionContext): string =>
-  context.asAbsolutePath(
-    path.join('out', 'server', 'dist', 'node', 'server.js')
-  )
+  context.asAbsolutePath(path.join(serverTreeTarget, ...serverEntrySegments))
 
 /** The server options, split out so tests can assert their shape. */
 export const serverOptions = (context: vscode.ExtensionContext): ServerOptions => {

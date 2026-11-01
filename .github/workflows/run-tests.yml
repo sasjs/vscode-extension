@@ -67,3 +67,20 @@ jobs:
         run: npm run vscode:prepublish
         env:
           CI: true
+
+      - name: Check the packaged extension carries the language server
+        # `vsce ls` applies .vscodeignore without writing a 36 MB vsix, so this
+        # is cheap - and it is the only check that sees the packaging rules.
+        # The staged tree is ~35 MB of server bundle, exactly the sort of thing
+        # a new ignore pattern drops silently: the extension then installs and
+        # its language client crashes on every activation.
+        run: |
+          npx --yes @vscode/vsce@4.1.0 ls > "$RUNNER_TEMP/vsix-files.txt"
+          grep -qx 'out/extension.js' "$RUNNER_TEMP/vsix-files.txt"
+          grep -qx 'out/server/dist/node/server.js' "$RUNNER_TEMP/vsix-files.txt"
+          grep -qx 'out/server/data/WHERE.json' "$RUNNER_TEMP/vsix-files.txt"
+          grep -qx 'out/server/pubsdata/procedures.json' "$RUNNER_TEMP/vsix-files.txt"
+          if grep -qx 'out/server/dist/node/dist/node/server.js' "$RUNNER_TEMP/vsix-files.txt"; then
+            echo "::error::the language server is staged one level too deep"
+            exit 1
+          fi
