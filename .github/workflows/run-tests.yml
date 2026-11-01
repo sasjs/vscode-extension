@@ -101,31 +101,68 @@ jobs:
           # `|| true`: this endpoint 404s until the workflow exists on the
           # default branch, which is exactly the state of the pull request that
           # introduces it - an empty list is handled below, a failed step is not.
+          echo "Looking for a coverage baseline for base commit ${BASE_SHA}."
+          list_status=0
           runs=$(gh api --paginate \
             "repos/${GITHUB_REPOSITORY}/actions/workflows/coverage-baseline.yml/runs?per_page=100" \
             --jq '.workflow_runs[] | select(.conclusion == "success") | "\(.head_sha) \(.id)"' \
-            2>/dev/null || true)
+            2>/dev/null) || list_status=$?
 
-          run_id=$(echo "$runs" | awk -v sha="$BASE_SHA" '$1 == sha { print $2 }' | head -1)
+          if [ "$list_status" -ne 0 ]; then
+            # gh writes the JSON error body to stdout as well as exiting non-zero,
+            # so a failed list has to be discarded rather than parsed: on a 404
+            # (the workflow is not on the default branch yet) that body would
+            # otherwise be read as a candidate sha.
+            echo "::warning::Could not list the published coverage baselines (gh exited ${list_status}). Treating the list as empty."
+            runs=
+          fi
+
+          # only well-formed "sha id" lines are candidates
+          runs=$(printf '%s\n' "$runs" | grep -E '^[0-9a-f]{40} [0-9]+$' || true)
+          echo "published baselines found: $(printf '%s\n' "$runs" | awk 'NF' | wc -l)"
+
+          run_id=$(printf '%s\n' "$runs" | awk -v sha="$BASE_SHA" '$1 == sha { print $2 }' | head -1)
           source="the baseline published for the base commit ${BASE_SHA}"
           missing=fail
 
           if [ -z "$run_id" ]; then
-            # every published baseline, newest first - not the first ten: main
-            # can move many runs past the base commit of a stacked pull request
-            for candidate in $(echo "$runs" | awk '{ print $1 }'); do
+            # At most ten candidates: a stacked pull request is a commit or two
+            # behind, and an unbounded loop turns one rate limit into a run full
+            # of failed comparisons.
+            candidates=$(printf '%s\n' "$runs" | awk 'NF > 0 { print $1 }' | head -10)
+            undetermined=
+
+            for candidate in $candidates; do
               # "ahead" means the base commit is ahead of the candidate, so the
-              # candidate is an ancestor; "identical" is the same commit
-              status=$(gh api \
+              # candidate is an ancestor; "identical" is the same commit.
+              #
+              # The exit status is checked rather than discarded: a rate-limited
+              # or failing call answers nothing, and swallowing that would look
+              # exactly like "not an ancestor" and fail the pull request with a
+              # message about a baseline that is in fact there.
+              if ! status=$(gh api \
                 "repos/${GITHUB_REPOSITORY}/compare/${candidate}...${BASE_SHA}" \
-                --jq '.status' 2>/dev/null || true)
+                --jq '.status' 2>"${RUNNER_TEMP:-/tmp}/compare-error.txt"); then
+                undetermined=1
+                echo "::error::Could not compare ${candidate} with ${BASE_SHA} - $(head -c 200 "${RUNNER_TEMP:-/tmp}/compare-error.txt" | tr '\n' ' ')"
+                break
+              fi
+
               if [ "$status" = "ahead" ] || [ "$status" = "identical" ]; then
-                run_id=$(echo "$runs" | awk -v sha="$candidate" '$1 == sha { print $2 }' | head -1)
+                run_id=$(printf '%s\n' "$runs" | awk -v sha="$candidate" '$1 == sha { print $2 }' | head -1)
                 source="the baseline published for ${candidate}, the newest commit the base commit ${BASE_SHA} descends from"
                 echo "::warning::No baseline was published for the base commit ${BASE_SHA}. Comparing against ${candidate}, which the base commit descends from."
                 break
               fi
             done
+
+            if [ -n "$undetermined" ]; then
+              # Ancestry unknown is not "no baseline": stopping here means the
+              # job fails with this line rather than with the ratchet's message
+              # about a baseline that may well exist. Re-running is the fix.
+              echo "::error::Ancestry of the base commit ${BASE_SHA} could not be determined, so the coverage comparison cannot be made. Re-run the job."
+              exit 1
+            fi
           fi
 
           if [ -z "$run_id" ]; then
@@ -179,8 +216,17 @@ jobs:
           --note "Compared against ${{ steps.coverage-baseline.outputs.source }}."
 
       - name: Report the coverage
-        # one comment per pull request, edited in place on each push
-        if: github.event_name == 'pull_request' && hashFiles('coverage-comment.md') != ''
+        # One comment per pull request, edited in place on each push.
+        #
+        # Skipped for a pull request from a fork: GITHUB_TOKEN is read-only
+        # there whatever `permissions` says, so the POST/PATCH below would 403
+        # and turn the job red for every external contribution. The comparison
+        # itself still runs and still fails the job - it is the comment that is
+        # dropped, and the numbers are in the ratchet step's log.
+        if: >-
+          github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name == github.repository &&
+          hashFiles('coverage-comment.md') != ''
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}

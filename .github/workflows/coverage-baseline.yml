@@ -28,6 +28,11 @@ concurrency:
 jobs:
   baseline:
     name: baseline
+    # A dispatch from a branch would publish a summary for a commit that never
+    # landed on main, and the pull request lookup matches artifacts by head_sha
+    # alone - a stacked pull request based on that commit would then ratchet
+    # against coverage that is not on main. Only main publishes a baseline.
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
