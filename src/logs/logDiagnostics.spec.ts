@@ -30,6 +30,8 @@ const revealRange = jest.fn()
 const executeCommand = jest.fn()
 /** The handler the module registers for an editor change, so a test can fire it. */
 const activeEditorHandlers: Array<(editor: unknown) => void> = []
+/** The handler the module registers for a document change, so a test can fire it. */
+const documentChangeHandlers: Array<(event: unknown) => void> = []
 
 class Position {
   constructor(public line: number, public character: number) {}
@@ -98,7 +100,10 @@ jest.mock('vscode', () => ({
   workspace: {
     onDidOpenTextDocument: () => ({ dispose: jest.fn() }),
     onDidSaveTextDocument: () => ({ dispose: jest.fn() }),
-    onDidChangeTextDocument: () => ({ dispose: jest.fn() }),
+    onDidChangeTextDocument: (handler: (event: unknown) => void) => {
+      documentChangeHandlers.push(handler)
+      return { dispose: jest.fn() }
+    },
     onDidCloseTextDocument: () => ({ dispose: jest.fn() })
   }
 }))
@@ -159,6 +164,7 @@ describe('log issues', () => {
     parseLog().mockClear()
     executeCommand.mockClear()
     activeEditorHandlers.length = 0
+    documentChangeHandlers.length = 0
     ;(window as any).visibleTextEditors = []
   })
 
@@ -327,6 +333,35 @@ describe('log issues', () => {
     registerLogDiagnostics(context)
 
     expect(context.subscriptions.length).toBeGreaterThan(0)
+  })
+
+  it('waits longer before re-parsing a large log', () => {
+    jest.useFakeTimers()
+
+    try {
+      registerLogDiagnostics(context)
+      const change = documentChangeHandlers[documentChangeHandlers.length - 1]
+
+      const small = { ...document(undefined, 2), lineCount: 20 }
+      change({ document: small })
+
+      jest.advanceTimersByTime(300)
+      expect(parseLog()).toHaveBeenCalledTimes(1)
+
+      parseLog().mockClear()
+
+      const large = { ...document('/tmp/large.log', 1), lineCount: 500_000 }
+      change({ document: large })
+
+      // A large log holds the parse back: 300 ms is not enough, two seconds is.
+      jest.advanceTimersByTime(1000)
+      expect(parseLog()).not.toHaveBeenCalled()
+
+      jest.advanceTimersByTime(1200)
+      expect(parseLog()).toHaveBeenCalledTimes(1)
+    } finally {
+      jest.useRealTimers()
+    }
   })
 
   it('tells the manifest whether the active editor is a log', () => {

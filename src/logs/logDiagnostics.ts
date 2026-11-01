@@ -23,6 +23,18 @@ const MAX_LOG_LENGTH = 32 * 1024 * 1024
 /** How long a burst of edits waits before the log is parsed again. */
 const CHANGE_DEBOUNCE_MS = 300
 
+/** Above this many lines a log is large enough that a parse costs real time. */
+const LARGE_LOG_LINES = 100_000
+
+/**
+ * How long a burst waits on a large log. A log being written by a running job
+ * raises a change event per write, and re-parsing half a megabyte of lines on
+ * each of them would keep the extension host busy for the length of the run;
+ * waiting a couple of seconds instead keeps the colours behind the file without
+ * spending the whole session on it.
+ */
+const LARGE_LOG_DEBOUNCE_MS = 2000
+
 const isLogDocument = (document: TextDocument): boolean => /\.log$/i.test(document.fileName)
 
 interface Parsed {
@@ -141,6 +153,13 @@ export const analyse = async (document: TextDocument): Promise<void> => {
 
   const text = document.getText()
 
+  // The size test comes first: a log too large to parse must not be scanned for
+  // SAS's banner and then thrown away.
+  if (text.length > MAX_LOG_LENGTH) {
+    clear(document.uri)
+    return
+  }
+
   if (!isSasLog(text)) {
     clear(document.uri)
     return
@@ -150,11 +169,6 @@ export const analyse = async (document: TextDocument): Promise<void> => {
 
   if (cached && cached.version === document.version) {
     decorate(document, cached.issues)
-    return
-  }
-
-  if (text.length > MAX_LOG_LENGTH) {
-    clear(document.uri)
     return
   }
 
@@ -191,10 +205,15 @@ const schedule = (document: TextDocument): void => {
 
   changeTimers.set(
     key,
-    setTimeout(() => {
-      changeTimers.delete(key)
-      void analyse(document)
-    }, CHANGE_DEBOUNCE_MS)
+    setTimeout(
+      () => {
+        changeTimers.delete(key)
+        void analyse(document)
+      },
+      document.lineCount > LARGE_LOG_LINES
+        ? LARGE_LOG_DEBOUNCE_MS
+        : CHANGE_DEBOUNCE_MS
+    )
   )
 }
 
