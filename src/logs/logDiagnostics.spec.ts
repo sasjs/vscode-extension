@@ -48,7 +48,10 @@ class Range {
     endCharacter?: number
   ) {
     if (typeof startLineOrPosition === 'number') {
-      this.start = new Position(startLineOrPosition, startCharacterOrPosition as number)
+      this.start = new Position(
+        startLineOrPosition,
+        startCharacterOrPosition as number
+      )
       this.end = new Position(endLine as number, endCharacter as number)
     } else {
       this.start = startLineOrPosition
@@ -147,7 +150,7 @@ const document = (
     toString: () => `file://${fileName}`,
     fsPath: fileName
   },
-  getText: () => text
+  getText: jest.fn(() => text)
 })
 
 const context = { subscriptions: [] as unknown[] } as any
@@ -157,7 +160,9 @@ const parseLog = () =>
 
 describe('log issues', () => {
   beforeEach(() => {
-    parseLog().mockImplementation(jest.requireActual('@sasjs/utils/logs').parseLog)
+    parseLog().mockImplementation(
+      jest.requireActual('@sasjs/utils/logs').parseLog
+    )
     diagnosticsSet.mockClear()
     diagnosticsDelete.mockClear()
     setDecorations.mockClear()
@@ -203,7 +208,8 @@ describe('log issues', () => {
     expect(diagnostics[0].range.start).toEqual({ line: 3, character: 0 })
     expect(diagnostics[0].range.end).toEqual({
       line: 3,
-      character: 'WARNING: Division by zero detected at line 2 column 11.'.length
+      character: 'WARNING: Division by zero detected at line 2 column 11.'
+        .length
     })
     expect(diagnostics[1].range.start.line).toBe(4)
     // The message SAS wrapped is one diagnostic, ending where its marker line does.
@@ -219,9 +225,9 @@ describe('log issues', () => {
       FakeDiagnostic[]
     ]
 
-    expect(diagnostics.every((diagnostic) => diagnostic.source === 'SASjs log')).toBe(
-      true
-    )
+    expect(
+      diagnostics.every((diagnostic) => diagnostic.source === 'SASjs log')
+    ).toBe(true)
   })
 
   it('colours the visible editor, whole-line, one decoration per severity', async () => {
@@ -249,6 +255,28 @@ describe('log issues', () => {
 
     expect(warnings).toHaveLength(1)
     expect(warnings[0].start).toEqual({ line: 3, character: 0 })
+  })
+
+  it('does not read the text of a document it has already analysed', async () => {
+    const log = document()
+
+    await analyse(log as any)
+    await analyse(log as any)
+
+    expect(log.getText).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not read a log it has already judged not to be SAS', async () => {
+    const python = ['INFO:root:starting the build', 'ERROR:root:boom', ''].join(
+      '\n'
+    )
+    const log = document('/tmp/elsewhere/tool.log', 1, python)
+
+    await analyse(log as any)
+    await analyse(log as any)
+
+    expect(log.getText).toHaveBeenCalledTimes(1)
+    expect(parseLog()).not.toHaveBeenCalled()
   })
 
   it('parses a log once, however often it is analysed unchanged', async () => {
@@ -301,7 +329,9 @@ describe('log issues', () => {
       ''
     ].join('\n')
 
-    await analyse(document('/tmp/project/sasjsresults/notes.log', 1, text) as any)
+    await analyse(
+      document('/tmp/project/sasjsresults/notes.log', 1, text) as any
+    )
 
     const [, diagnostics] = diagnosticsSet.mock.calls[0] as [
       unknown,

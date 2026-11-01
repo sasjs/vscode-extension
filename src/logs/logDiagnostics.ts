@@ -35,7 +35,8 @@ const LARGE_LOG_LINES = 100_000
  */
 const LARGE_LOG_DEBOUNCE_MS = 2000
 
-const isLogDocument = (document: TextDocument): boolean => /\.log$/i.test(document.fileName)
+const isLogDocument = (document: TextDocument): boolean =>
+  /\.log$/i.test(document.fileName)
 
 interface Parsed {
   version: number
@@ -97,7 +98,9 @@ export const registerLogDiagnostics = (context: ExtensionContext): void => {
     workspace.onDidSaveTextDocument((document) => void analyse(document)),
     workspace.onDidChangeTextDocument(({ document }) => schedule(document)),
     workspace.onDidCloseTextDocument((document) => clear(document.uri)),
-    window.onDidChangeActiveTextEditor((editor) => editor && void analyse(editor.document))
+    window.onDidChangeActiveTextEditor(
+      (editor) => editor && void analyse(editor.document)
+    )
   )
 
   window.visibleTextEditors.forEach((editor) => void analyse(editor.document))
@@ -150,7 +153,10 @@ export const registerLogEditorContext = (context: ExtensionContext): void => {
  * write `ERROR:` at the start of a line. `isSasLog` is what tells them apart.
  *
  * A document that holds neither is cleared rather than left with a stale result
- * from an earlier life.
+ * from an earlier life, and the verdict is remembered against the document's
+ * version: a log being written raises an event per write, and a document that is
+ * not a log, or is too large to parse, must not be read and scanned again for
+ * every one of them.
  */
 export const analyse = async (document: TextDocument): Promise<void> => {
   const key = document.uri.toString()
@@ -160,24 +166,21 @@ export const analyse = async (document: TextDocument): Promise<void> => {
     return
   }
 
-  const text = document.getText()
-
-  // The size test comes first: a log too large to parse must not be scanned for
-  // SAS's banner and then thrown away.
-  if (text.length > MAX_LOG_LENGTH) {
-    clear(document.uri)
-    return
-  }
-
-  if (!isSasLog(text)) {
-    clear(document.uri)
-    return
-  }
-
+  // The version is known without reading the text, so an unchanged document is
+  // answered from the last parse - including one that was judged not to be a log,
+  // which is why `[]` is cached rather than nothing.
   const cached = parsed.get(key)
 
   if (cached && cached.version === document.version) {
     decorate(document, cached.issues)
+    return
+  }
+
+  const text = document.getText()
+
+  if (text.length > MAX_LOG_LENGTH || !isSasLog(text)) {
+    clear(document.uri)
+    parsed.set(key, { version: document.version, issues: [] })
     return
   }
 
@@ -259,12 +262,16 @@ const decorate = (document: TextDocument, issues: LogIssue[]): void => {
   editors.forEach((editor) => {
     editor.setDecorations(
       errorColour(),
-      issues.filter((issue) => issue.severity === 'error').map(toDecorationRange)
+      issues
+        .filter((issue) => issue.severity === 'error')
+        .map(toDecorationRange)
     )
 
     editor.setDecorations(
       warningColour(),
-      issues.filter((issue) => issue.severity === 'warning').map(toDecorationRange)
+      issues
+        .filter((issue) => issue.severity === 'warning')
+        .map(toDecorationRange)
     )
   })
 }
