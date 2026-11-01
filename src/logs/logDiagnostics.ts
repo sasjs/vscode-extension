@@ -6,14 +6,16 @@ import {
   OverviewRulerLane,
   Range,
   TextDocument,
+  TextEditor,
   TextEditorDecorationType,
   ThemeColor,
   Uri,
+  commands,
   languages,
   window,
   workspace
 } from 'vscode'
-import { LogIssue, parseLog } from '@sasjs/utils/logs'
+import { LogIssue, isSasLog, parseLog } from '@sasjs/utils/logs'
 
 /** Logs this large are not worth parsing on every keystroke; SAS logs are not usually near it. */
 const MAX_LOG_LENGTH = 32 * 1024 * 1024
@@ -21,7 +23,20 @@ const MAX_LOG_LENGTH = 32 * 1024 * 1024
 /** How long a burst of edits waits before the log is parsed again. */
 const CHANGE_DEBOUNCE_MS = 300
 
-const isLogDocument = (document: TextDocument): boolean => /\.log$/i.test(document.fileName)
+/** Above this many lines a log is large enough that a parse costs real time. */
+const LARGE_LOG_LINES = 100_000
+
+/**
+ * How long a burst waits on a large log. A log being written by a running job
+ * raises a change event per write, and re-parsing half a megabyte of lines on
+ * each of them would keep the extension host busy for the length of the run;
+ * waiting a couple of seconds instead keeps the colours behind the file without
+ * spending the whole session on it.
+ */
+const LARGE_LOG_DEBOUNCE_MS = 2000
+
+const isLogDocument = (document: TextDocument): boolean =>
+  /\.log$/i.test(document.fileName)
 
 interface Parsed {
   version: number
@@ -69,8 +84,10 @@ const warningColour = (): TextEditorDecorationType =>
  * from one parse of one document, and both are addressed from the issue list,
  * so neither path rewrites the log.
  *
- * The scope is a SASjs project: outside one, a .log file is somebody else's log
- * and is left alone.
+ * There is no project test: a log is analysed wherever it lives, because the run
+ * that wrote it may have happened in a folder without a sasjsconfig. What is
+ * tested is the text - see {@link analyse} - because another tool's `.log` writes
+ * the same markers.
  */
 export const registerLogDiagnostics = (context: ExtensionContext): void => {
   context.subscriptions.push(
@@ -81,28 +98,77 @@ export const registerLogDiagnostics = (context: ExtensionContext): void => {
     workspace.onDidSaveTextDocument((document) => void analyse(document)),
     workspace.onDidChangeTextDocument(({ document }) => schedule(document)),
     workspace.onDidCloseTextDocument((document) => clear(document.uri)),
-    window.onDidChangeActiveTextEditor((editor) => editor && void analyse(editor.document))
+    window.onDidChangeActiveTextEditor(
+      (editor) => editor && void analyse(editor.document)
+    )
   )
 
   window.visibleTextEditors.forEach((editor) => void analyse(editor.document))
 }
 
 /**
+ * The context key the manifest reads to decide whether to show the next and
+ * previous buttons in the editor title bar.
+ */
+export const LOG_EDITOR_KEY = 'sasjsLogEditor'
+
+/**
+ * Publishes whether the active editor is a log, so the title-bar buttons show for
+ * one and only for one.
+ *
+ * The manifest could test the filename itself, with `resourceExtname == .log`, but
+ * that comparison is case-sensitive while {@link analyse} matches the extension
+ * case-insensitively: a `RUN.LOG` would publish diagnostics and show no buttons.
+ * One predicate answers both halves.
+ */
+export const registerLogEditorContext = (context: ExtensionContext): void => {
+  const update = (editor: TextEditor | undefined): void => {
+    commands
+      .executeCommand(
+        'setContext',
+        LOG_EDITOR_KEY,
+        !!editor && isLogDocument(editor.document)
+      )
+      .then(undefined, (error: unknown) =>
+        // A rejected setContext otherwise vanishes, leaving the buttons on their
+        // previous value with nothing to say why.
+        process.outputChannel.appendLine(
+          `SASjs: could not update the log editor state - ${String(error)}`
+        )
+      )
+  }
+
+  context.subscriptions.push(window.onDidChangeActiveTextEditor(update))
+
+  update(window.activeTextEditor)
+}
+
+/**
  * Parses a log and applies the result, replacing whatever was there.
  *
- * A log the extension is not responsible for is cleared rather than ignored:
- * a .log outside a SASjs project must not keep diagnostics published when it was
- * analysed earlier in a project that has since been closed.
+ * A log is analysed wherever it lives, project or not, but only when SAS wrote it:
+ * the run that produced it may have happened in a folder without a sasjsconfig -
+ * the logs the extension itself writes are the obvious case - and a `.log` from
+ * another tool is left alone, since Python's logging and a shell build log both
+ * write `ERROR:` at the start of a line. `isSasLog` is what tells them apart.
+ *
+ * A document that holds neither is cleared rather than left with a stale result
+ * from an earlier life, and the verdict is remembered against the document's
+ * version: a log being written raises an event per write, and a document that is
+ * not a log, or is too large to parse, must not be read and scanned again for
+ * every one of them.
  */
 export const analyse = async (document: TextDocument): Promise<void> => {
   const key = document.uri.toString()
 
-  if (!process.isSasjsProject || !isLogDocument(document)) {
+  if (!isLogDocument(document)) {
     clear(document.uri)
     return
   }
 
-  const text = document.getText()
+  // The version is known without reading the text, so an unchanged document is
+  // answered from the last parse - including one that was judged not to be a log,
+  // which is why `[]` is cached rather than nothing.
   const cached = parsed.get(key)
 
   if (cached && cached.version === document.version) {
@@ -110,8 +176,11 @@ export const analyse = async (document: TextDocument): Promise<void> => {
     return
   }
 
-  if (text.length > MAX_LOG_LENGTH) {
+  const text = document.getText()
+
+  if (text.length > MAX_LOG_LENGTH || !isSasLog(text)) {
     clear(document.uri)
+    parsed.set(key, { version: document.version, issues: [] })
     return
   }
 
@@ -148,10 +217,15 @@ const schedule = (document: TextDocument): void => {
 
   changeTimers.set(
     key,
-    setTimeout(() => {
-      changeTimers.delete(key)
-      void analyse(document)
-    }, CHANGE_DEBOUNCE_MS)
+    setTimeout(
+      () => {
+        changeTimers.delete(key)
+        void analyse(document)
+      },
+      document.lineCount > LARGE_LOG_LINES
+        ? LARGE_LOG_DEBOUNCE_MS
+        : CHANGE_DEBOUNCE_MS
+    )
   )
 }
 
@@ -188,12 +262,16 @@ const decorate = (document: TextDocument, issues: LogIssue[]): void => {
   editors.forEach((editor) => {
     editor.setDecorations(
       errorColour(),
-      issues.filter((issue) => issue.severity === 'error').map(toDecorationRange)
+      issues
+        .filter((issue) => issue.severity === 'error')
+        .map(toDecorationRange)
     )
 
     editor.setDecorations(
       warningColour(),
-      issues.filter((issue) => issue.severity === 'warning').map(toDecorationRange)
+      issues
+        .filter((issue) => issue.severity === 'warning')
+        .map(toDecorationRange)
     )
   })
 }

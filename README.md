@@ -89,16 +89,16 @@ If you are running SASjs Server in server mode, then you will need a client id -
 
 ## SAS Log Errors and Warnings
 
-A SAS log is mostly notes, and the two lines that matter - the `ERROR:` and the `WARNING:` - are somewhere in the middle of it. In a SASjs project, the extension reads every `.log` file it opens and marks them:
+A SAS log is mostly notes; the lines that matter are the `ERROR:` and `WARNING:` ones. Open a SAS log and the extension marks them:
 
-* the errors are listed in VIEW->PROBLEMS (ctrl+shift+M) alongside lint issues, so **F8** and **Shift+F8** walk them in either direction and clicking one jumps to the line;
-* notable notes are listed there too, as information - an uninitialized variable, invalid data, a W.D format too small for the number, values silently converted to another type, repeats of BY values in a merge. They are the notes a reviewer acts on, and they are not coloured in the log, so the errors and warnings stay the thing you see first;
-* the error and warning lines are coloured in the log itself, and the arrow buttons in the editor title bar step to the next or previous one from the cursor, wrapping at the end;
+* the error and warning lines are coloured in the log, and the arrows in the editor title bar step between them from the cursor, wrapping at the end;
+* they are listed in VIEW->PROBLEMS (ctrl+shift+M) next to lint issues, so **F8** and **Shift+F8** walk them and a click jumps to the line;
+* notable notes are listed there as information - an uninitialized variable, invalid data, a format too small for its value, a silent type conversion, repeated BY values in a merge - but not coloured, so the errors stay on top;
 * a message SAS wrapped over several lines is one problem, not one per line.
 
-The parsing is done by `@sasjs/utils/logs` ([`@sasjs/utils`](https://github.com/sasjs/utils)), which reports the line and column of each message rather than rewriting the log, so the same results feed an editor, a browser log viewer and a report. It lives there because every SASjs consumer already depends on `@sasjs/utils`; this extension imports the subpath, so nothing of the language server's tarball is involved. Ordinary notes ("19 observations read from the data set") and `INFO` lines are not reported: the notable ones are a closed list rather than every note. A line that merely contains the word ERROR is not reported either - only a marker at the start of a line counts.
+A marker counts when it begins the line, in capitals: `ERROR:` or `WARNING:`, or the marker and a space (`ERROR Libref X is not assigned.`), with SAS's message code travelling alongside where there is one (`ERROR 22-322:`). Ordinary notes ("19 observations read from the data set") and `INFO` lines are not listed.
 
-Logs outside a SASjs project are left untouched, since a `.log` file there is somebody else's log.
+A `.log` written by something other than SAS is left alone. Python's logging writes `ERROR:root:boom` and a shell build log writes `ERROR: Command failed with exit code 1`, so the marker alone proves nothing - the extension looks for what SAS prints about itself: its banner, its message codes and its numbered steps.
 
 ## Directory Synchronisation
 

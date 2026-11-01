@@ -1,7 +1,8 @@
 /**
- * Asserts the log wiring: that a log in a SASjs project gets one diagnostic per
- * issue with the severity and range a reader needs, that the same issues colour
- * the visible editor, and that a .log outside a SASjs project is left alone.
+ * Asserts the log wiring: that a SAS log gets one diagnostic per issue with the
+ * severity and range a reader needs, that the same issues colour the visible
+ * editor, that a `.log` another tool wrote is left alone, and that the title-bar
+ * navigation follows the active editor.
  *
  * The parser itself is the real one - a log is parsed in these tests, not
  * stubbed - and it is wrapped so the tests can also assert that a document that
@@ -26,6 +27,11 @@ const diagnosticsSet = jest.fn()
 const diagnosticsDelete = jest.fn()
 const setDecorations = jest.fn()
 const revealRange = jest.fn()
+const executeCommand = jest.fn()
+/** The handler the module registers for an editor change, so a test can fire it. */
+const activeEditorHandlers: Array<(editor: unknown) => void> = []
+/** The handler the module registers for a document change, so a test can fire it. */
+const documentChangeHandlers: Array<(event: unknown) => void> = []
 
 class Position {
   constructor(public line: number, public character: number) {}
@@ -42,7 +48,10 @@ class Range {
     endCharacter?: number
   ) {
     if (typeof startLineOrPosition === 'number') {
-      this.start = new Position(startLineOrPosition, startCharacterOrPosition as number)
+      this.start = new Position(
+        startLineOrPosition,
+        startCharacterOrPosition as number
+      )
       this.end = new Position(endLine as number, endCharacter as number)
     } else {
       this.start = startLineOrPosition
@@ -78,18 +87,26 @@ jest.mock('vscode', () => ({
       dispose: jest.fn()
     })
   },
+  commands: { executeCommand },
   window: {
     visibleTextEditors: [],
+    activeTextEditor: undefined,
     createTextEditorDecorationType: (options: unknown) => ({
       options,
       dispose: jest.fn()
     }),
-    onDidChangeActiveTextEditor: () => ({ dispose: jest.fn() })
+    onDidChangeActiveTextEditor: (handler: (editor: unknown) => void) => {
+      activeEditorHandlers.push(handler)
+      return { dispose: jest.fn() }
+    }
   },
   workspace: {
     onDidOpenTextDocument: () => ({ dispose: jest.fn() }),
     onDidSaveTextDocument: () => ({ dispose: jest.fn() }),
-    onDidChangeTextDocument: () => ({ dispose: jest.fn() }),
+    onDidChangeTextDocument: (handler: (event: unknown) => void) => {
+      documentChangeHandlers.push(handler)
+      return { dispose: jest.fn() }
+    },
     onDidCloseTextDocument: () => ({ dispose: jest.fn() })
   }
 }))
@@ -103,7 +120,13 @@ jest.mock('@sasjs/utils/logs', () => {
 })
 
 import { window } from 'vscode'
-import { analyse, clear, registerLogDiagnostics } from './logDiagnostics'
+import {
+  LOG_EDITOR_KEY,
+  analyse,
+  clear,
+  registerLogDiagnostics,
+  registerLogEditorContext
+} from './logDiagnostics'
 
 const LOG = [
   '1    data want;',
@@ -127,7 +150,7 @@ const document = (
     toString: () => `file://${fileName}`,
     fsPath: fileName
   },
-  getText: () => text
+  getText: jest.fn(() => text)
 })
 
 const context = { subscriptions: [] as unknown[] } as any
@@ -137,12 +160,17 @@ const parseLog = () =>
 
 describe('log issues', () => {
   beforeEach(() => {
-    parseLog().mockImplementation(jest.requireActual('@sasjs/utils/logs').parseLog)
+    parseLog().mockImplementation(
+      jest.requireActual('@sasjs/utils/logs').parseLog
+    )
     diagnosticsSet.mockClear()
     diagnosticsDelete.mockClear()
     setDecorations.mockClear()
     parseLog().mockClear()
-    ;(process as any).isSasjsProject = true
+    executeCommand.mockReset()
+    executeCommand.mockImplementation(() => Promise.resolve())
+    activeEditorHandlers.length = 0
+    documentChangeHandlers.length = 0
     ;(window as any).visibleTextEditors = []
   })
 
@@ -180,7 +208,8 @@ describe('log issues', () => {
     expect(diagnostics[0].range.start).toEqual({ line: 3, character: 0 })
     expect(diagnostics[0].range.end).toEqual({
       line: 3,
-      character: 'WARNING: Division by zero detected at line 2 column 11.'.length
+      character: 'WARNING: Division by zero detected at line 2 column 11.'
+        .length
     })
     expect(diagnostics[1].range.start.line).toBe(4)
     // The message SAS wrapped is one diagnostic, ending where its marker line does.
@@ -196,9 +225,9 @@ describe('log issues', () => {
       FakeDiagnostic[]
     ]
 
-    expect(diagnostics.every((diagnostic) => diagnostic.source === 'SASjs log')).toBe(
-      true
-    )
+    expect(
+      diagnostics.every((diagnostic) => diagnostic.source === 'SASjs log')
+    ).toBe(true)
   })
 
   it('colours the visible editor, whole-line, one decoration per severity', async () => {
@@ -228,6 +257,28 @@ describe('log issues', () => {
     expect(warnings[0].start).toEqual({ line: 3, character: 0 })
   })
 
+  it('does not read the text of a document it has already analysed', async () => {
+    const log = document()
+
+    await analyse(log as any)
+    await analyse(log as any)
+
+    expect(log.getText).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not read a log it has already judged not to be SAS', async () => {
+    const python = ['INFO:root:starting the build', 'ERROR:root:boom', ''].join(
+      '\n'
+    )
+    const log = document('/tmp/elsewhere/tool.log', 1, python)
+
+    await analyse(log as any)
+    await analyse(log as any)
+
+    expect(log.getText).toHaveBeenCalledTimes(1)
+    expect(parseLog()).not.toHaveBeenCalled()
+  })
+
   it('parses a log once, however often it is analysed unchanged', async () => {
     await analyse(document() as any)
     await analyse(document() as any)
@@ -242,14 +293,11 @@ describe('log issues', () => {
     expect(parseLog()).toHaveBeenCalledTimes(2)
   })
 
-  it('leaves a .log outside a SASjs project alone', async () => {
-    ;(process as any).isSasjsProject = false
+  it('analyses a log wherever it lives, sasjsconfig or not', async () => {
+    await analyse(document('/tmp/elsewhere/run.log') as any)
 
-    await analyse(document() as any)
-
-    expect(parseLog()).not.toHaveBeenCalled()
-    expect(diagnosticsSet).not.toHaveBeenCalled()
-    expect(diagnosticsDelete).toHaveBeenCalledTimes(1)
+    expect(parseLog()).toHaveBeenCalledTimes(1)
+    expect(diagnosticsSet).toHaveBeenCalledTimes(1)
   })
 
   it('leaves a file that is not a log alone', async () => {
@@ -258,14 +306,32 @@ describe('log issues', () => {
     expect(parseLog()).not.toHaveBeenCalled()
   })
 
+  it('leaves a .log another tool wrote alone', async () => {
+    const python = [
+      'INFO:root:starting the build',
+      'ERROR:root:boom',
+      'WARNING:root:careful',
+      ''
+    ].join('\n')
+
+    await analyse(document('/tmp/elsewhere/build.log', 1, python) as any)
+
+    expect(parseLog()).not.toHaveBeenCalled()
+    expect(diagnosticsSet).not.toHaveBeenCalled()
+    expect(diagnosticsDelete).toHaveBeenCalledTimes(1)
+  })
+
   it('publishes a notable note as information', async () => {
     const text = [
+      'NOTE: SAS (r) Proprietary Software 9.4 (TS1M9 MBCS3170)',
       'NOTE: Variable x is uninitialized.',
       'NOTE: There were 19 observations read from the data set SASHELP.CLASS.',
       ''
     ].join('\n')
 
-    await analyse(document('/tmp/project/sasjsresults/notes.log', 1, text) as any)
+    await analyse(
+      document('/tmp/project/sasjsresults/notes.log', 1, text) as any
+    )
 
     const [, diagnostics] = diagnosticsSet.mock.calls[0] as [
       unknown,
@@ -278,7 +344,9 @@ describe('log issues', () => {
   })
 
   it('does not colour a notable note', async () => {
-    const text = 'NOTE: Variable x is uninitialized.\n'
+    const text =
+      'NOTE: SAS (r) Proprietary Software 9.4 (TS1M9 MBCS3170)\n' +
+      'NOTE: Variable x is uninitialized.\n'
     const editor = {
       document: document('/tmp/project/sasjsresults/uncoloured.log', 1, text),
       setDecorations
@@ -296,5 +364,92 @@ describe('log issues', () => {
     registerLogDiagnostics(context)
 
     expect(context.subscriptions.length).toBeGreaterThan(0)
+  })
+
+  it('waits longer before re-parsing a large log', () => {
+    jest.useFakeTimers()
+
+    try {
+      registerLogDiagnostics(context)
+      const change = documentChangeHandlers[documentChangeHandlers.length - 1]
+
+      const small = { ...document(undefined, 2), lineCount: 20 }
+      change({ document: small })
+
+      jest.advanceTimersByTime(300)
+      expect(parseLog()).toHaveBeenCalledTimes(1)
+
+      parseLog().mockClear()
+
+      const large = { ...document('/tmp/large.log', 1), lineCount: 500_000 }
+      change({ document: large })
+
+      // A large log holds the parse back: 300 ms is not enough, two seconds is.
+      jest.advanceTimersByTime(1000)
+      expect(parseLog()).not.toHaveBeenCalled()
+
+      jest.advanceTimersByTime(1200)
+      expect(parseLog()).toHaveBeenCalledTimes(1)
+    } finally {
+      jest.useRealTimers()
+    }
+  })
+
+  it('tells the manifest whether the active editor is a log', () => {
+    registerLogEditorContext(context)
+
+    expect(executeCommand).toHaveBeenLastCalledWith(
+      'setContext',
+      LOG_EDITOR_KEY,
+      false
+    )
+
+    const activate = (editor: unknown) =>
+      activeEditorHandlers.forEach((handler) => handler(editor))
+
+    // Upper case counts: the analysis matches .log case-insensitively, so the
+    // buttons must follow the same rule as the diagnostics.
+    activate({ document: document('/tmp/RUN.LOG') })
+    expect(executeCommand).toHaveBeenLastCalledWith(
+      'setContext',
+      LOG_EDITOR_KEY,
+      true
+    )
+
+    activate({ document: document('/tmp/program.sas') })
+    expect(executeCommand).toHaveBeenLastCalledWith(
+      'setContext',
+      LOG_EDITOR_KEY,
+      false
+    )
+
+    activate(undefined)
+    expect(executeCommand).toHaveBeenLastCalledWith(
+      'setContext',
+      LOG_EDITOR_KEY,
+      false
+    )
+  })
+
+  it('reports a context update that fails', async () => {
+    const appendLine = jest.fn()
+    ;(process as any).outputChannel = { appendLine }
+
+    executeCommand.mockRejectedValueOnce(new Error('no such context'))
+
+    registerLogEditorContext(context)
+
+    await Promise.resolve()
+    await Promise.resolve()
+
+    expect(appendLine).toHaveBeenCalledWith(
+      expect.stringContaining('could not update the log editor state')
+    )
+  })
+
+  it('registers the editor listener once, on activation', () => {
+    registerLogEditorContext(context)
+
+    expect(activeEditorHandlers).toHaveLength(1)
   })
 })
