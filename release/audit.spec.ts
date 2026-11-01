@@ -75,6 +75,19 @@ describe('release audit exemptions', () => {
         id: 'GHSA-xcx6-jx8p-x3h5',
         package: '@azure/msal-node',
         nodes: ['node_modules/@azure/msal-node']
+      },
+      {
+        id: 'GHSA-3g3m-2fjr-6pw4',
+        package: 'glob',
+        nodes: ['node_modules/glob', 'node_modules/npm/node_modules/glob']
+      },
+      {
+        id: 'GHSA-g3hv-75wg-m249',
+        package: 'minimatch',
+        nodes: [
+          'node_modules/minimatch',
+          'node_modules/npm/node_modules/minimatch'
+        ]
       }
     ])
 

@@ -105,6 +105,22 @@ const EXEMPT = new Map([
       reason:
         'msal-node 6.0.1, resolved by @azure/identity ^4.1.0 (through @vscode/vsce) which requires @azure/msal-node ^6.0.0. The advisory range is >=5.0.0-beta.0 <7.1.0 and 6.0.1 is the newest 6.x, so no in-range bump exists; @azure/identity has no 5.x, so lifting it does not move msal either. Forcing msal-node 7 through `overrides` would be a major version change in the publish authentication path, which is the higher risk here. RISK ACCEPTANCE, not unreachability: the advisory concerns the authorization-code flow (browser sign-in), and this repo publishes to Open VSX with OVSX_PAT and packages with vsce, neither of which runs that flow - the VS Marketplace credential is commented out in publish.yml. It clears when @azure/identity moves to msal-node >= 7.1.0.'
     }
+  ],
+  [
+    'GHSA-3g3m-2fjr-6pw4',
+    {
+      paths: ['node_modules/glob', 'node_modules/npm/node_modules/glob'],
+      reason:
+        'glob 13.0.6. The copy at node_modules/glob comes from semantic-release-vsce 6.1.8 (glob ^13.0.0) and @vscode/vsce 3.9.2 (glob ^13.0.6); the copy under node_modules/npm is vendored inside npm 11.21.1. The advisory is patched in 14.0.2, a major, and no version of either tool reaches it: semantic-release-vsce 6.1.8 is the latest and still pins @vscode/vsce ^3.0.0, and vsce 4.1.0 is the release that stops depending on glob at all. Forcing glob 14 through `overrides` crosses a major inside the tool that packages and publishes the extension, and npm 12.2.1 - measured - still bundles 13.0.6, so the vendored copy does not move either. NOT REACHABLE HERE: the cancellation bypass needs a caller that aborts a glob mid-walk over an attacker-chosen pattern, and the patterns both callers match are this repo\'s own package globs and release config.'
+    }
+  ],
+  [
+    'GHSA-g3hv-75wg-m249',
+    {
+      paths: ['node_modules/minimatch', 'node_modules/npm/node_modules/minimatch'],
+      reason:
+        'minimatch 10.2.6 at node_modules/minimatch, required by @vscode/vsce 3.9.2 (minimatch ^10.2.2) and by the npm 11.21.1 that @semantic-release/npm resolves, whose vendored copy is 10.2.5. The advisory is patched in 11.0.1, a major, and both callers ask for ^10 - vsce 4.1.0 still requires minimatch ^10.2.6 - and npm 12.2.1, measured, bundles 10.2.5 unchanged, so no bump available to this repo clears either copy. Forcing 11 through `overrides` crosses a major inside the packaging tool. NOT REACHABLE HERE: globparts amplification needs an attacker-chosen pattern, and the patterns matched are this repo\'s package globs and release config.'
+    }
   ]
 ])
 
