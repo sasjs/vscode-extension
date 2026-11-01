@@ -85,6 +85,16 @@
         "command": "sasjs-for-vscode.docs",
         "title": "SASjs: Docs",
         "icon": "./assets/images/docs.png"
+      },
+      {
+        "command": "sasjs-for-vscode.nextLogIssue",
+        "title": "SASjs: Next Log Error or Warning",
+        "icon": "$(arrow-down)"
+      },
+      {
+        "command": "sasjs-for-vscode.previousLogIssue",
+        "title": "SASjs: Previous Log Error or Warning",
+        "icon": "$(arrow-up)"
       }
     ],
     "keybindings": [
@@ -185,6 +195,16 @@
           "command": "sasjs-for-vscode.docs",
           "group": "navigation",
           "when": "editorLangId == sas && isWorkspaceOpened"
+        },
+        {
+          "command": "sasjs-for-vscode.previousLogIssue",
+          "group": "navigation@1",
+          "when": "resourceExtname == .log && isSasjsProject && isWorkspaceOpened"
+        },
+        {
+          "command": "sasjs-for-vscode.nextLogIssue",
+          "group": "navigation@1",
+          "when": "resourceExtname == .log && isSasjsProject && isWorkspaceOpened"
         }
       ]
     },
@@ -282,7 +302,7 @@
     "@sasjs/cli": "6.2.4",
     "@sasjs/lint": "^4.8.1",
     "@sasjs/sas-language": "0.3.3",
-    "@sasjs/utils": "^4.1.1",
+    "@sasjs/utils": "^4.2.0",
     "axios": "1.20.0",
     "dotenv": "18.0.7",
     "node-graphviz": "0.1.1",
@@ -290,7 +310,9 @@
     "vscode-languageclient": "10.1.2"
   },
   "overrides": {
-    "tmp": "0.2.7",
-    "serialize-javascript": "7.1.4"
+    "follow-redirects": "^1.16.2",
+    "minimatch": "^11.0.1",
+    "serialize-javascript": "7.1.4",
+    "tmp": "0.2.7"
   }
 }
