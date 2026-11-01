@@ -8,6 +8,7 @@ import {
   TextDocument,
   TextEditor,
   TextEditorDecorationType,
+  ConfigurationTarget,
   ThemeColor,
   Uri,
   commands,
@@ -112,6 +113,27 @@ export const registerLogDiagnostics = (context: ExtensionContext): void => {
  */
 export const LOG_EDITOR_KEY = 'sasjsLogEditor'
 
+/** The context key that says whether the notable notes are being listed. */
+export const LOG_NOTES_KEY = 'sasjsLogNotes'
+
+/** The setting that decides whether the notable notes are listed. */
+export const LOG_NOTES_SETTING = 'logNotableNotes'
+
+const CONFIG_SECTION = 'sasjs-for-vscode'
+
+/**
+ * Whether the notable notes are listed, from the project's settings.
+ *
+ * The setting is scoped to the resource, so a project that finds the notes noisy
+ * can turn them off in its own `.vscode/settings.json` without silencing them
+ * everywhere. Default true: a log is read for what went wrong quietly as well as
+ * for what stopped, and that has been the behaviour since the feature shipped.
+ */
+export const listsNotes = (): boolean =>
+  workspace
+    .getConfiguration(CONFIG_SECTION)
+    .get<boolean>(LOG_NOTES_SETTING, true)
+
 /**
  * Publishes whether the active editor is a log, so the title-bar buttons show for
  * one and only for one.
@@ -122,25 +144,42 @@ export const LOG_EDITOR_KEY = 'sasjsLogEditor'
  * One predicate answers both halves.
  */
 export const registerLogEditorContext = (context: ExtensionContext): void => {
-  const update = (editor: TextEditor | undefined): void => {
+  const setKey = (key: string, value: boolean): void => {
     commands
-      .executeCommand(
-        'setContext',
-        LOG_EDITOR_KEY,
-        !!editor && isLogDocument(editor.document)
-      )
+      .executeCommand('setContext', key, value)
       .then(undefined, (error: unknown) =>
         // A rejected setContext otherwise vanishes, leaving the buttons on their
         // previous value with nothing to say why.
         process.outputChannel.appendLine(
-          `SASjs: could not update the log editor state - ${String(error)}`
+          `SASjs: could not update ${key} - ${String(error)}`
         )
       )
   }
 
-  context.subscriptions.push(window.onDidChangeActiveTextEditor(update))
+  const update = (editor: TextEditor | undefined): void =>
+    setKey(LOG_EDITOR_KEY, !!editor && isLogDocument(editor.document))
+
+  const updateNotes = (): void => setKey(LOG_NOTES_KEY, listsNotes())
+
+  context.subscriptions.push(
+    window.onDidChangeActiveTextEditor(update),
+    workspace.onDidChangeConfiguration((event) => {
+      if (
+        !event.affectsConfiguration(`${CONFIG_SECTION}.${LOG_NOTES_SETTING}`)
+      ) {
+        return
+      }
+
+      updateNotes()
+
+      // Re-publish from the cached parse, so the Problems list follows the
+      // setting without the log being read again.
+      workspace.textDocuments.forEach((document) => void analyse(document))
+    })
+  )
 
   update(window.activeTextEditor)
+  updateNotes()
 }
 
 /**
@@ -171,8 +210,11 @@ export const analyse = async (document: TextDocument): Promise<void> => {
   // which is why `[]` is cached rather than nothing.
   const cached = parsed.get(key)
 
+  // The parse is reused, but the diagnostics are published again: the listing is
+  // a setting, and a change to it re-analyses from this cache rather than parsing
+  // the log a second time.
   if (cached && cached.version === document.version) {
-    decorate(document, cached.issues)
+    publish(document, cached.issues)
     return
   }
 
@@ -187,8 +229,7 @@ export const analyse = async (document: TextDocument): Promise<void> => {
   const issues = parseLog(text)
 
   parsed.set(key, { version: document.version, issues })
-  diagnostics().set(document.uri, issues.map(toDiagnostic))
-  decorate(document, issues)
+  publish(document, issues)
 }
 
 /** Drops everything published for a log, and the parse it came from. */
@@ -227,6 +268,22 @@ const schedule = (document: TextDocument): void => {
         : CHANGE_DEBOUNCE_MS
     )
   )
+}
+
+/**
+ * Publishes a parse as diagnostics and colours the editor, honouring the setting
+ * that decides whether the notable notes are listed.
+ *
+ * The filter is applied here rather than in the parse so that flipping the setting
+ * costs nothing but this pass: the cached issues are the same either way.
+ */
+const publish = (document: TextDocument, issues: LogIssue[]): void => {
+  const listed = listsNotes()
+    ? issues
+    : issues.filter((issue) => issue.severity !== 'note')
+
+  diagnostics().set(document.uri, listed.map(toDiagnostic))
+  decorate(document, issues)
 }
 
 /**
@@ -291,3 +348,26 @@ const severityOf = (issue: LogIssue): DiagnosticSeverity =>
 /** A whole-line range over the issue and every line SAS wrapped into it. */
 const toDecorationRange = (issue: LogIssue): Range =>
   new Range(issue.line, 0, issue.endLine, 0)
+
+/**
+ * The two commands behind the single button in the editor title bar, one per state
+ * of the setting.
+ *
+ * VSCode has no toggle menu item: an entry is a command, so a button that means
+ * "hide" while the notes are listed and "show" while they are not is two
+ * commands, each gated on the context key that says which state the reader is in.
+ * The icon shows the action, the tooltip names it, and the setting is what both
+ * of them write.
+ */
+export const registerLogNotesCommands = (context: ExtensionContext): void => {
+  const set = (value: boolean) => async (): Promise<void> => {
+    await workspace
+      .getConfiguration(CONFIG_SECTION)
+      .update(LOG_NOTES_SETTING, value, ConfigurationTarget.Workspace)
+  }
+
+  context.subscriptions.push(
+    commands.registerCommand('sasjs-for-vscode.showLogNotes', set(true)),
+    commands.registerCommand('sasjs-for-vscode.hideLogNotes', set(false))
+  )
+}

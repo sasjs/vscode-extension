@@ -98,6 +98,8 @@ A SAS log is mostly notes; the lines that matter are the `ERROR:` and `WARNING:`
 
 A marker counts when it begins the line, in capitals: `ERROR:` or `WARNING:`, or the marker and a space (`ERROR Libref X is not assigned.`), with SAS's message code travelling alongside where there is one (`ERROR 22-322:`). Ordinary notes ("19 observations read from the data set") and `INFO` lines are not listed.
 
+The notable notes can be turned off - the eye button in the editor title bar, or `sasjs-for-vscode.logNotableNotes` in the project's settings (`.vscode/settings.json`), which is what the button writes. With them off, VIEW->PROBLEMS and **F8** carry errors and warnings only. The log itself is untouched either way.
+
 A `.log` written by something other than SAS is left alone. Python's logging writes `ERROR:root:boom` and a shell build log writes `ERROR: Command failed with exit code 1`, so the marker alone proves nothing - the extension looks for what SAS prints about itself: its banner, its message codes and its numbered steps.
 
 ## Directory Synchronisation

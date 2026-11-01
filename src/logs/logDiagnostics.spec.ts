@@ -32,6 +32,11 @@ const executeCommand = jest.fn()
 const activeEditorHandlers: Array<(editor: unknown) => void> = []
 /** The handler the module registers for a document change, so a test can fire it. */
 const documentChangeHandlers: Array<(event: unknown) => void> = []
+/** The handler the module registers for a settings change, so a test can fire it. */
+const configurationHandlers: Array<(event: unknown) => void> = []
+/** The extension's settings, as the mocked configuration reports them. */
+const settings: Record<string, unknown> = {}
+const updateConfiguration = jest.fn()
 
 class Position {
   constructor(public line: number, public character: number) {}
@@ -101,6 +106,16 @@ jest.mock('vscode', () => ({
     }
   },
   workspace: {
+    getConfiguration: () => ({
+      get: (key: string, fallback?: unknown) =>
+        key in settings ? settings[key] : fallback,
+      update: updateConfiguration
+    }),
+    textDocuments: [] as unknown[],
+    onDidChangeConfiguration: (handler: (event: unknown) => void) => {
+      configurationHandlers.push(handler)
+      return { dispose: jest.fn() }
+    },
     onDidOpenTextDocument: () => ({ dispose: jest.fn() }),
     onDidSaveTextDocument: () => ({ dispose: jest.fn() }),
     onDidChangeTextDocument: (handler: (event: unknown) => void) => {
@@ -119,7 +134,7 @@ jest.mock('@sasjs/utils/logs', () => {
   return { ...actual, parseLog: jest.fn() }
 })
 
-import { window } from 'vscode'
+import { window, workspace } from 'vscode'
 import {
   LOG_EDITOR_KEY,
   analyse,
@@ -153,6 +168,13 @@ const document = (
   getText: jest.fn(() => text)
 })
 
+const NOTES = [
+  'NOTE: SAS (r) Proprietary Software 9.4 (TS1M9 MBCS3170)',
+  'NOTE: Variable x is uninitialized.',
+  'ERROR: File WORK.MISSING.DS.DATA does not exist.',
+  ''
+].join('\n')
+
 const context = { subscriptions: [] as unknown[] } as any
 
 const parseLog = () =>
@@ -169,8 +191,11 @@ describe('log issues', () => {
     parseLog().mockClear()
     executeCommand.mockReset()
     executeCommand.mockImplementation(() => Promise.resolve())
+    updateConfiguration.mockReset()
     activeEditorHandlers.length = 0
     documentChangeHandlers.length = 0
+    configurationHandlers.length = 0
+    for (const key of Object.keys(settings)) delete settings[key]
     ;(window as any).visibleTextEditors = []
   })
 
@@ -360,6 +385,74 @@ describe('log issues', () => {
     expect(setDecorations.mock.calls[1][1]).toHaveLength(0)
   })
 
+  it('lists the notable notes by default', async () => {
+    await analyse(document('/tmp/project/notes-default.log', 1, NOTES) as any)
+
+    const [, diagnostics] = diagnosticsSet.mock.calls[0] as [
+      unknown,
+      FakeDiagnostic[]
+    ]
+
+    expect(diagnostics.map((d) => d.severity)).toEqual([2, 0])
+  })
+
+  it('lists errors and warnings only when the notes are turned off', async () => {
+    settings.logNotableNotes = false
+
+    await analyse(document('/tmp/project/notes-default.log', 1, NOTES) as any)
+
+    const [, diagnostics] = diagnosticsSet.mock.calls[0] as [
+      unknown,
+      FakeDiagnostic[]
+    ]
+
+    expect(diagnostics.map((d) => d.severity)).toEqual([0])
+  })
+
+  it('republishes from the cached parse when the setting changes', async () => {
+    const log = document('/tmp/project/notes-republish.log', 1, NOTES)
+    ;(workspace as any).textDocuments = [log]
+    registerLogEditorContext(context)
+
+    await analyse(log as any)
+    expect(parseLog()).toHaveBeenCalledTimes(1)
+
+    settings.logNotableNotes = false
+    configurationHandlers.forEach((handler) =>
+      handler({
+        affectsConfiguration: (key: string) =>
+          key === 'sasjs-for-vscode.logNotableNotes'
+      })
+    )
+    await Promise.resolve()
+
+    // The same parse is filtered and published again; the log is not re-read.
+    expect(parseLog()).toHaveBeenCalledTimes(1)
+    expect(diagnosticsSet).toHaveBeenCalledTimes(2)
+
+    const [, diagnostics] = diagnosticsSet.mock.calls[1] as [
+      unknown,
+      FakeDiagnostic[]
+    ]
+
+    expect(diagnostics.map((d) => d.severity)).toEqual([0])
+  })
+
+  it('ignores a settings change that is not its own', async () => {
+    const log = document('/tmp/project/notes-ignore.log', 1, NOTES)
+    ;(workspace as any).textDocuments = [log]
+    registerLogEditorContext(context)
+
+    await analyse(log as any)
+    diagnosticsSet.mockClear()
+
+    configurationHandlers.forEach((handler) =>
+      handler({ affectsConfiguration: (key: string) => key.includes('lint') })
+    )
+
+    expect(diagnosticsSet).not.toHaveBeenCalled()
+  })
+
   it('registers its subscriptions on activation', () => {
     registerLogDiagnostics(context)
 
@@ -398,7 +491,7 @@ describe('log issues', () => {
   it('tells the manifest whether the active editor is a log', () => {
     registerLogEditorContext(context)
 
-    expect(executeCommand).toHaveBeenLastCalledWith(
+    expect(executeCommand).toHaveBeenCalledWith(
       'setContext',
       LOG_EDITOR_KEY,
       false
@@ -410,21 +503,21 @@ describe('log issues', () => {
     // Upper case counts: the analysis matches .log case-insensitively, so the
     // buttons must follow the same rule as the diagnostics.
     activate({ document: document('/tmp/RUN.LOG') })
-    expect(executeCommand).toHaveBeenLastCalledWith(
+    expect(executeCommand).toHaveBeenCalledWith(
       'setContext',
       LOG_EDITOR_KEY,
       true
     )
 
     activate({ document: document('/tmp/program.sas') })
-    expect(executeCommand).toHaveBeenLastCalledWith(
+    expect(executeCommand).toHaveBeenCalledWith(
       'setContext',
       LOG_EDITOR_KEY,
       false
     )
 
     activate(undefined)
-    expect(executeCommand).toHaveBeenLastCalledWith(
+    expect(executeCommand).toHaveBeenCalledWith(
       'setContext',
       LOG_EDITOR_KEY,
       false
@@ -443,7 +536,7 @@ describe('log issues', () => {
     await Promise.resolve()
 
     expect(appendLine).toHaveBeenCalledWith(
-      expect.stringContaining('could not update the log editor state')
+      expect.stringContaining('could not update sasjsLogEditor')
     )
   })
 

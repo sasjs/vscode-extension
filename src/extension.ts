@@ -20,7 +20,8 @@ import {
 } from './languageServer/languageServer'
 import {
   registerLogDiagnostics,
-  registerLogEditorContext
+  registerLogEditorContext,
+  registerLogNotesCommands
 } from './logs/logDiagnostics'
 import { Configuration } from '@sasjs/utils/types'
 import { getGlobalConfiguration, getLocalConfiguration } from './utils/config'
@@ -100,6 +101,7 @@ export async function activate(context: vscode.ExtensionContext) {
   // navigation follows the editor the user is in.
   registerLogDiagnostics(context)
   registerLogEditorContext(context)
+  registerLogNotesCommands(context)
 
   statusBarItem = vscode.window.createStatusBarItem(
     vscode.StatusBarAlignment.Right,
