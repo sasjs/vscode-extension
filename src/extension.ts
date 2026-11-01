@@ -41,14 +41,6 @@ export async function activate(context: vscode.ExtensionContext) {
 
   await setProcessVariables()
 
-  // Whether this is a SASjs project decides what the manifest shows for a .log
-  // file, so it is published as a context key rather than read per command.
-  vscode.commands.executeCommand(
-    'setContext',
-    'isSasjsProject',
-    process.isSasjsProject
-  )
-
   // The SAS language server adds hover, completions, symbols, signature help
   // and folding for SAS documents. It is started after the extension's own
   // setup so a failure in it never blocks the commands below, and its output

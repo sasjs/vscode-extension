@@ -142,7 +142,6 @@ describe('log issues', () => {
     diagnosticsDelete.mockClear()
     setDecorations.mockClear()
     parseLog().mockClear()
-    ;(process as any).isSasjsProject = true
     ;(window as any).visibleTextEditors = []
   })
 
@@ -242,14 +241,11 @@ describe('log issues', () => {
     expect(parseLog()).toHaveBeenCalledTimes(2)
   })
 
-  it('leaves a .log outside a SASjs project alone', async () => {
-    ;(process as any).isSasjsProject = false
+  it('analyses a log wherever it lives, sasjsconfig or not', async () => {
+    await analyse(document('/tmp/elsewhere/run.log') as any)
 
-    await analyse(document() as any)
-
-    expect(parseLog()).not.toHaveBeenCalled()
-    expect(diagnosticsSet).not.toHaveBeenCalled()
-    expect(diagnosticsDelete).toHaveBeenCalledTimes(1)
+    expect(parseLog()).toHaveBeenCalledTimes(1)
+    expect(diagnosticsSet).toHaveBeenCalledTimes(1)
   })
 
   it('leaves a file that is not a log alone', async () => {

@@ -69,8 +69,8 @@ const warningColour = (): TextEditorDecorationType =>
  * from one parse of one document, and both are addressed from the issue list,
  * so neither path rewrites the log.
  *
- * The scope is a SASjs project: outside one, a .log file is somebody else's log
- * and is left alone.
+ * There is no project test: the marker has to start a line and be one SAS
+ * writes, which is what tells a SAS log apart from somebody else's.
  */
 export const registerLogDiagnostics = (context: ExtensionContext): void => {
   context.subscriptions.push(
@@ -90,14 +90,16 @@ export const registerLogDiagnostics = (context: ExtensionContext): void => {
 /**
  * Parses a log and applies the result, replacing whatever was there.
  *
- * A log the extension is not responsible for is cleared rather than ignored:
- * a .log outside a SASjs project must not keep diagnostics published when it was
- * analysed earlier in a project that has since been closed.
+ * Every `.log` is analysed, project or not: a log is the output of a SAS run,
+ * and the run may happen in a folder without a sasjsconfig - the logs the
+ * extension itself writes are the obvious case, and so are the ones fetched from
+ * a remote server. A document that is not a log has nothing published for it, so
+ * it is cleared rather than left with a stale result from an earlier life.
  */
 export const analyse = async (document: TextDocument): Promise<void> => {
   const key = document.uri.toString()
 
-  if (!process.isSasjsProject || !isLogDocument(document)) {
+  if (!isLogDocument(document)) {
     clear(document.uri)
     return
   }

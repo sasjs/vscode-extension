@@ -199,12 +199,12 @@
         {
           "command": "sasjs-for-vscode.previousLogIssue",
           "group": "navigation@1",
-          "when": "resourceExtname == .log && isSasjsProject && isWorkspaceOpened"
+          "when": "resourceExtname == .log && isWorkspaceOpened"
         },
         {
           "command": "sasjs-for-vscode.nextLogIssue",
           "group": "navigation@1",
-          "when": "resourceExtname == .log && isSasjsProject && isWorkspaceOpened"
+          "when": "resourceExtname == .log && isWorkspaceOpened"
         }
       ]
     },
