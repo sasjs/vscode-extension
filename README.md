@@ -96,7 +96,7 @@ A SAS log is mostly notes, and the two lines that matter - the `ERROR:` and the 
 * the error and warning lines are coloured in the log itself, and the arrow buttons in the editor title bar step to the next or previous one from the cursor, wrapping at the end;
 * a message SAS wrapped over several lines is one problem, not one per line.
 
-The parsing is done by [`@sasjs/sas-language`](https://github.com/sasjs/sas-language), which reports the line and column of each message rather than rewriting the log, so the same results feed an editor and any other host that wants them. Ordinary notes ("19 observations read from the data set") and `INFO` lines are not reported: the notable ones are a closed list rather than every note. A line that merely contains the word ERROR is not reported either - only a marker at the start of a line counts.
+The parsing is done by `@sasjs/utils/logs` ([`@sasjs/utils`](https://github.com/sasjs/utils)), which reports the line and column of each message rather than rewriting the log, so the same results feed an editor, a browser log viewer and a report. It lives there because every SASjs consumer already depends on `@sasjs/utils`; this extension imports the subpath, so nothing of the language server's tarball is involved. Ordinary notes ("19 observations read from the data set") and `INFO` lines are not reported: the notable ones are a closed list rather than every note. A line that merely contains the word ERROR is not reported either - only a marker at the start of a line counts.
 
 Logs outside a SASjs project are left untouched, since a `.log` file there is somebody else's log.
 

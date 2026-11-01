@@ -13,7 +13,7 @@ import {
   window,
   workspace
 } from 'vscode'
-import { LogIssue, logParser } from './sasLog'
+import { LogIssue, parseLog } from '@sasjs/utils/logs'
 
 /** Logs this large are not worth parsing on every keystroke; SAS logs are not usually near it. */
 const MAX_LOG_LENGTH = 32 * 1024 * 1024
@@ -115,7 +115,6 @@ export const analyse = async (document: TextDocument): Promise<void> => {
     return
   }
 
-  const { parseLog } = await logParser()
   const issues = parseLog(text)
 
   parsed.set(key, { version: document.version, issues })

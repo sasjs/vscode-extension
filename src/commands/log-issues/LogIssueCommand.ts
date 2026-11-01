@@ -7,7 +7,7 @@ import {
   commands,
   window
 } from 'vscode'
-import { IssueDirection, logParser } from '../../logs/sasLog'
+import { IssueDirection, nextIssue, parseLog } from '@sasjs/utils/logs'
 
 /**
  * Moves the cursor to the next or the previous error or warning in the log in
@@ -48,7 +48,6 @@ export class LogIssueCommand {
     }
 
     const { document } = editor
-    const { nextIssue, parseLog } = await logParser()
     const issues = parseLog(document.getText())
     const issue = nextIssue(issues, editor.selection.active.line, this.direction)
 

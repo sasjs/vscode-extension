@@ -94,8 +94,8 @@ jest.mock('vscode', () => ({
   }
 }))
 
-jest.mock('@sasjs/sas-language/logs', () => {
-  const actual = jest.requireActual('@sasjs/sas-language/logs')
+jest.mock('@sasjs/utils/logs', () => {
+  const actual = jest.requireActual('@sasjs/utils/logs')
 
   // A bare spy: `resetMocks` clears implementations between tests, so the real
   // parser is put back in `beforeEach` rather than captured once here.
@@ -133,11 +133,11 @@ const document = (
 const context = { subscriptions: [] as unknown[] } as any
 
 const parseLog = () =>
-  jest.requireMock('@sasjs/sas-language/logs').parseLog as jest.Mock
+  jest.requireMock('@sasjs/utils/logs').parseLog as jest.Mock
 
 describe('log issues', () => {
   beforeEach(() => {
-    parseLog().mockImplementation(jest.requireActual('@sasjs/sas-language/logs').parseLog)
+    parseLog().mockImplementation(jest.requireActual('@sasjs/utils/logs').parseLog)
     diagnosticsSet.mockClear()
     diagnosticsDelete.mockClear()
     setDecorations.mockClear()
