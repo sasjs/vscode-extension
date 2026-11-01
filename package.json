@@ -95,6 +95,16 @@
         "command": "sasjs-for-vscode.previousLogIssue",
         "title": "SASjs: Previous Log Error or Warning",
         "icon": "$(arrow-up)"
+      },
+      {
+        "command": "sasjs-for-vscode.showLogNotes",
+        "title": "SASjs: Show Log Notes",
+        "icon": "$(eye)"
+      },
+      {
+        "command": "sasjs-for-vscode.hideLogNotes",
+        "title": "SASjs: Hide Log Notes",
+        "icon": "$(eye-closed)"
       }
     ],
     "keybindings": [
@@ -121,6 +131,12 @@
         "sasjs-for-vscode.lintConfig": {
           "type": "object",
           "description": "This represents that the target is configured at project level (sasjs/sasjsconfig.json) or globally (~/.sasjsrc)."
+        },
+        "sasjs-for-vscode.logNotableNotes": {
+          "type": "boolean",
+          "default": true,
+          "scope": "resource",
+          "markdownDescription": "List the notable `NOTE:` lines of a SAS log in VIEW->PROBLEMS, as information. These are the notes a reviewer acts on - an uninitialized variable, invalid data, a W.D format too small for the number, values silently converted to another type, repeats of BY values in a merge. Ordinary notes and `INFO` lines are never listed. With this off, the Problems panel and F8 carry errors and warnings only."
         }
       }
     },
@@ -205,6 +221,16 @@
           "command": "sasjs-for-vscode.nextLogIssue",
           "group": "navigation@1",
           "when": "sasjsLogEditor && isWorkspaceOpened"
+        },
+        {
+          "command": "sasjs-for-vscode.showLogNotes",
+          "group": "navigation@1",
+          "when": "sasjsLogEditor && !sasjsLogNotes && isWorkspaceOpened"
+        },
+        {
+          "command": "sasjs-for-vscode.hideLogNotes",
+          "group": "navigation@1",
+          "when": "sasjsLogEditor && sasjsLogNotes && isWorkspaceOpened"
         }
       ]
     },
