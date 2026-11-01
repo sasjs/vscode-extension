@@ -72,7 +72,9 @@ node .github/scripts/coverage-ratchet.mjs \
 
 A deliberate drop - deleting code that was tested, or a toolchain upgrade that counts differently - has to be argued in the pull request description, because there is no floor to lower. Write the tests a change needs rather than relying on a gate to catch their absence.
 
-The lint integration has **no specs**: `src/lint/lint.ts` and `src/commands/format/FormatCommand.ts` are the only files in `src/lint/` and `src/commands/format/`, and no spec imports either, so a change to lint or format behaviour is verified by running the extension against a real document. The unit specs that do exist cover the comment toggle (`src/commands/addRemoveComment/addRemoveComment.spec.ts`), the language server wiring (`src/languageServer/languageServer.spec.ts`), the TextMate grammar (`src/syntaxes/spec/sasGrammar.spec.ts`), and `createTarget` / `input` (`src/utils/spec/`).
+The **format** command has no specs: `src/commands/format/FormatCommand.ts` is the only file in that folder and no spec imports it, so a change to formatting behaviour is verified by running the extension against a real document.
+
+The unit specs cover the comment toggle (`src/commands/addRemoveComment/addRemoveComment.spec.ts`), the language server wiring and the staged server tree (`src/languageServer/`), the TextMate grammar (`src/syntaxes/spec/sasGrammar.spec.ts`), `createTarget` / `input` / the config file and auth resolution (`src/utils/spec/`), the linter wiring (`src/lint/lint.spec.ts`, with `@sasjs/lint` stubbed), and the doc generator internals - folder resolution, doc config precedence and dot-file generation (`src/commands/docs/internal/*.spec.ts`, with the filesystem helpers from `@sasjs/utils` mocked).
 
 ## Lint and style
 
