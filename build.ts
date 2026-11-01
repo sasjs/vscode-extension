@@ -31,10 +31,13 @@ const copyTree = (from: string, to: string): void => {
 const stageAssets = (): void => {
   copyTree('./src/doxy', './out/doxy')
 
-  copyTree(
-    './node_modules/@sasjs/sas-language/server/node',
-    './out/server/dist/node'
-  )
+  // The contents of the package's server/node directory are staged into
+  // out/server, not into out/server/dist/node: server.js already sits at
+  // dist/node/server.js inside the package and resolves data/, pubsdata/ and
+  // messagebundle.properties relative to the directory two levels up, so the
+  // tree has to keep that shape for the entry point to end up where
+  // src/languageServer/languageServer.ts looks for it.
+  copyTree('./node_modules/@sasjs/sas-language/server/node', './out/server')
 
   for (const file of [
     'LICENSE.txt',
@@ -47,6 +50,16 @@ const stageAssets = (): void => {
     if (fs.existsSync(source)) {
       fs.copyFileSync(source, path.join('./out/server', file))
     }
+  }
+
+  // A packaged extension that cannot find the server crashes the language
+  // client on every activation, so fail the build rather than ship one. The
+  // path has to match serverModulePath in src/languageServer/languageServer.ts.
+  const entryPoint = './out/server/dist/node/server.js'
+  if (!fs.existsSync(entryPoint)) {
+    throw new Error(
+      `SAS language server entry point missing from the staged tree: ${entryPoint}`
+    )
   }
 }
 
