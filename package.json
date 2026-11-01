@@ -85,6 +85,16 @@
         "command": "sasjs-for-vscode.docs",
         "title": "SASjs: Docs",
         "icon": "./assets/images/docs.png"
+      },
+      {
+        "command": "sasjs-for-vscode.nextLogIssue",
+        "title": "SASjs: Next Log Error or Warning",
+        "icon": "$(arrow-down)"
+      },
+      {
+        "command": "sasjs-for-vscode.previousLogIssue",
+        "title": "SASjs: Previous Log Error or Warning",
+        "icon": "$(arrow-up)"
       }
     ],
     "keybindings": [
@@ -185,6 +195,16 @@
           "command": "sasjs-for-vscode.docs",
           "group": "navigation",
           "when": "editorLangId == sas && isWorkspaceOpened"
+        },
+        {
+          "command": "sasjs-for-vscode.previousLogIssue",
+          "group": "navigation@1",
+          "when": "resourceExtname == .log && isSasjsProject && isWorkspaceOpened"
+        },
+        {
+          "command": "sasjs-for-vscode.nextLogIssue",
+          "group": "navigation@1",
+          "when": "resourceExtname == .log && isSasjsProject && isWorkspaceOpened"
         }
       ]
     },

@@ -12,11 +12,13 @@ import { DocsCommand } from './commands/docs/docsCommand'
 import { FormatCommand } from './commands/format/FormatCommand'
 import { CompileBuildDeployCommand } from './commands/compileBuildDeploy/compileBuildDeployCommand'
 import { AddRemoveCommentCommand } from './commands/addRemoveComment/addRemoveComment'
+import { LogIssueCommand } from './commands/log-issues/LogIssueCommand'
 import { lint, clearLintIssues } from './lint/lint'
 import {
   startSasLanguageServer,
   stopSasLanguageServer
 } from './languageServer/languageServer'
+import { registerLogDiagnostics } from './logs/logDiagnostics'
 import { Configuration } from '@sasjs/utils/types'
 import { getGlobalConfiguration, getLocalConfiguration } from './utils/config'
 import { setProcessVariables } from './utils/setProcessVariables'
@@ -38,6 +40,14 @@ export async function activate(context: vscode.ExtensionContext) {
   vscode.commands.executeCommand('setContext', 'isWorkspaceOpened', true)
 
   await setProcessVariables()
+
+  // Whether this is a SASjs project decides what the manifest shows for a .log
+  // file, so it is published as a context key rather than read per command.
+  vscode.commands.executeCommand(
+    'setContext',
+    'isSasjsProject',
+    process.isSasjsProject
+  )
 
   // The SAS language server adds hover, completions, symbols, signature help
   // and folding for SAS documents. It is started after the extension's own
@@ -83,6 +93,16 @@ export async function activate(context: vscode.ExtensionContext) {
 
   const addRemoveCommand = new AddRemoveCommentCommand(context)
   addRemoveCommand.initialise()
+
+  const nextLogIssueCommand = new LogIssueCommand(context, 'next')
+  nextLogIssueCommand.initialise()
+
+  const previousLogIssueCommand = new LogIssueCommand(context, 'previous')
+  previousLogIssueCommand.initialise()
+
+  // Logs written by a compile, build or run are opened beside the editor, so
+  // their errors and warnings are published as they appear.
+  registerLogDiagnostics(context)
 
   statusBarItem = vscode.window.createStatusBarItem(
     vscode.StatusBarAlignment.Right,
