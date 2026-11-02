@@ -100,7 +100,7 @@ A marker counts when it begins the line, in capitals: `ERROR:` or `WARNING:`, or
 
 The notable notes can be turned off - the eye button in the editor title bar, or `sasjs-for-vscode.logNotableNotes` in the project's settings (`.vscode/settings.json`), which is what the button writes. With them off, VIEW->PROBLEMS and **F8** carry errors and warnings only. The log itself is untouched either way.
 
-Which notes count as notable comes from [SASLogChecker](https://github.com/Morioka-Yutaka/SASLogChecker), Yutaka Morioka's MIT-licensed log checker; 28 of the 29 keyword patterns appear verbatim in its `interact_logchk.sas`. The list lives in `@sasjs/utils` (`NOTE_KEYWORDS`), so this extension, the SASjs Server Studio pane and any other host report the same findings.
+Which notes count as notable comes from [SASLogChecker](https://github.com/Morioka-Yutaka/SASLogChecker), Yutaka Morioka's MIT-licensed log checker: the 25 targeted NOTE / INFO examples in its help header map onto the keyword patterns here, and its matcher greps the same messages in Japanese, hex-encoded, because it reads logs from a Japanese Windows SAS session. Our patterns are the English text, so a Japanese log yields no notable notes. The list lives in `@sasjs/utils` (`NOTE_KEYWORDS`), so this extension, the SASjs Server Studio pane and any other host report the same findings.
 
 A `.log` written by something other than SAS is left alone. Python's logging writes `ERROR:root:boom` and a shell build log writes `ERROR: Command failed with exit code 1`, so the marker alone proves nothing - the extension looks for what SAS prints about itself: its banner, its message codes and its numbered steps.
 
