@@ -16,20 +16,23 @@ export class FormatCommand {
       ): Promise<TextEdit[]> {
         const fullRange = new Range(0, 0, document.lineCount, 0)
 
-        let formattedText: string
+        let lintConfig
 
+        // Only the configuration is guarded: formatting under rules the project
+        // did not ask for rewrites the document, so a config that will not load
+        // leaves it untouched and says why. A failure inside formatText is a
+        // different thing and is left to reach the provider as before.
         try {
-          const lintConfig = await getLintConfig()
-          clearLintConfigError()
-          formattedText = await formatText(document.getText(), lintConfig)
+          lintConfig = await getLintConfig()
         } catch (error) {
-          // Formatting with rules the project did not ask for is a silent
-          // rewrite of the file, so a configuration that will not load leaves
-          // the document untouched and says why.
           reportLintConfigError(error)
 
           return []
         }
+
+        clearLintConfigError()
+
+        const formattedText = await formatText(document.getText(), lintConfig)
 
         return [TextEdit.replace(fullRange, formattedText)]
       }
