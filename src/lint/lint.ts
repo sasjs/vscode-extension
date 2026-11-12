@@ -1,6 +1,10 @@
 import * as vscode from 'vscode'
-import { lintFile, Diagnostic, Severity } from '@sasjs/lint'
+import { lintFile, Diagnostic, Severity, LintConfig } from '@sasjs/lint'
 import { getLintConfig } from '../utils/getLintConfig'
+import {
+  clearLintConfigError,
+  reportLintConfigError
+} from '../utils/reportLintConfigError'
 
 let diagnosticCollection: vscode.DiagnosticCollection
 
@@ -13,7 +17,24 @@ export const lint = async (textEditor?: vscode.TextEditor): Promise<void> => {
     process.chdir(vscode.workspace.workspaceFolders[0].uri.fsPath)
   }
 
-  const lintConfig = await getLintConfig()
+  let lintConfig: LintConfig
+
+  try {
+    lintConfig = await getLintConfig()
+    clearLintConfigError()
+  } catch (error) {
+    // The project's rules did not load, so the rules in force are not the rules
+    // it states. Say so and mark nothing: a Problems panel filled from a
+    // configuration nobody wrote is worse than an empty one.
+    if (diagnosticCollection) {
+      diagnosticCollection.clear()
+    }
+
+    reportLintConfigError(error)
+
+    return
+  }
+
   const sasjsDiagnostics = await lintFile(
     textEditor.document.uri.fsPath,
     lintConfig

@@ -15,6 +15,7 @@ jest.mock('vscode', () => {
     Range,
     DiagnosticSeverity: { Error: 0, Warning: 1, Information: 2 },
     workspace: { workspaceFolders: undefined },
+    window: { showErrorMessage: jest.fn() },
     languages: { createDiagnosticCollection: jest.fn() }
   }
 })
@@ -126,6 +127,55 @@ describe('lint', () => {
     clearLintIssues()
 
     expect(collection.clear.mock.calls.length).toEqual(before + 1)
+  })
+
+  it('reports a lint configuration that will not load, and marks nothing', async () => {
+    const fromConfig = collection.set.mock.calls.length
+    mockedGetLintConfig.mockRejectedValue(
+      new Error('/project/.sasjslint is not valid JSON (Unexpected token)')
+    )
+
+    await lint(textEditor)
+
+    expect(vscode.window.showErrorMessage).toHaveBeenCalledWith(
+      expect.stringContaining('.sasjslint is not valid JSON')
+    )
+    // nothing is linted against rules the project did not state
+    expect(mockedLintFile).not.toHaveBeenCalled()
+    expect(collection.set.mock.calls.length).toEqual(fromConfig)
+  })
+
+  it('reports the same broken configuration once, not on every change', async () => {
+    const message = 'a message only this case raises'
+    mockedGetLintConfig.mockRejectedValue(new Error(message))
+
+    await lint(textEditor)
+    await lint(textEditor)
+
+    expect(
+      (vscode.window.showErrorMessage as jest.Mock).mock.calls.filter(
+        (call) => call[0] === message
+      ).length
+    ).toEqual(1)
+  })
+
+  it('reports again once the configuration loads and then breaks anew', async () => {
+    const message = 'a second message only this case raises'
+    mockedGetLintConfig.mockRejectedValue(new Error(message))
+    await lint(textEditor)
+
+    // a good configuration clears the memory of the previous failure
+    mockedGetLintConfig.mockResolvedValue({})
+    await lint(textEditor)
+
+    mockedGetLintConfig.mockRejectedValue(new Error(message))
+    await lint(textEditor)
+
+    expect(
+      (vscode.window.showErrorMessage as jest.Mock).mock.calls.filter(
+        (call) => call[0] === message
+      ).length
+    ).toEqual(2)
   })
 
   it('survives being cleared before anything was linted', () => {

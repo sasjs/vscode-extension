@@ -75,15 +75,25 @@ describe('getLintConfig', () => {
     )
   })
 
-  it('falls back quietly when the project .sasjslint is not JSON', async () => {
-    // the parse sits inside the promise chain's try, so its throw is caught by
-    // the same handler that covers a missing file: a malformed project config
-    // is discarded without a word, which is worth knowing before trusting it
+  it('reports a project .sasjslint that is not JSON, naming the file', async () => {
+    // A malformed file is not an absent one: falling back would lint against
+    // rules the file does not state, and mark the code with them.
     mockedFileExists.mockResolvedValue(true)
     mockedReadFile.mockResolvedValue('not json')
 
-    expect(await getLintConfig()).toEqual(
-      new LintConfig(DefaultLintConfiguration)
+    const error = (await getLintConfig().catch((e: Error) => e)) as Error
+
+    expect(error).toBeInstanceOf(Error)
+    // built with path.join in both places, so the message matches on Windows too
+    expect(error.message).toContain(projectConfig)
+    expect(error.message).toContain('is not valid JSON')
+  })
+
+  it('reports a home .sasjslint that is not JSON too', async () => {
+    mockedReadFile.mockResolvedValue('{ "noTrailingSpaces": true // no }')
+
+    await expect(getLintConfig()).rejects.toThrow(
+      `${homeConfig} is not valid JSON`
     )
   })
 })
