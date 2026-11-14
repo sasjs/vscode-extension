@@ -1,6 +1,6 @@
 {
   "name": "sasjs-for-vscode",
-  "version": "1.0.0",
+  "version": "0.0.0",
   "displayName": "SASjs - DevOps for SAS",
   "publisher": "SASjs",
   "icon": "logo.png",
@@ -252,26 +252,6 @@
   "publishConfig": {
     "access": "public"
   },
-  "release": {
-    "branches": [
-      "main"
-    ],
-    "verifyConditions": [
-      "semantic-release-vsce",
-      "@semantic-release/github"
-    ],
-    "prepare": {
-      "path": "semantic-release-vsce",
-      "packageVsix": true
-    },
-    "publish": [
-      "semantic-release-vsce",
-      {
-        "path": "@semantic-release/github",
-        "assets": "*.vsix"
-      }
-    ]
-  },
   "repository": {
     "type": "git",
     "url": "https://github.com/sasjs/vscode-extension.git"
@@ -297,10 +277,12 @@
     "test:unit": "jest --config=jest.config.js --coverage",
     "sas:snippets": "degit sassoftware/vscode-sas-extension/snippets snippets --force",
     "sasjs:snippets": "npx sasjs snippets -o ./snippets/sasjs-macro-snippets.json",
-    "setup": "npm run sas:snippets && npm run sasjs:snippets && [ -d .git ] && git config core.hooksPath ./.git-hooks || true"
+    "setup": "npm run sas:snippets && npm run sasjs:snippets && [ -d .git ] && git config core.hooksPath ./.git-hooks || true",
+    "release": "sasjs-release"
   },
   "devDependencies": {
     "@nogoo9/gitleaks": "8.30.1-post.2",
+    "@sasjs/release": "0.4.0",
     "@types/glob": "8.1.0",
     "@types/jest": "30.0.0",
     "@types/mocha": "10.0.10",
