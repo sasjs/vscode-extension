@@ -47,11 +47,19 @@ jobs:
         # auditable - and the property that makes it so is that it ships nothing
         # of its own. Asserted rather than audited: the check above is scoped to
         # production because this dev tree carries advisories, which is exactly
-        # the tree the tool lives in.
+        # the tree the tool lives in. Vendored code counts as a dependency: a
+        # bundled node_modules would carry audit findings that no lockfile of ours
+        # pins, so bundledDependencies is part of the check, not an afterthought.
         run: |
           node -e '
           const p = require("./node_modules/@sasjs/release/package.json");
-          const deps = Object.keys({...p.dependencies, ...p.peerDependencies, ...p.optionalDependencies});
+          const deps = Object.keys({
+            ...p.dependencies,
+            ...p.peerDependencies,
+            ...p.optionalDependencies,
+            ...(Array.isArray(p.bundledDependencies) ? Object.fromEntries(p.bundledDependencies.map((n) => [n, 1])) : p.bundledDependencies),
+            ...(Array.isArray(p.bundleDependencies) ? Object.fromEntries(p.bundleDependencies.map((n) => [n, 1])) : p.bundleDependencies)
+          });
           if (deps.length) {
             console.error("@sasjs/release " + p.version + " ships dependencies: " + deps.join(", "));
             process.exit(1);

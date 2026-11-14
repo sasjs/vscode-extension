@@ -13,3 +13,5 @@ vsc-extension-quickstart.md
 # Former home of the release toolchain, installed there by the old publish
 # workflow. Kept as a pointer so a stale checkout cannot put it in a build.
 release/**
+# Build guards, not part of the extension.
+scripts/**

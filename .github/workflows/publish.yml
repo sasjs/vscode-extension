@@ -54,7 +54,13 @@ jobs:
         run: |
           node -e '
           const p = require("./node_modules/@sasjs/release/package.json");
-          const deps = Object.keys({...p.dependencies, ...p.peerDependencies, ...p.optionalDependencies});
+          const deps = Object.keys({
+            ...p.dependencies,
+            ...p.peerDependencies,
+            ...p.optionalDependencies,
+            ...(Array.isArray(p.bundledDependencies) ? Object.fromEntries(p.bundledDependencies.map((n) => [n, 1])) : p.bundledDependencies),
+            ...(Array.isArray(p.bundleDependencies) ? Object.fromEntries(p.bundleDependencies.map((n) => [n, 1])) : p.bundleDependencies)
+          });
           if (deps.length) {
             console.error("@sasjs/release " + p.version + " ships dependencies: " + deps.join(", "));
             process.exit(1);
@@ -74,20 +80,53 @@ jobs:
         # it. The tag this creates is checked against main by the next step.
         run: npm run release -- --host github --release --draft --output "$GITHUB_OUTPUT"
 
+      - name: Work out whether this run still has something to publish
+        id: gate
+        # A re-run must be able to finish a job that failed half way, and a
+        # docs-only merge must not rebuild the version before it. `released` alone
+        # cannot tell those apart: on a re-run the tag already exists, so the step
+        # above reports released=false and everything below would be skipped -
+        # leaving a draft release and no .vsix.
+        #
+        # The forge can answer it directly: a release still in draft means work is
+        # outstanding for that tag, a published one means the version is done.
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.release.outputs.tag }}"
+          if [ -z "$TAG" ]; then TAG="$(git describe --tags --abbrev=0)"; fi
+          # `gh release view <tag>` asks /releases/tags/<tag>, which does not return
+          # drafts - the very release this step needs to find. Listed and matched
+          # instead, for the same reason.
+          DRAFT="$(gh release list --limit 100 --json tagName,isDraft \
+            -q "[.[] | select(.tagName == \"$TAG\")] | (.[0].isDraft // \"missing\")")"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "draft=$DRAFT" >> "$GITHUB_OUTPUT"
+          if [ "$DRAFT" = "true" ]; then
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+            echo "$TAG has a draft release: packaging and publishing it"
+          else
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "$TAG is already released (draft=$DRAFT): nothing to publish"
+          fi
+
       - name: Decide what to package
         id: prepare
-        # Reads the tag the step above reported - a draft has no tag of its own
-        # yet - and stamps that version into package.json. Refuses a tag that is
-        # not in this clone or not an ancestor of main.
+        if: steps.gate.outputs.publish == 'true'
+        # Reads the tag the gate resolved - a draft release has no tag of its own
+        # until it is published - and stamps that version into package.json.
+        # Refuses a tag that is not in this clone or not an ancestor of main.
         #
-        # --no-registry-lookup: this package ships to Open VSX and never to npm,
-        # so asking npm whether the version exists answers nothing and reads as
-        # though the version were new. The publish decision is the tag being new.
-        run: npm run release -- --prepare-publish --branch main --no-registry-lookup --tag "${{ steps.release.outputs.tag }}" --output "$GITHUB_OUTPUT"
+        # --no-registry-lookup: this package ships to Open VSX and never to npm, so
+        # asking npm whether the version exists answers nothing and reads as though
+        # the version were new. Whether this run publishes is the gate's question,
+        # which the forge answers; this step only prepares the tree.
+        run: npm run release -- --prepare-publish --branch main --no-registry-lookup --tag "${{ steps.gate.outputs.tag }}" --output "$GITHUB_OUTPUT"
 
       - name: Package the extension
         id: package
-        if: steps.prepare.outputs.publish == 'true'
+        if: steps.gate.outputs.publish == 'true'
         env:
           VERSION: ${{ steps.prepare.outputs.version }}
         # The marketplace tools are `npm run` targets in package.json, so the
@@ -106,10 +145,15 @@ jobs:
         run: |
           VSIX="$(node -p 'require("./package.json").name')-${VERSION}.vsix"
           npm run vsix:package --silent -- --out "$VSIX"
+          # Fetch the publisher here, where no token is in scope. npx caches per
+          # job, so the step that holds OVSX_PAT resolves from the cache instead of
+          # downloading: an exact version pins which package, and this is what keeps
+          # the download itself outside the credentialed step.
+          npm run vsix:publish --silent -- --version
           echo "vsix=$VSIX" >> "$GITHUB_OUTPUT"
 
       - name: Publish to Open VSX
-        if: steps.prepare.outputs.publish == 'true'
+        if: steps.gate.outputs.publish == 'true'
         env:
           OVSX_PAT: ${{ secrets.OPEN_VSX_TOKEN }}
         run: |
@@ -125,17 +169,17 @@ jobs:
           npm run vsix:publish --silent -- "${{ steps.package.outputs.vsix }}" -p "$OVSX_PAT" --skip-duplicate
 
       - name: Attach the .vsix to the release
-        if: steps.prepare.outputs.publish == 'true'
+        if: steps.gate.outputs.publish == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release upload "${{ steps.release.outputs.tag }}" "${{ steps.package.outputs.vsix }}" --clobber
 
       - name: Publish the release
-        # Last: the release is created as a draft, so a version is never
-        # advertised before its .vsix exists on the page. This is also what makes
-        # the tag visible to everything that is not the API.
-        if: steps.release.outputs.released == 'true'
+        # Last: the release is created as a draft, so a version is never advertised
+        # before its .vsix exists on the page. Running on the gate rather than on
+        # `released` is what makes a re-run finish a failed job.
+        if: steps.gate.outputs.publish == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ steps.release.outputs.tag }}
+          TAG: ${{ steps.gate.outputs.tag }}
         run: gh release edit "$TAG" --draft=false
