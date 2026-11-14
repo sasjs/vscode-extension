@@ -1,9 +1,15 @@
-# Publishes the extension. The tool cuts the tag and the release from the commits,
-# this job packages the .vsix, ships it to Open VSX, and attaches it to the release.
+# Publishes the extension, in five steps:
 #
-# Order matters: the release step names the version, `--prepare-publish` stamps it
-# into package.json, and everything after that reads the stamped file - so the
-# .vsix users install, the .vsix on the release page and the tag all agree.
+#   npm run release -- --host github --release --draft      tag + draft release
+#   npm run release -- --prepare-publish --no-registry-lookup   stamp the version
+#   npm run vsix:package                                     build the .vsix
+#   npm run vsix:publish                                     ship it to Open VSX
+#   gh release upload / gh release edit --draft=false        attach, then publish
+#
+# package.json carries 0.0.0 in git: that is a placeholder, not a version. The
+# release tag is the source of truth for the version, and the second step is what
+# writes it into package.json for the packaging to read. So a checkout cannot claim
+# a version, and a released .vsix cannot claim a different one from its tag.
 
 name: SASjs VS Code Extension Deploy
 
@@ -63,7 +69,10 @@ jobs:
         # the commits since the last tag are docs/build/chore only.
         env:
           GH_TOKEN: ${{ github.token }}
-        run: npm run release -- --host github --release --draft --branch main --output "$GITHUB_OUTPUT"
+        # --branch is deliberately absent: the flag is read by --prepare-publish
+        # only, so passing it here would look like a guard while nothing checked
+        # it. The tag this creates is checked against main by the next step.
+        run: npm run release -- --host github --release --draft --output "$GITHUB_OUTPUT"
 
       - name: Decide what to package
         id: prepare
@@ -81,11 +90,22 @@ jobs:
         if: steps.prepare.outputs.publish == 'true'
         env:
           VERSION: ${{ steps.prepare.outputs.version }}
+        # The marketplace tools are `npm run` targets in package.json, so the
+        # version of vsce that lists the .vsix on a pull request and the version
+        # that packages it here cannot drift apart - a packaging-rule change
+        # between two versions is invisible to the check that exists to catch it.
+        #
+        # They are fetched by npx with an exact version rather than carried as
+        # devDependencies, which is a stated trade-off: a lockfile entry would
+        # also pin their integrity hashes, and these two trees bring ~130 packages
+        # whose transitive versions do not exist in this lockfile at all. Adding
+        # them re-resolved 83 unrelated packages when I measured it, so the cost
+        # is an unrelated upgrade in the migration PR that deletes the second
+        # locked tree - the opposite of what this change is for. The exposure is
+        # narrow: a version cannot silently move, because the version is exact.
         run: |
           VSIX="$(node -p 'require("./package.json").name')-${VERSION}.vsix"
-          # --yes with an exact version: this job holds contents: write, so the
-          # packaging tool is pinned by version rather than resolved fresh.
-          npx --yes @vscode/vsce@4.1.1 package --out "$VSIX"
+          npm run vsix:package --silent -- --out "$VSIX"
           echo "vsix=$VSIX" >> "$GITHUB_OUTPUT"
 
       - name: Publish to Open VSX
@@ -102,7 +122,7 @@ jobs:
           fi
           # --skip-duplicate is what makes a re-run safe: the second run meets a
           # version it already published, which is the state it wants.
-          npx --yes ovsx@1.4.0 publish "${{ steps.package.outputs.vsix }}" -p "$OVSX_PAT" --skip-duplicate
+          npm run vsix:publish --silent -- "${{ steps.package.outputs.vsix }}" -p "$OVSX_PAT" --skip-duplicate
 
       - name: Attach the .vsix to the release
         if: steps.prepare.outputs.publish == 'true'

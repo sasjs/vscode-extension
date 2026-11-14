@@ -265,7 +265,7 @@ jobs:
         # a new ignore pattern drops silently: the extension then installs and
         # its language client crashes on every activation.
         run: |
-          npx --yes @vscode/vsce@4.1.0 ls > "$RUNNER_TEMP/vsix-files.txt"
+          npm run vsix:list --silent > "$RUNNER_TEMP/vsix-files.txt"
           grep -qx 'out/extension.js' "$RUNNER_TEMP/vsix-files.txt"
           grep -qx 'out/server/dist/node/server.js' "$RUNNER_TEMP/vsix-files.txt"
           grep -qx 'out/server/data/WHERE.json' "$RUNNER_TEMP/vsix-files.txt"
