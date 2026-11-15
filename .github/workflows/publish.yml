@@ -98,18 +98,41 @@ jobs:
           if [ -z "$TAG" ]; then TAG="$(git describe --tags --abbrev=0)"; fi
           # `gh release view <tag>` asks /releases/tags/<tag>, which does not return
           # drafts - the very release this step needs to find. Listed and matched
-          # instead, for the same reason.
-          DRAFT="$(gh release list --limit 100 --json tagName,isDraft \
-            -q "[.[] | select(.tagName == \"$TAG\")] | (.[0].isDraft // \"missing\")")"
+          # instead, and paginated: a repo with more than one page of releases would
+          # otherwise read an older tag as having no release at all.
+          #
+          # The filter prints `true`, `false` or nothing, and the branch below reads
+          # all three. It cannot use jq's `//` to default: `false // "missing"`
+          # yields "missing", so a published release would answer identically to an
+          # absent one.
+          DRAFT="$(gh api --paginate "repos/${{ github.repository }}/releases?per_page=100" \
+            -q ".[] | select(.tag_name == \"$TAG\") | .draft")"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "draft=$DRAFT" >> "$GITHUB_OUTPUT"
-          if [ "$DRAFT" = "true" ]; then
-            echo "publish=true" >> "$GITHUB_OUTPUT"
-            echo "$TAG has a draft release: packaging and publishing it"
-          else
-            echo "publish=false" >> "$GITHUB_OUTPUT"
-            echo "$TAG is already released (draft=$DRAFT): nothing to publish"
-          fi
+          case "$DRAFT" in
+            true)
+              echo "publish=true" >> "$GITHUB_OUTPUT"
+              echo "$TAG has a draft release: packaging and publishing it"
+              ;;
+            false)
+              echo "publish=false" >> "$GITHUB_OUTPUT"
+              echo "$TAG is already released: nothing to publish"
+              ;;
+            "")
+              # A tag with no release at all: the release call created the tag and
+              # failed before creating the release. Make the draft it was meant to
+              # make, and let the steps below finish it. The notes come from the
+              # GitHub generator here rather than from the tool, which is the one
+              # difference between this repair path and a normal release.
+              echo "::warning::$TAG has no release: creating the draft the release step did not"
+              gh release create "$TAG" --draft --title "$TAG" --generate-notes --verify-tag
+              echo "publish=true" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "::error::unexpected answer for $TAG: '$DRAFT'"
+              exit 1
+              ;;
+          esac
 
       - name: Decide what to package
         id: prepare
@@ -172,7 +195,11 @@ jobs:
         if: steps.gate.outputs.publish == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload "${{ steps.release.outputs.tag }}" "${{ steps.package.outputs.vsix }}" --clobber
+          TAG: ${{ steps.gate.outputs.tag }}
+        # TAG from the gate, not from the release step: on a re-run the release
+        # step reports released=false and writes no tag at all, which is the empty
+        # interpolation that would have stopped this step before the edit below.
+        run: gh release upload "$TAG" "${{ steps.package.outputs.vsix }}" --clobber
 
       - name: Publish the release
         # Last: the release is created as a draft, so a version is never advertised
