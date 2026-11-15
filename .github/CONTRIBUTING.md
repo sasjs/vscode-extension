@@ -6,7 +6,7 @@ For using the extension, see the [README](../README.md). For the linting engine 
 
 ## Bootstrap
 
-Lifecycle scripts are disabled on install (`.npmrc` sets `ignore-scripts=true`, so no dependency `postinstall` runs automatically). Node 22 or later is required, declared as `engines.node` in `package.json` and pinned by `.nvmrc` for `nvm use`. After cloning, bootstrap once with:
+Lifecycle scripts are disabled on install (`.npmrc` sets `ignore-scripts=true`, so no dependency `postinstall` runs automatically). Node 24 or later is required, declared as `engines.node` in `package.json` and pinned by `.nvmrc` as `lts/krypton` for `nvm use` - the same major the extension host runs, so the toolchain and the host do not drift apart. After cloning, bootstrap once with:
 
 ```bash
 npm ci
@@ -15,7 +15,11 @@ npm run setup
 
 `npm run setup` generates the SAS snippets (`degit` + `npx sasjs snippets`) and wires the local git hooks. Snippets are gitignored, so a fresh clone has none until this runs - CI runs the same step after `npm ci`.
 
-The extension itself needs VS Code 1.96 or later (`engines.vscode`).
+The extension itself needs VS Code 1.125 or later (`engines.vscode`), which is the oldest line whose extension host runs Node 24.
+
+That floor is a runtime fact rather than a support policy. The extension loads `@sasjs/cli` **in-process** (`src/commands/compileBuildDeploy/compileBuildDeployCommand.ts`), so the Node the host provides is part of the contract: an ES-module-only dependency in the cli's import graph cannot be `require()`d from a Node 20 host, and that break lands silently on activation of the command. Node 22 hosts work today, but Node 22 reaches end of life on 2027-04-30, so a floor stopping there would need raising again within a release cycle.
+
+`@types/vscode` moves with the floor and never ahead of it - types newer than `engines.vscode` let the code compile against APIs a supported user does not have. Keep `.nvmrc` and every workflow on the host's LTS codename (`lts/krypton`) rather than `lts/*`, which now resolves to a major no VS Code host ships. Raising the floor drops every older editor, so it carries `!` and a major release.
 
 ## Run and debug the extension
 
@@ -91,8 +95,6 @@ ESLint configuration lives in `eslint.config.mjs` and `.eslintrc.json`; `.pretti
 The `@sasjs/*` packages (`adapter`, `cli`, `lint`, `sas-language`, `utils`) are pinned to RELEASED versions on npm. Never point one at a git branch, a local path or an unreleased version - `npm ci` in CI installs from the registry and will fail, and the extension would ship against something nobody else can reproduce. When you bump one, bump them together, then run `npm run test:unit` and `npm run vscode:prepublish` before pushing.
 
 Note that a feature added to `@sasjs/lint` only appears in this extension once this repo bumps that dependency: the published lint version is what users get.
-
-`engines.vscode` follows a support window rather than the latest release: roughly the last two years of VS Code, which is `^1.96.0` as of November 2026 (1.96.0 shipped 2024-12-11). Raise it only as a deliberate decision, and raise `@types/vscode` with it - the two must not diverge, because types newer than the engines floor let the code compile against APIs a supported user does not have. Anything raised on that floor is a breaking change for the users left behind, so it carries `!` and a major.
 
 Releasing is one tool with no dependencies of its own: `@sasjs/release` is an exactly-pinned devDependency, and both workflows assert that its tree is empty, because it runs with `contents: write`. It cuts the tag and the release from the commits; it does not package or publish anything itself.
 
