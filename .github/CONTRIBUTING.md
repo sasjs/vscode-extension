@@ -92,7 +92,9 @@ The `@sasjs/*` packages (`adapter`, `cli`, `lint`, `sas-language`, `utils`) are 
 
 Note that a feature added to `@sasjs/lint` only appears in this extension once this repo bumps that dependency: the published lint version is what users get.
 
-The release toolchain is deliberately separate: `release/package.json` carries its own lockfile and is installed with `npm ci --prefix release`. It holds `semantic-release` and the VSCE plugin so their advisories never enter the extension package's `npm audit`.
+Releasing is one tool with no dependencies of its own: `@sasjs/release` is an exactly-pinned devDependency, and both workflows assert that its tree is empty, because it runs with `contents: write`. It cuts the tag and the release from the commits; it does not package or publish anything itself.
+
+`package.json` carries `0.0.0` in git, and that is a placeholder, not a version: the release tag is the version's source of truth, and the publish workflow stamps it in before packaging. So `npm run vsix:package` refuses to run while the version is `0.0.0`, since a local build would otherwise produce a `.vsix` claiming a version no release has. To build one locally, set the version first with `npm version <x.y.z> --no-git-tag-version`.
 
 ## Git hooks
 
@@ -111,9 +113,15 @@ The pre-commit hook needs the `@nogoo9/gitleaks` devDependency installed, so mak
 
 ## CI and releasing
 
-`run-tests.yml` runs, in order: a production-scoped `npm audit --omit=dev --audit-level=low`, `release/audit.mjs`, `npm ci`, `npm ci --prefix release --ignore-scripts` (the locked release toolchain, so `release/package.json` is validated against its lockfile on every PR), a full-history gitleaks scan, `npm run setup`, `npm run lint`, `npm run test:unit` and `npm run vscode:prepublish`. The gitleaks step is the reason its checkout sets `fetch-depth: 0` - a depth-1 tree would scan only the head commit. `run-tests-windows.yml` is a portability check rather than a second gate: it runs `npm ci`, `npm run setup`, `npm run test:unit` and `npm run vscode:prepublish` only, so audit, lint and the secret scan are the Linux job's work. Green CI is the merge bar; the local hooks are convenience.
+`run-tests.yml` runs, in order: a production-scoped `npm audit --omit=dev --audit-level=low` (the dev tree carries advisories, which is why the scoped form is the one that gates), `npm ci`, an assertion that `@sasjs/release` ships no dependencies of its own, a full-history gitleaks scan, `npm run setup`, `npm run lint`, `npm run test:unit`, `npm run vscode:prepublish` and `npm run vsix:list` to check the packaging rules. The gitleaks step is the reason its checkout sets `fetch-depth: 0` - a depth-1 tree would scan only the head commit. `run-tests-windows.yml` is a portability check rather than a second gate: it runs `npm ci`, `npm run setup`, `npm run test:unit` and `npm run vscode:prepublish` only, so audit, lint and the secret scan are the Linux job's work. Green CI is the merge bar; the local hooks are convenience.
 
-Merging to `main` runs `publish.yml`: `npm ci`, `npm run setup`, `npm run vscode:prepublish`, `npm audit signatures`, `release/audit.mjs`, `npm ci --prefix release`, then `semantic-release` with `semantic-release-vsce`, which packages the `.vsix`, attaches it to the GitHub release and publishes it.
+Merging to `main` runs `publish.yml`, in five steps:
+
+1. `npm run release -- --host github --release --draft` - tag and draft release, created over the API. Nothing is pushed to `main`. `--host` is not optional: it defaults to `none`, and `--release` with that default stops with `--release needs --host`.
+2. a gate that asks the forge whether the release for that tag is still a draft, so a re-run finishes a job that failed half way and a docs-only merge rebuilds nothing;
+3. `npm run release -- --prepare-publish --branch main --no-registry-lookup --tag <tag>` - refuses a tag that is not on `main`, and stamps that tag's version into `package.json`. Each flag changes what it does: without `--branch` the ancestry check compares against `HEAD` and passes trivially, without `--tag` it resolves one from `HEAD`, and without `--no-registry-lookup` it asks npm about a package that does not ship there;
+4. `npm run vsix:package` then `npm run vsix:publish` - the `.vsix`, and Open VSX, which is how users receive the extension. An empty `OPEN_VSX_TOKEN` fails the job rather than skipping;
+5. `gh release upload`, then `gh release edit --draft=false` - attach the artifact, then publish, so the release page never advertises a version whose `.vsix` is missing.
 
 Only `feat:`, `fix:` and `perf:` commits cut a release - a `docs:` or `chore:` PR publishes nothing, which is correct rather than a failure. Because the repo squash-merges, the PR TITLE decides the version, so keep it conventional and judge the type by what users see.
 
