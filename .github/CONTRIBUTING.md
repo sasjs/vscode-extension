@@ -117,9 +117,9 @@ The pre-commit hook needs the `@nogoo9/gitleaks` devDependency installed, so mak
 
 Merging to `main` runs `publish.yml`, in five steps:
 
-1. `npm run release -- --release --draft` - tag and draft release, created over the API. Nothing is pushed to `main`.
+1. `npm run release -- --host github --release --draft` - tag and draft release, created over the API. Nothing is pushed to `main`. `--host` is not optional: it defaults to `none`, and `--release` with that default stops with `--release needs --host`.
 2. a gate that asks the forge whether the release for that tag is still a draft, so a re-run finishes a job that failed half way and a docs-only merge rebuilds nothing;
-3. `npm run release -- --prepare-publish` - refuses a tag that is not on `main`, and stamps its version into `package.json`;
+3. `npm run release -- --prepare-publish --branch main --no-registry-lookup --tag <tag>` - refuses a tag that is not on `main`, and stamps that tag's version into `package.json`. Each flag changes what it does: without `--branch` the ancestry check compares against `HEAD` and passes trivially, without `--tag` it resolves one from `HEAD`, and without `--no-registry-lookup` it asks npm about a package that does not ship there;
 4. `npm run vsix:package` then `npm run vsix:publish` - the `.vsix`, and Open VSX, which is how users receive the extension. An empty `OPEN_VSX_TOKEN` fails the job rather than skipping;
 5. `gh release upload`, then `gh release edit --draft=false` - attach the artifact, then publish, so the release page never advertises a version whose `.vsix` is missing.
 

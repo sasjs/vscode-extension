@@ -1,10 +1,11 @@
 # Publishes the extension, in five steps:
 #
-#   npm run release -- --host github --release --draft      tag + draft release
-#   npm run release -- --prepare-publish --no-registry-lookup   stamp the version
-#   npm run vsix:package                                     build the .vsix
-#   npm run vsix:publish                                     ship it to Open VSX
-#   gh release upload / gh release edit --draft=false        attach, then publish
+#   1. npm run release -- --host github --release --draft        tag + draft release
+#   2. gate: is that tag's release still a draft?                (gh api)
+#   3. npm run release -- --prepare-publish --branch main \
+#        --no-registry-lookup --tag <tag>                        stamp the version
+#   4. npm run vsix:package, then npm run vsix:publish           .vsix + Open VSX
+#   5. gh release upload, then gh release edit --draft=false     attach, publish
 #
 # package.json carries 0.0.0 in git: that is a placeholder, not a version. The
 # release tag is the source of truth for the version, and the second step is what
