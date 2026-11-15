@@ -20,6 +20,15 @@ const fail = (what, detail) => {
   process.exitCode = 1
 }
 const ok = (what, detail = '') => console.log(`ok   ${what}${detail ? ': ' + detail : ''}`)
+// Assert, do not narrate: printing a value the adapter major changed cannot fail,
+// so a config that answered `undefined` would still end the run "all surfaces
+// answered" - the shape this file exists to catch.
+const expect = (actual, wanted, what) => {
+  if (actual === wanted) ok(what, JSON.stringify(actual))
+  else fail(what, `expected ${JSON.stringify(wanted)}, got ${JSON.stringify(actual)}`)
+}
+
+const CONTEXT = 'SAS Job Execution compute context'
 
 // --- @sasjs/adapter 6.1.1, the same import the extension uses (src/utils/getSASjs.ts)
 // require, not import: the extension resolves '@sasjs/adapter/node' through CJS,
@@ -31,14 +40,19 @@ else {
     serverUrl: 'https://example.com',
     serverType: 'SASVIYA',
     appLoc: '/Public/app',
-    contextName: 'SAS Job Execution compute context',
+    contextName: CONTEXT,
     httpsAgentOptions: {},
     useComputeApi: true,
     debug: false
   })
   const cfg = sasjs.getSasjsConfig()
-  ok('adapter SASjs constructs', `pathSASJS=${JSON.stringify(cfg.pathSASJS)}`)
-  ok('adapter config survives', `appLoc=${cfg.appLoc} contextName=${cfg.contextName}`)
+  ok('adapter SASjs constructs')
+  // adapter 6.0.0 made pathSASJS name the mount rather than the stored-program
+  // endpoint; the extension relies on the default, so that default is the thing
+  // a future adapter major is most likely to move.
+  expect(cfg.pathSASJS, '/SASjsApi', 'adapter default pathSASJS is the mount')
+  expect(cfg.appLoc, '/Public/app', 'adapter keeps appLoc as configured')
+  expect(cfg.contextName, CONTEXT, 'adapter keeps contextName as configured')
 }
 
 // --- @sasjs/lint 5.4.0: lintFile, formatText, DefaultLintConfiguration
