@@ -5,10 +5,16 @@ import { FormatCommand } from './FormatCommand'
 
 jest.mock('vscode', () => {
   class Position {
-    constructor(public line: number, public character: number) {}
+    constructor(
+      public line: number,
+      public character: number
+    ) {}
   }
   class Range {
-    constructor(public start: Position, public end: Position) {}
+    constructor(
+      public start: Position,
+      public end: Position
+    ) {}
   }
   class TextEdit {
     static replace(range: unknown, newText: string) {
@@ -46,13 +52,30 @@ const document = {
 } as unknown as vscode.TextDocument
 
 /** The provider the command registered, which is what vscode would call. */
-const format = async (): Promise<vscode.TextEdit[]> => {
-  await new FormatCommand().initialise()
+const format = async (
+  loadEngine?: () => Promise<unknown>
+): Promise<vscode.TextEdit[]> => {
+  await new (FormatCommand as any)(loadEngine).initialise()
 
   const provider =
     mockedRegister.mock.calls[mockedRegister.mock.calls.length - 1][1]
 
   return provider.provideDocumentFormattingEdits(document)
+}
+
+/**
+ * One command and the provider it registered, for cases about what the command
+ * remembers between calls - `format` builds a new command each time.
+ */
+const formatRepeatedly = async (
+  loadEngine?: () => Promise<unknown>
+): Promise<() => Promise<vscode.TextEdit[]>> => {
+  await new (FormatCommand as any)(loadEngine).initialise()
+
+  const provider =
+    mockedRegister.mock.calls[mockedRegister.mock.calls.length - 1][1]
+
+  return () => provider.provideDocumentFormattingEdits(document)
 }
 
 beforeEach(() => {
@@ -68,6 +91,7 @@ describe('FormatCommand', () => {
     expect(edits[0].newText).toEqual('formatted text')
     expect(mockedFormatText).toHaveBeenCalledWith(
       'data _null_; run;',
+      expect.anything(),
       expect.anything()
     )
   })
@@ -97,5 +121,76 @@ describe('FormatCommand', () => {
         String(call[0]).includes('is not valid JSON')
       )
     ).toEqual([])
+  })
+
+  it('gives the formatter the engine, so the layout pass runs', async () => {
+    // The engine is what indents and what applies keywordCase; without it the
+    // rules alone apply, which is the behaviour this closes.
+    const engine = jest.fn(async () => 'data _null_;\n  run;\n')
+    mockedFormatText.mockImplementation(async (text, config, options) => {
+      return options.reprint
+        ? options.reprint(text, { keywordCase: 'preserve' })
+        : text
+    })
+
+    const edits = await format(async () => engine)
+
+    // What this command decides: the engine is handed the document's text, and
+    // what it returns becomes the edit. The casing it is called with is
+    // `LintConfig.keywordCase` applied inside the linter, so asserting it here
+    // would only be asserting this file's own stub.
+    expect(engine).toHaveBeenCalledWith('data _null_; run;', expect.anything())
+    expect(edits).toEqual([
+      expect.objectContaining({ newText: 'data _null_;\n  run;\n' })
+    ])
+  })
+
+  it('retries a load that failed instead of keeping the rejection', async () => {
+    // A rejection kept for the window's life would leave every later format
+    // rule-only until reload, for a failure that may well have been transient.
+    const engine = jest.fn(async () => 'the engine formatted this')
+    const loadEngine = jest
+      .fn()
+      .mockRejectedValueOnce(new Error('module not found'))
+      .mockResolvedValue(engine)
+
+    mockedFormatText.mockImplementation(async (text, config, options) =>
+      options.reprint
+        ? options.reprint(text, { keywordCase: 'preserve' })
+        : text
+    )
+
+    const formatAgain = await formatRepeatedly(loadEngine)
+
+    await formatAgain()
+    const edits = await formatAgain()
+
+    expect(loadEngine).toHaveBeenCalledTimes(2)
+    expect(edits).toEqual([
+      expect.objectContaining({ newText: 'the engine formatted this' })
+    ])
+  })
+
+  it('falls back to the rules alone when the engine cannot be loaded', async () => {
+    // A broken install should not make the formatter refuse to work: the header
+    // and the wrapping are still the linter's job.
+    const loadEngine = jest.fn(async () => {
+      throw new Error('module not found')
+    })
+    mockedFormatText.mockResolvedValue('the rules only')
+
+    const edits = await format(loadEngine)
+
+    expect(mockedFormatText).toHaveBeenCalledWith(
+      'data _null_; run;',
+      expect.anything(),
+      {}
+    )
+    // reported, not swallowed: a silent difference between "no layout
+    // configured" and "layout unavailable" is how a broken install survives
+    expect(mockedShowError).toHaveBeenCalledWith('module not found')
+    expect(edits).toEqual([
+      expect.objectContaining({ newText: 'the rules only' })
+    ])
   })
 })

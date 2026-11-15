@@ -66,6 +66,12 @@ const stageAssets = (): void => {
       // extension, and VS Code's extension host resolves them from there.
       'vscode-languageclient',
       'vscode-languageserver-protocol',
+      // The formatter engine computes its data root from `import.meta.url`, which
+      // esbuild empties for CommonJS output - bundled, it rejects with "the path
+      // argument must be of type string". It ships in node_modules beside the
+      // extension, so it is resolved from there like the language client.
+      '@sasjs/sas-language/format',
+      '@sasjs/sas-language/*',
       'vscode-languageserver-types',
       'vscode-jsonrpc',
       'vscode-jsonrpc/*',
