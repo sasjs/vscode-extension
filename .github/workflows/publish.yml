@@ -83,20 +83,31 @@ jobs:
 
       - name: Work out whether this run still has something to publish
         id: gate
-        # A re-run must be able to finish a job that failed half way, and a
-        # docs-only merge must not rebuild the version before it. `released` alone
-        # cannot tell those apart: on a re-run the tag already exists, so the step
-        # above reports released=false and everything below would be skipped -
-        # leaving a draft release and no .vsix.
+        # Two questions, answered in the order that avoids asking the forge for
+        # something it has not been told yet.
         #
-        # The forge can answer it directly: a release still in draft means work is
-        # outstanding for that tag, a published one means the version is done.
+        # If the step above released, this run created the draft and there is work
+        # below whatever the API says in the next millisecond. The 3.1.0 run read
+        # the release list 20 ms after creating the draft, the list did not show
+        # it, and the fallback then aborted on `--verify-tag` because a draft has
+        # no tag in the repository - so a green build shipped nothing. The answer
+        # was already in `released`; it is now used rather than re-derived.
+        #
+        # A re-run is the case `released` cannot answer: the tag exists, so it
+        # reports false while a draft still needs finishing. That is what the
+        # forge read is for, with retries for the same visibility lag.
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           TAG="${{ steps.release.outputs.tag }}"
           if [ -z "$TAG" ]; then TAG="$(git describe --tags --abbrev=0)"; fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          if [ "${{ steps.release.outputs.released }}" = "true" ]; then
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+            echo "$TAG was released by this run: packaging and publishing it"
+            exit 0
+          fi
           # `gh release view <tag>` asks /releases/tags/<tag>, which does not return
           # drafts - the very release this step needs to find. Listed and matched
           # instead, and paginated: a repo with more than one page of releases would
@@ -106,9 +117,14 @@ jobs:
           # all three. It cannot use jq's `//` to default: `false // "missing"`
           # yields "missing", so a published release would answer identically to an
           # absent one.
-          DRAFT="$(gh api --paginate "repos/${{ github.repository }}/releases?per_page=100" \
-            -q ".[] | select(.tag_name == \"$TAG\") | .draft")"
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          DRAFT=""
+          for attempt in 1 2 3 4 5; do
+            DRAFT="$(gh api --paginate "repos/${{ github.repository }}/releases?per_page=100" \
+              -q ".[] | select(.tag_name == \"$TAG\") | .draft")"
+            [ -n "$DRAFT" ] && break
+            echo "no release for $TAG yet (attempt $attempt): waiting for the forge"
+            sleep 3
+          done
           echo "draft=$DRAFT" >> "$GITHUB_OUTPUT"
           case "$DRAFT" in
             true)
@@ -125,8 +141,13 @@ jobs:
               # make, and let the steps below finish it. The notes come from the
               # GitHub generator here rather than from the tool, which is the one
               # difference between this repair path and a normal release.
+              # Not `--verify-tag`: a draft has no tag in the repository, which is
+              # exactly why this branch is reached, so that flag aborts every time.
+              # The tag is in this clone (the release step tags locally), so the
+              # commit it names is the target.
               echo "::warning::$TAG has no release: creating the draft the release step did not"
-              gh release create "$TAG" --draft --title "$TAG" --generate-notes --verify-tag
+              gh release create "$TAG" --draft --title "$TAG" --generate-notes \
+                --target "$(git rev-list -n 1 "$TAG" 2>/dev/null || git rev-parse HEAD)"
               echo "publish=true" >> "$GITHUB_OUTPUT"
               ;;
             *)
