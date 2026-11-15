@@ -12,8 +12,6 @@ type Reprint = (
   options: { keywordCase: 'upper' | 'lower' | 'preserve' }
 ) => Promise<string>
 
-let engine: Promise<Reprint> | undefined
-
 /**
  * The layout engine, loaded the first time a document is formatted.
  *
@@ -23,15 +21,20 @@ let engine: Promise<Reprint> | undefined
  * of the file also keeps activation cheap: the module graph is ~25 ms and nothing
  * needs it until someone asks for a format.
  *
- * The promise is kept, so a second format reuses it and a failed load is not
- * retried on every keystroke.
+ * The promise is kept, so a second format reuses it - but only once it has
+ * resolved. A rejection is dropped, because the failure may be transient (an
+ * upgrade swapping the package under a running window, a load that lost a race)
+ * and a kept rejection would leave every later format rule-only until reload.
+ * `build.ts` keeps this subpath out of the bundle for the same load to work from
+ * an installed extension: bundled into CommonJS, `import.meta.url` is empty and the
+ * module rejects on its own data root.
  */
-const getEngine = (): Promise<Reprint> =>
-  (engine ??= import('@sasjs/sas-language/format').then(
-    (module) => module.formatText
-  ))
+const fromPackage = (): Promise<Reprint> =>
+  import('@sasjs/sas-language/format').then((module) => module.formatText)
 
 export class FormatCommand {
+  private engine: Promise<Reprint> | undefined
+
   /**
    * `loadEngine` is injectable because jest cannot run a dynamic `import()` at
    * all - it answers "A dynamic import callback was invoked without
@@ -39,11 +42,26 @@ export class FormatCommand {
    * default loader. Passing one is also how the failure path gets tested without
    * a broken install.
    */
-  constructor(private loadEngine: () => Promise<Reprint> = getEngine) {}
+  constructor(private loadEngine: () => Promise<Reprint> = fromPackage) {}
+
+  /**
+   * The engine for this window, loaded once.
+   *
+   * A rejection is dropped rather than kept: the failure may be transient (an
+   * upgrade swapping the package under a running window, a load that lost a race),
+   * and a kept rejection would leave every later format rule-only until reload.
+   */
+  private getEngine(): Promise<Reprint> {
+    return (this.engine ??= this.loadEngine().catch((error) => {
+      this.engine = undefined
+
+      throw error
+    }))
+  }
 
   async initialise() {
     // Captured because `this` inside the provider below is the provider itself.
-    const loadEngine = this.loadEngine
+    const loadEngine = () => this.getEngine()
 
     languages.registerDocumentFormattingEditProvider('sas', {
       async provideDocumentFormattingEdits(
@@ -70,13 +88,15 @@ export class FormatCommand {
         // The engine gives the formatter its layout - indentation, statement
         // breaks, keyword case from `.sasjslint`; the rules still run over its
         // output. Without it the rules alone apply, which is what this command
-        // did before the engine existed.
+        // did before the engine existed - but the reason is reported rather than
+        // swallowed: a silent difference between "no layout configured" and
+        // "layout unavailable" is how a broken install survives for months.
         let reprint: Reprint | undefined
         try {
           reprint = await loadEngine()
         } catch (error) {
-          // A broken install leaves the formatter rule-only rather than throwing
-          // at the user: the document still gets its header and wrapping.
+          reportLintConfigError(error)
+
           reprint = undefined
         }
 

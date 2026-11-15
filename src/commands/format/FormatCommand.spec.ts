@@ -63,6 +63,21 @@ const format = async (
   return provider.provideDocumentFormattingEdits(document)
 }
 
+/**
+ * One command and the provider it registered, for cases about what the command
+ * remembers between calls - `format` builds a new command each time.
+ */
+const formatRepeatedly = async (
+  loadEngine?: () => Promise<unknown>
+): Promise<() => Promise<vscode.TextEdit[]>> => {
+  await new (FormatCommand as any)(loadEngine).initialise()
+
+  const provider =
+    mockedRegister.mock.calls[mockedRegister.mock.calls.length - 1][1]
+
+  return () => provider.provideDocumentFormattingEdits(document)
+}
+
 beforeEach(() => {
   mockedGetLintConfig.mockResolvedValue({})
   mockedFormatText.mockResolvedValue('formatted text')
@@ -120,11 +135,39 @@ describe('FormatCommand', () => {
 
     const edits = await format(async () => engine)
 
-    expect(engine).toHaveBeenCalledWith('data _null_; run;', {
-      keywordCase: 'preserve'
-    })
+    // What this command decides: the engine is handed the document's text, and
+    // what it returns becomes the edit. The casing it is called with is
+    // `LintConfig.keywordCase` applied inside the linter, so asserting it here
+    // would only be asserting this file's own stub.
+    expect(engine).toHaveBeenCalledWith('data _null_; run;', expect.anything())
     expect(edits).toEqual([
       expect.objectContaining({ newText: 'data _null_;\n  run;\n' })
+    ])
+  })
+
+  it('retries a load that failed instead of keeping the rejection', async () => {
+    // A rejection kept for the window's life would leave every later format
+    // rule-only until reload, for a failure that may well have been transient.
+    const engine = jest.fn(async () => 'the engine formatted this')
+    const loadEngine = jest
+      .fn()
+      .mockRejectedValueOnce(new Error('module not found'))
+      .mockResolvedValue(engine)
+
+    mockedFormatText.mockImplementation(async (text, config, options) =>
+      options.reprint
+        ? options.reprint(text, { keywordCase: 'preserve' })
+        : text
+    )
+
+    const formatAgain = await formatRepeatedly(loadEngine)
+
+    await formatAgain()
+    const edits = await formatAgain()
+
+    expect(loadEngine).toHaveBeenCalledTimes(2)
+    expect(edits).toEqual([
+      expect.objectContaining({ newText: 'the engine formatted this' })
     ])
   })
 
@@ -143,6 +186,9 @@ describe('FormatCommand', () => {
       expect.anything(),
       {}
     )
+    // reported, not swallowed: a silent difference between "no layout
+    // configured" and "layout unavailable" is how a broken install survives
+    expect(mockedShowError).toHaveBeenCalledWith('module not found')
     expect(edits).toEqual([
       expect.objectContaining({ newText: 'the rules only' })
     ])
