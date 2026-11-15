@@ -315,7 +315,7 @@
   "dependencies": {
     "@sasjs/adapter": "6.1.1",
     "@sasjs/cli": "6.32.0",
-    "@sasjs/lint": "5.5.0",
+    "@sasjs/lint": "5.5.3",
     "@sasjs/sas-language": "0.6.0",
     "@sasjs/utils": "4.11.0",
     "axios": "1.21.1",
