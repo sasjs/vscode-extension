@@ -92,6 +92,8 @@ The `@sasjs/*` packages (`adapter`, `cli`, `lint`, `sas-language`, `utils`) are 
 
 Note that a feature added to `@sasjs/lint` only appears in this extension once this repo bumps that dependency: the published lint version is what users get.
 
+`engines.vscode` follows a support window rather than the latest release: roughly the last two years of VS Code, which is `^1.96.0` as of November 2026 (1.96.0 shipped 2024-12-11). Raise it only as a deliberate decision, and raise `@types/vscode` with it - the two must not diverge, because types newer than the engines floor let the code compile against APIs a supported user does not have. Anything raised on that floor is a breaking change for the users left behind, so it carries `!` and a major.
+
 Releasing is one tool with no dependencies of its own: `@sasjs/release` is an exactly-pinned devDependency, and both workflows assert that its tree is empty, because it runs with `contents: write`. It cuts the tag and the release from the commits; it does not package or publish anything itself.
 
 `package.json` carries `0.0.0` in git, and that is a placeholder, not a version: the release tag is the version's source of truth, and the publish workflow stamps it in before packaging. So `npm run vsix:package` refuses to run while the version is `0.0.0`, since a local build would otherwise produce a `.vsix` claiming a version no release has. To build one locally, set the version first with `npm version <x.y.z> --no-git-tag-version`.
