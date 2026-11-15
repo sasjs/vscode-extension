@@ -168,11 +168,14 @@ jobs:
         run: |
           VSIX="$(node -p 'require("./package.json").name')-${VERSION}.vsix"
           npm run vsix:package --silent -- --out "$VSIX"
-          # Fetch the publisher here, where no token is in scope. npx caches per
-          # job, so the step that holds OVSX_PAT resolves from the cache instead of
-          # downloading: an exact version pins which package, and this is what keeps
-          # the download itself outside the credentialed step.
-          npm run vsix:publish --silent -- --version
+          # Fetch both tools here, where no token is in scope. npx caches per job,
+          # so the step that holds OVSX_PAT resolves from the cache instead of
+          # downloading - which is what keeps the download itself outside the
+          # credentialed step. The flag goes on the CLI, not after the subcommand:
+          # `ovsx publish --version` happens to print the version in 1.4.0, but that
+          # is the subcommand's argument parser deciding, and it would be a packaging
+          # failure if it ever stopped.
+          npm run vsix:tooling --silent
           echo "vsix=$VSIX" >> "$GITHUB_OUTPUT"
 
       - name: Publish to Open VSX
@@ -187,9 +190,14 @@ jobs:
             echo "::error::OPEN_VSX_TOKEN is empty, so ${{ steps.package.outputs.vsix }} would never reach users"
             exit 1
           fi
+          # No -p: ovsx reads OVSX_PAT from the environment (lib/util.js:
+          # `options.pat ??= process.env.OVSX_PAT`), and passing the flag would put
+          # the token in this process's argv, where any child process and a `ps` on
+          # the runner can read it.
+          #
           # --skip-duplicate is what makes a re-run safe: the second run meets a
           # version it already published, which is the state it wants.
-          npm run vsix:publish --silent -- "${{ steps.package.outputs.vsix }}" -p "$OVSX_PAT" --skip-duplicate
+          npm run vsix:publish --silent -- "${{ steps.package.outputs.vsix }}" --skip-duplicate
 
       - name: Attach the .vsix to the release
         if: steps.gate.outputs.publish == 'true'
