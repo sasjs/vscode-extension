@@ -6,7 +6,7 @@ For using the extension, see the [README](../README.md). For the linting engine 
 
 ## Bootstrap
 
-Lifecycle scripts are disabled on install (`.npmrc` sets `ignore-scripts=true`, so no dependency `postinstall` runs automatically). Node 22 or later is required, declared as `engines.node` in `package.json` and pinned by `.nvmrc` for `nvm use`. After cloning, bootstrap once with:
+Lifecycle scripts are disabled on install (`.npmrc` sets `ignore-scripts=true`, so no dependency `postinstall` runs automatically). Node 24 or later is required, declared as `engines.node` in `package.json` and pinned by `.nvmrc` as `lts/krypton` for `nvm use` - the same major the extension host runs, so the toolchain and the host do not drift apart. After cloning, bootstrap once with:
 
 ```bash
 npm ci
@@ -15,7 +15,16 @@ npm run setup
 
 `npm run setup` generates the SAS snippets (`degit` + `npx sasjs snippets`) and wires the local git hooks. Snippets are gitignored, so a fresh clone has none until this runs - CI runs the same step after `npm ci`.
 
-The extension itself needs VS Code 1.96 or later (`engines.vscode`).
+The extension itself needs VS Code 1.125 or later (`engines.vscode`), which is the oldest line whose extension host runs Node 24.
+
+That floor is a runtime fact rather than a support policy. The extension loads `@sasjs/cli` **in-process** (`src/commands/compileBuildDeploy/compileBuildDeployCommand.ts`), so the Node the host provides is part of the contract, and two different limits live in that sentence:
+
+- `require()` of an ES module was enabled by default in Node 20.19.0, so a host on 20.18 - which is every VS Code from 1.96 to 1.100.2 - cannot require one at all (`ERR_REQUIRE_ESM`). 1.100.3 ships Node 20.19 and can.
+- A module carrying **top-level await** cannot be `require()`d on any version (`ERR_REQUIRE_ASYNC_MODULE`), so raising the floor never fixes that one; it needs a dynamic `import()`. Measured for the pair that prompted this: chalk 6.0.1 and ora 10.0.0 contain no top-level await, so for them the blocker is the 20.19 line.
+
+The floor is 1.125 because of runway, not because of either limit: Node 22 reaches end of life on 2027-04-30, so a floor that stops there needs raising again within a release cycle, while Node 24 runs to 2028-04-30.
+
+`@types/vscode` moves with the floor and never ahead of it - types newer than `engines.vscode` let the code compile against APIs a supported user does not have. Keep `.nvmrc` and every workflow on the host's LTS codename (`lts/krypton`) rather than `lts/*`, which now resolves to a major no VS Code host ships. Raising the floor drops every older editor, so it carries `!` and a major release.
 
 ## Run and debug the extension
 

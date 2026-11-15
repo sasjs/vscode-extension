@@ -23,7 +23,7 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [lts/jod]
+        node-version: [lts/krypton]
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -265,6 +265,14 @@ jobs:
         run: npm run vscode:prepublish
         env:
           CI: true
+
+      - name: Check the bundled runtime surfaces still answer
+        # The extension's own majors - @sasjs/adapter, @sasjs/lint and the
+        # language server tree - are code it calls, not types it passes around, and
+        # a clean `tsc` run says nothing about whether they still answer the same
+        # way. The integration suite needs a VS Code download; this does not, and
+        # it runs the same entry points the source calls.
+        run: node scripts/smoke-majors.mjs
 
       - name: Check the packaged extension carries the language server
         # `vsce ls` applies .vscodeignore without writing a 36 MB vsix, so this

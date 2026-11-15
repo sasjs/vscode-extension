@@ -1,0 +1,18 @@
+{
+  // The build script only, on its own terms.
+  //
+  // build.ts is excluded from tsconfig.json because it is not part of the
+  // extension's source, and ts-node compiles whatever file it is handed against
+  // the config it is pointed at. Under TypeScript 6 that config stopped pulling
+  // in @types/node implicitly for a file outside the project, so the build failed
+  // on `Cannot find name 'fs'`.
+  //
+  // Naming the types here rather than in tsconfig.json keeps the narrowing out of
+  // the config the specs are compiled against.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["node"],
+    "rootDir": "."
+  },
+  "include": ["build.ts"]
+}
