@@ -1,7 +1,7 @@
 import * as os from 'os'
 import * as path from 'path'
 import { workspace } from 'vscode'
-import { DefaultLintConfiguration, LintConfig } from '@sasjs/lint'
+import { DefaultLintConfiguration, LintConfig, lintSchemaUrl } from '@sasjs/lint'
 import * as fileModule from '../file'
 import { getLintConfig } from '../getLintConfig'
 
@@ -88,6 +88,9 @@ describe('getLintConfig', () => {
     // built with path.join in both places, so the message matches on Windows too
     expect(error.message).toContain(projectConfig)
     expect(error.message).toContain('is not valid JSON')
+    // the pointer an editor then resolves - the linter's own address, not the
+    // cli.sasjs.io document that only $refs it
+    expect(error.message).toContain(lintSchemaUrl)
   })
 
   it('reports a config that is present but cannot be read', async () => {
