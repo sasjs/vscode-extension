@@ -1,7 +1,11 @@
 import * as path from 'path'
 import * as os from 'os'
 import { workspace } from 'vscode'
-import { LintConfig, DefaultLintConfiguration } from '@sasjs/lint'
+import {
+  LintConfig,
+  DefaultLintConfiguration,
+  lintSchemaUrl
+} from '@sasjs/lint'
 import { readFile } from './file'
 import { fileExists } from '@sasjs/utils'
 
@@ -47,9 +51,11 @@ export const getLintConfig = async (): Promise<LintConfig> => {
 /**
  * Parses a `.sasjslint`, naming the file and the reason when it is not JSON.
  *
- * `@sasjs/lint` exports the same helper from 5.3.1, which is what `sasjs lint`
- * reports with; the editor carries its own copy rather than forcing a version
- * floor on a package it consumes for the rules alone.
+ * The editor carries its own copy of the message rather than importing
+ * `parseLintConfig`, but the schema address in it is the linter's own export: an
+ * editor resolves a schema's references, and `cli.sasjs.io` only `$ref`s the raw
+ * document on another host, which is reported as untrusted and leaves the
+ * setting without a description.
  */
 const parseLintConfig = (content: string, filePath: string) => {
   try {
@@ -61,7 +67,7 @@ const parseLintConfig = (content: string, filePath: string) => {
       `${filePath} is not valid JSON (${reason}).\n` +
         'The file is read as strict JSON, so it cannot carry comments. ' +
         'Every setting, its type and its default are documented in the schema: ' +
-        'https://cli.sasjs.io/sasjslint-schema.json'
+        lintSchemaUrl
     )
   }
 }
