@@ -39,10 +39,15 @@ export function run(): Promise<void> {
           color: true
         })
 
-        const testsRoot = path.resolve(__dirname, '..')
+        // Integration tests compile from src/test/suite to this directory. The
+        // old parent directory scan found none of them and Mocha passed 0 tests.
+        const testsRoot = __dirname
+        const testFiles = findTestFiles(testsRoot)
+        if (testFiles.length === 0) {
+          throw new Error(`No integration test files found in ${testsRoot}`)
+        }
 
-        // Add files to the test suite
-        findTestFiles(testsRoot).forEach((f) => mocha.addFile(f))
+        testFiles.forEach((f) => mocha.addFile(f))
 
         // Run the mocha test
         mocha.run((failures) => {

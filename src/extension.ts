@@ -10,6 +10,7 @@ import { SelectTargetCommand } from './commands/select-target/selectTargetComman
 import { ShowTargetCommand } from './commands/show-target/showTargetCommand'
 import { DocsCommand } from './commands/docs/docsCommand'
 import { FormatCommand } from './commands/format/FormatCommand'
+import { registerLintFixCommand } from './commands/lint-fix/LintFixCommand'
 import { CompileBuildDeployCommand } from './commands/compileBuildDeploy/compileBuildDeployCommand'
 import { AddRemoveCommentCommand } from './commands/addRemoveComment/addRemoveComment'
 import { LogIssueCommand } from './commands/log-issues/LogIssueCommand'
@@ -82,7 +83,8 @@ export async function activate(context: vscode.ExtensionContext) {
   docsCommand.initialise()
 
   const formatCommand = new FormatCommand()
-  formatCommand.initialise()
+  formatCommand.initialise(context)
+  registerLintFixCommand(context)
 
   const compileBuildDeployCommand = new CompileBuildDeployCommand(context)
   compileBuildDeployCommand.initialise()
@@ -113,10 +115,13 @@ export async function activate(context: vscode.ExtensionContext) {
   eventListeners.push(
     vscode.workspace.onDidChangeTextDocument(
       (e) => {
-        if (e.document.languageId === 'sas') {
-          lint(vscode.window.activeTextEditor)
-        } else {
-          clearLintIssues()
+        const editor = vscode.window.activeTextEditor
+        if (editor && editor.document === e.document) {
+          if (e.document.languageId === 'sas') {
+            lint(editor)
+          } else {
+            clearLintIssues()
+          }
         }
       },
       null,
@@ -145,6 +150,11 @@ export async function activate(context: vscode.ExtensionContext) {
       context.subscriptions
     )
   )
+
+  const activeEditor = vscode.window.activeTextEditor
+  if (activeEditor?.document.languageId === 'sas') {
+    lint(activeEditor)
+  }
 
   // invoke configuration change handler once at start
   configurationChangeHandler()

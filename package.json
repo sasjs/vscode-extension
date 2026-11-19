@@ -87,6 +87,18 @@
         "icon": "./assets/images/docs.png"
       },
       {
+        "command": "sasjs-for-vscode.formatDocument",
+        "title": "SASjs: Format Document",
+        "icon": "$(edit)",
+        "enablement": "isWorkspaceOpened && editorLangId == sas"
+      },
+      {
+        "command": "sasjs-for-vscode.fixLintIssues",
+        "title": "SASjs: Fix Lint Issues",
+        "icon": "$(lightbulb)",
+        "enablement": "isWorkspaceOpened && editorLangId == sas"
+      },
+      {
         "command": "sasjs-for-vscode.nextLogIssue",
         "title": "SASjs: Next Log Error or Warning",
         "icon": "$(arrow-down)"
@@ -218,6 +230,16 @@
           "when": "editorLangId == sas && isWorkspaceOpened"
         },
         {
+          "command": "sasjs-for-vscode.formatDocument",
+          "group": "navigation@5",
+          "when": "editorLangId == sas && isWorkspaceOpened"
+        },
+        {
+          "command": "sasjs-for-vscode.fixLintIssues",
+          "group": "navigation@6",
+          "when": "editorLangId == sas && isWorkspaceOpened"
+        },
+        {
           "command": "sasjs-for-vscode.previousLogIssue",
           "group": "navigation@1",
           "when": "sasjsLogEditor && isWorkspaceOpened"
@@ -291,7 +313,7 @@
   },
   "devDependencies": {
     "@nogoo9/gitleaks": "8.30.1-post.2",
-    "@sasjs/release": "0.11.1",
+    "@sasjs/release": "0.14.1",
     "@types/jest": "30.0.0",
     "@types/mocha": "10.0.10",
     "@types/node": "22.20.5",
@@ -313,11 +335,11 @@
     "vscode-textmate": "9.3.2"
   },
   "dependencies": {
-    "@sasjs/adapter": "6.1.1",
-    "@sasjs/cli": "6.32.0",
-    "@sasjs/lint": "5.5.7",
+    "@sasjs/adapter": "6.1.6",
+    "@sasjs/cli": "8.0.8",
+    "@sasjs/lint": "5.5.10",
     "@sasjs/sas-language": "0.7.4",
-    "@sasjs/utils": "4.11.0",
+    "@sasjs/utils": "4.13.2",
     "axios": "1.21.1",
     "dotenv": "18.0.10",
     "node-graphviz": "0.1.1",
@@ -325,7 +347,7 @@
     "vscode-languageclient": "11.0.0"
   },
   "overrides": {
-    "@sasjs/adapter": "6.1.1",
+    "@sasjs/adapter": "6.1.6",
     "axios": "1.21.1",
     "follow-redirects": "^1.16.2",
     "form-data": "4.0.6",

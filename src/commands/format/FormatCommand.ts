@@ -1,5 +1,14 @@
 import { formatText } from '@sasjs/lint'
-import { languages, TextDocument, TextEdit, Range } from 'vscode'
+import {
+  languages,
+  TextDocument,
+  TextEdit,
+  Range,
+  Uri,
+  ExtensionContext,
+  commands,
+  window
+} from 'vscode'
 import { getLintConfig } from '../../utils/getLintConfig'
 import {
   clearLintConfigError,
@@ -59,14 +68,15 @@ export class FormatCommand {
     }))
   }
 
-  async initialise() {
+  async initialise(context: Pick<ExtensionContext, 'subscriptions'>) {
     // Captured because `this` inside the provider below is the provider itself.
     const loadEngine = () => this.getEngine()
 
-    languages.registerDocumentFormattingEditProvider('sas', {
+    const provider = languages.registerDocumentFormattingEditProvider('sas', {
       async provideDocumentFormattingEdits(
         document: TextDocument
       ): Promise<TextEdit[]> {
+        const text = document.getText()
         const fullRange = new Range(0, 0, document.lineCount, 0)
 
         let lintConfig
@@ -101,7 +111,7 @@ export class FormatCommand {
         }
 
         const formattedText = await formatText(
-          document.getText(),
+          text,
           lintConfig,
           reprint ? { reprint } : {}
         )
@@ -109,5 +119,35 @@ export class FormatCommand {
         return [TextEdit.replace(fullRange, formattedText)]
       }
     })
+
+    context.subscriptions.push(provider)
+    const command = commands.registerCommand('sasjs-for-vscode.formatDocument', async (resource?: unknown) => {
+      if (resource !== undefined) {
+        // The title menu identifies a resource, not necessarily the focused
+        // editor. Never fall back to formatting a different active document.
+        // VS Code exports URI.isUri at runtime, but its public typings omit it.
+        if (!(Uri as typeof Uri & { isUri(value: unknown): value is Uri }).isUri(resource)) {
+          window.showWarningMessage('Formatting was not applied because the selected resource is invalid.')
+          return
+        }
+
+        if (window.activeTextEditor?.document.uri.toString() !== resource.toString()) {
+          const target = window.visibleTextEditors.find(
+            (editor) => editor.document.uri.toString() === resource.toString()
+          )
+          if (!target) {
+            window.showWarningMessage('Activate the selected SAS editor and try again.')
+            return
+          }
+          if (target.document.languageId !== 'sas') {return}
+          await window.showTextDocument(target.document, target.viewColumn)
+        }
+        if (window.activeTextEditor?.document.uri.toString() !== resource.toString()) {return}
+      }
+
+      if (window.activeTextEditor?.document.languageId !== 'sas') {return}
+      await commands.executeCommand('editor.action.formatDocument')
+    })
+    context.subscriptions.push(command)
   }
 }
