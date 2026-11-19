@@ -16,6 +16,45 @@ jest.mock('vscode', () => ({
 }))
 jest.mock('../utils/getLintConfig', () => ({ getLintConfig: jest.fn() }))
 
+// lint caches one collection for the lifetime of the module.
+const collection = { set: jest.fn(), clear: jest.fn(), delete: jest.fn() }
+
+it('combines the dirty buffer with filename diagnostics and its inline path override', async () => {
+  const originalCwd = process.cwd()
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'sasjs-path-lint-'))
+  const filePath = path.join(root, 'Bad Name.sas')
+  const saved = 'data example;\nrun;\n'
+  fs.writeFileSync(path.join(root, '.sasjslint'), '{}')
+  fs.writeFileSync(filePath, saved)
+  const set = collection.set
+  ;(vscode.languages.createDiagnosticCollection as jest.Mock).mockReturnValue(collection)
+  ;(getLintConfig as jest.Mock).mockResolvedValue(new LintConfig({}))
+  ;(vscode.workspace as any).workspaceFolders = [{ uri: { fsPath: root } }]
+  const editor = (text: string, version: number) => ({
+    document: {
+      uri: { scheme: 'file', fsPath: filePath }, version, getText: () => text
+    }
+  } as unknown as vscode.TextEditor)
+
+  try {
+    await lint(editor('data example;  \nrun;\n', 1))
+    const messages = set.mock.calls[0][1].map((item: vscode.Diagnostic) => item.message)
+    expect(messages).toContain('Line contains trailing spaces')
+    expect(messages).toContain('File name contains spaces')
+    expect(messages).toContain('File name contains uppercase characters')
+
+    await lint(editor('/**\n * @sasjslint {"noSpacesInFileNames":false}\n */\ndata example;  \nrun;\n', 2))
+    const overridden = set.mock.calls[1][1].map((item: vscode.Diagnostic) => item.message)
+    expect(overridden).not.toContain('File name contains spaces')
+    expect(overridden).toContain('File name contains uppercase characters')
+    expect(overridden).toContain('Line contains trailing spaces')
+    expect(fs.readFileSync(filePath, 'utf8')).toBe(saved)
+  } finally {
+    process.chdir(originalCwd)
+    fs.rmSync(root, { recursive: true, force: true })
+  }
+})
+
 it('reports a real lint finding in unsaved text without writing the saved file', async () => {
   const originalCwd = process.cwd()
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'sasjs-live-lint-'))
@@ -24,12 +63,8 @@ it('reports a real lint finding in unsaved text without writing the saved file',
   const live = 'data example;  \nrun;\n'
   fs.writeFileSync(path.join(root, '.sasjslint'), '{}')
   fs.writeFileSync(filePath, saved)
-  const set = jest.fn()
-  const clear = jest.fn()
-  ;(vscode.languages.createDiagnosticCollection as jest.Mock).mockReturnValue({
-    set,
-    clear
-  })
+  const { set, clear, delete: remove } = collection
+  ;(vscode.languages.createDiagnosticCollection as jest.Mock).mockReturnValue(collection)
   const config = new LintConfig({})
   ;(getLintConfig as jest.Mock).mockResolvedValue(config)
   ;(vscode.workspace as any).workspaceFolders = [{ uri: { fsPath: root } }]
@@ -47,6 +82,7 @@ it('reports a real lint finding in unsaved text without writing the saved file',
     const messages = set.mock.calls[0][1].map((item: vscode.Diagnostic) => item.message)
     expect(messages).toContain('Line contains trailing spaces')
     expect(fs.readFileSync(filePath, 'utf8')).toBe(saved)
+    clear.mockClear()
 
     // A malformed inline rule value must be reported, not become an unhandled
     // rejection that leaves the previous buffer's diagnostics in place.
@@ -61,7 +97,8 @@ it('reports a real lint finding in unsaved text without writing the saved file',
       expect.stringContaining('keywordCase')
     )
     expect(set).toHaveBeenCalledTimes(1)
-    expect(clear).toHaveBeenCalledTimes(1)
+    expect(remove).toHaveBeenCalledWith(expect.objectContaining({ fsPath: filePath }))
+    expect(clear).not.toHaveBeenCalled()
   } finally {
     process.chdir(originalCwd)
     fs.rmSync(root, { recursive: true, force: true })

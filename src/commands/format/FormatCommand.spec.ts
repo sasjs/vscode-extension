@@ -134,14 +134,13 @@ describe('FormatCommand', () => {
     )
   })
 
-  it('does not format documents that may contain inline data', async () => {
+  it('allows formatting a document containing inline data', async () => {
     await new FormatCommand(async () => jest.fn()).initialise({ subscriptions: [] })
     const provider = mockedRegister.mock.calls[mockedRegister.mock.calls.length - 1][1]
     const input = { lineCount: 4, getText: () => 'data x;\ndatalines;\nA    \n;\n' }
     const edits = await provider.provideDocumentFormattingEdits(input)
-    expect(edits).toEqual([])
-    expect(mockedFormatText).not.toHaveBeenCalled()
-    expect(vscode.window.showWarningMessage).toHaveBeenCalledWith(expect.stringContaining('inline data'))
+    expect(edits).toHaveLength(1)
+    expect(mockedFormatText).toHaveBeenCalledWith(input.getText(), expect.anything(), expect.anything())
   })
 
   it('leaves the document untouched and says why when the config will not load', async () => {
@@ -274,6 +273,15 @@ describe('FormatCommand', () => {
     expect(mockedExecuteCommand).toHaveBeenCalledWith(
       'editor.action.formatDocument'
     )
+  })
+
+  it.each(['file:///target.sas', null, {}])('warns and does not format when the supplied resource is invalid: %p', async (resource) => {
+    ;(vscode.window as any).activeTextEditor = { document: { languageId: 'sas', uri: new (vscode.Uri as any)('file:///active.sas') } }
+    await new FormatCommand(async () => jest.fn()).initialise({ subscriptions: [] })
+    await mockedRegisterCommand.mock.calls[0][1](resource)
+
+    expect(vscode.window.showWarningMessage).toHaveBeenCalledWith(expect.stringContaining('resource'))
+    expect(mockedExecuteCommand).not.toHaveBeenCalled()
   })
 
   it('does not format the active document when the title resource points elsewhere', async () => {

@@ -7,7 +7,6 @@ import {
   Severity,
   LintConfig
 } from '@sasjs/lint'
-import { processFile } from '@sasjs/lint/lint/shared'
 import { getLintConfig } from '../utils/getLintConfig'
 import {
   clearLintConfigError,
@@ -69,14 +68,21 @@ export const lint = async (textEditor?: vscode.TextEditor): Promise<void> => {
       return
     }
 
-    sasjsDiagnostics = ignored
-      ? []
-      : [
-          ...(isFile
-            ? processFile(filePath, applyLintOverride(text, lintConfig))
-            : []),
-          ...(await lintText(text, lintConfig))
-        ]
+    if (ignored) {
+      sasjsDiagnostics = []
+    } else {
+      // The public lintText API has no path argument. Run the public path-rule
+      // interface with the same effective config that lintFile would use.
+      const effectiveConfig = isFile
+        ? applyLintOverride(text, lintConfig)
+        : undefined
+      const pathDiagnostics = effectiveConfig
+        ? effectiveConfig.pathLintRules.flatMap((rule) =>
+            rule.test(filePath, effectiveConfig)
+          )
+        : []
+      sasjsDiagnostics = [...pathDiagnostics, ...(await lintText(text, lintConfig))]
+    }
     if (!isCurrent()) {
       return
     }
@@ -85,7 +91,7 @@ export const lint = async (textEditor?: vscode.TextEditor): Promise<void> => {
     if (!isCurrent()) {
       return
     }
-    diagnosticCollection?.clear()
+    diagnosticCollection?.delete(document.uri)
     const message = `SASjs lint failed: ${error instanceof Error ? error.message : String(error)}`
     if (message !== lastLintError) {
       lastLintError = message

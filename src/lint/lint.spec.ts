@@ -1,6 +1,5 @@
 import * as vscode from 'vscode'
 import { lintText, isIgnored, applyLintOverride, Severity } from '@sasjs/lint'
-import { processFile } from '@sasjs/lint/lint/shared'
 import * as lintConfigModule from '../utils/getLintConfig'
 import { clearLintIssues, lint } from './lint'
 
@@ -25,17 +24,14 @@ jest.mock('@sasjs/lint', () => ({
   ...jest.requireActual('@sasjs/lint'),
   lintText: jest.fn(),
   isIgnored: jest.fn(),
-  applyLintOverride: jest.fn((text, config) => config)
+  applyLintOverride: jest.fn(() => ({ pathLintRules: [] }))
 }))
-
-jest.mock('@sasjs/lint/lint/shared', () => ({ processFile: jest.fn() }))
 
 jest.mock('../utils/getLintConfig', () => ({ getLintConfig: jest.fn() }))
 
 const mockedLintText = lintText as jest.Mock
 const mockedIsIgnored = isIgnored as jest.Mock
 const mockedApplyOverride = applyLintOverride as jest.Mock
-const mockedProcessFile = processFile as jest.Mock
 const mockedGetLintConfig = lintConfigModule.getLintConfig as jest.Mock
 const mockedCreateCollection = vscode.languages
   .createDiagnosticCollection as jest.Mock
@@ -64,7 +60,7 @@ const diagnostic = (
 
 // The module caches the collection it created, so every test has to see the
 // same object - a fresh one per test would only observe the first test's calls.
-const collection = { clear: jest.fn(), set: jest.fn() }
+const collection = { clear: jest.fn(), set: jest.fn(), delete: jest.fn() }
 
 beforeEach(() => {
   jest.clearAllMocks()
@@ -73,8 +69,7 @@ beforeEach(() => {
   mockedGetLintConfig.mockResolvedValue({})
   mockedLintText.mockResolvedValue([])
   mockedIsIgnored.mockResolvedValue(false)
-  mockedApplyOverride.mockImplementation((text, config) => config)
-  mockedProcessFile.mockReturnValue([])
+  mockedApplyOverride.mockReturnValue({ pathLintRules: [] })
   document.version = 1
   document.getText.mockReturnValue('unsaved SAS code')
 })
@@ -108,7 +103,7 @@ describe('lint', () => {
 
     expect(mockedLintText).toHaveBeenCalledWith('unsaved SAS code', {})
     expect(mockedIsIgnored).toHaveBeenCalledWith('/project/programs/load.sas', {})
-    expect(mockedProcessFile).toHaveBeenCalledWith('/project/programs/load.sas', {})
+    expect(mockedApplyOverride).toHaveBeenCalledWith('unsaved SAS code', {})
     const [uri, diagnostics] = collection.set.mock.calls[0]
     expect(uri).toBe(document.uri)
     expect(diagnostics).toHaveLength(3)
@@ -132,6 +127,29 @@ describe('lint', () => {
     )
   })
 
+  it('removes only the failing document diagnostics on a lint engine error', async () => {
+    await lint(textEditor)
+    collection.clear.mockClear()
+    const otherUri = { scheme: 'file', fsPath: '/project/other.sas' }
+    const entries = new Map<any, unknown>([
+      [document.uri, ['stale']],
+      [otherUri, ['unrelated']]
+    ])
+    collection.clear.mockImplementation(() => entries.clear())
+    collection.delete.mockImplementation((uri) => entries.delete(uri))
+    mockedLintText.mockRejectedValue(new Error('lint engine failed'))
+
+    try {
+      await lint(textEditor)
+      expect(entries.has(document.uri)).toBe(false)
+      expect(entries.get(otherUri)).toEqual(['unrelated'])
+      expect(collection.delete).toHaveBeenCalledWith(document.uri)
+    } finally {
+      collection.clear.mockReset()
+      collection.delete.mockReset()
+    }
+  })
+
   it('does not repeat an identical lint failure on every keystroke', async () => {
     mockedLintText.mockRejectedValue(new Error('repeat engine failure'))
     await lint(textEditor)
@@ -145,17 +163,17 @@ describe('lint', () => {
     mockedIsIgnored.mockResolvedValue(true)
     await lint(textEditor)
     expect(mockedLintText).not.toHaveBeenCalled()
-    expect(mockedProcessFile).not.toHaveBeenCalled()
+    expect(mockedApplyOverride).not.toHaveBeenCalled()
     expect(collection.set).toHaveBeenCalledWith(document.uri, [])
   })
 
-  it('includes path diagnostics and applies inline overrides to path rules', async () => {
-    const override = { pathLintRules: [] }
+  it('runs configured path rules against the path with the effective inline config', async () => {
+    const rule = jest.fn().mockReturnValue([diagnostic(1, Severity.Warning, 'path')])
+    const override = { pathLintRules: [{ test: rule }] }
     mockedApplyOverride.mockReturnValue(override)
-    mockedProcessFile.mockReturnValue([diagnostic(1, Severity.Warning, 'path')])
     await lint(textEditor)
     expect(mockedApplyOverride).toHaveBeenCalledWith('unsaved SAS code', {})
-    expect(mockedProcessFile).toHaveBeenCalledWith(document.uri.fsPath, override)
+    expect(rule).toHaveBeenCalledWith(document.uri.fsPath, override)
     expect(collection.set.mock.calls[0][1][0].message).toBe('path')
   })
 
@@ -210,7 +228,7 @@ describe('lint', () => {
     await lint({ document: untitled } as unknown as vscode.TextEditor)
     expect(mockedLintText).toHaveBeenCalledWith('unsaved SAS code', {})
     expect(mockedIsIgnored).not.toHaveBeenCalled()
-    expect(mockedProcessFile).not.toHaveBeenCalled()
+    expect(mockedApplyOverride).not.toHaveBeenCalled()
   })
 
   it('clears the previous diagnostics on the second run', async () => {
@@ -249,6 +267,17 @@ describe('lint', () => {
     // nothing is linted against rules the project did not state
     expect(mockedLintText).not.toHaveBeenCalled()
     expect(collection.set.mock.calls.length).toEqual(fromConfig)
+  })
+
+  it('clears all diagnostics when the shared project lint configuration fails', async () => {
+    await lint(textEditor)
+    collection.clear.mockClear()
+    mockedGetLintConfig.mockRejectedValue(new Error('bad project config'))
+
+    await lint(textEditor)
+
+    expect(collection.clear).toHaveBeenCalledTimes(1)
+    expect(collection.delete).not.toHaveBeenCalled()
   })
 
   it('reports the same broken configuration once, not on every change', async () => {

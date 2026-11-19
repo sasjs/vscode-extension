@@ -10,7 +10,6 @@ import {
   window
 } from 'vscode'
 import { getLintConfig } from '../../utils/getLintConfig'
-import { mayContainInlineData } from '../../utils/mayContainInlineData'
 import {
   clearLintConfigError,
   reportLintConfigError
@@ -78,12 +77,6 @@ export class FormatCommand {
         document: TextDocument
       ): Promise<TextEdit[]> {
         const text = document.getText()
-        if (mayContainInlineData(text)) {
-          window.showWarningMessage(
-            'Formatting was not applied because the document may contain inline data. Format manually to protect data records.'
-          )
-          return []
-        }
         const fullRange = new Range(0, 0, document.lineCount, 0)
 
         let lintConfig
@@ -132,7 +125,10 @@ export class FormatCommand {
       if (resource !== undefined) {
         // The title menu identifies a resource, not necessarily the focused
         // editor. Never fall back to formatting a different active document.
-        if (!(resource instanceof Uri)) {return}
+        if (!(resource instanceof Uri)) {
+          window.showWarningMessage('Formatting was not applied because the selected resource is invalid.')
+          return
+        }
 
         if (window.activeTextEditor?.document.uri.toString() !== resource.toString()) {
           const target = window.visibleTextEditors.find(

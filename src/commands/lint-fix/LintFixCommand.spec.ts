@@ -66,16 +66,12 @@ test('does not fix a file ignored by lint configuration', async () => {
   expect(edit).not.toHaveBeenCalled()
 })
 
-test.each(['datalines', 'datalines4', 'cards', 'cards4', 'parmcards', 'parmcards4', 'lines', 'lines4'])(
-  'refuses to fix inline %s data rather than changing records', async (keyword) => {
-    const input = `data x;\ninput value $char5.;\n${keyword};\nA    \n${keyword.endsWith('4') ? ';;;;' : ';'}\nrun;\n`
-    const { edit, handler } = setup(input)
-    await handler()
-    expect(edit).not.toHaveBeenCalled()
-    expect(format).not.toHaveBeenCalled()
-    expect(warning).toHaveBeenCalledWith(expect.stringContaining('inline data'))
-  }
-)
+test('allows lint fixes on a document containing inline data', async () => {
+  const input = 'data x;\ninput value $char5.;\ndatalines;\nA    \n;\nrun;\n'
+  const { handler } = setup(input)
+  await handler()
+  expect(format).toHaveBeenCalledWith(input, expect.any(LintConfig))
+})
 
 test('does not edit if the document changes while config loads', async () => {
   const { document, edit, handler } = setup()
