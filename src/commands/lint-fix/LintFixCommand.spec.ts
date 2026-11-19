@@ -56,6 +56,27 @@ test('fixes the unsaved buffer using the real rules without reprinting or saving
   expect(document.save).not.toHaveBeenCalled()
 })
 
+test('does not fix a file ignored by lint configuration', async () => {
+  const { document, edit, handler } = setup()
+  Object.assign(document.uri, { scheme: 'file', fsPath: require('path').join(process.cwd(), 'ignored.sas') })
+  const lintConfig = new LintConfig()
+  lintConfig.ignoreList = ['ignored.sas']
+  config.mockResolvedValue(lintConfig)
+  await handler()
+  expect(edit).not.toHaveBeenCalled()
+})
+
+test.each(['datalines', 'datalines4', 'cards', 'cards4', 'parmcards', 'parmcards4', 'lines', 'lines4'])(
+  'refuses to fix inline %s data rather than changing records', async (keyword) => {
+    const input = `data x;\ninput value $char5.;\n${keyword};\nA    \n${keyword.endsWith('4') ? ';;;;' : ';'}\nrun;\n`
+    const { edit, handler } = setup(input)
+    await handler()
+    expect(edit).not.toHaveBeenCalled()
+    expect(format).not.toHaveBeenCalled()
+    expect(warning).toHaveBeenCalledWith(expect.stringContaining('inline data'))
+  }
+)
+
 test('does not edit if the document changes while config loads', async () => {
   const { document, edit, handler } = setup()
   let resolve!: (value: LintConfig) => void

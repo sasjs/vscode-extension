@@ -1,6 +1,7 @@
-import { formatText } from '@sasjs/lint'
+import { formatText, isIgnored } from '@sasjs/lint'
 import * as vscode from 'vscode'
 import { getLintConfig } from '../../utils/getLintConfig'
+import { mayContainInlineData } from '../../utils/mayContainInlineData'
 
 export function registerLintFixCommand(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
@@ -24,8 +25,18 @@ export function registerLintFixCommand(context: vscode.ExtensionContext): void {
         const document = editor.document
         const version = document.version
         const text = document.getText()
+        if (mayContainInlineData(text)) {
+          vscode.window.showWarningMessage(
+            'Lint fixes were not applied because the document may contain inline data. Format manually to protect data records.'
+          )
+          return
+        }
         try {
           const config = await getLintConfig()
+          if (document.uri.scheme === 'file' && await isIgnored(document.uri.fsPath, config)) {
+            vscode.window.showWarningMessage('Lint fixes were not applied because this file is ignored.')
+            return
+          }
           const fixed = await formatText(text, config)
           if (
             document.isClosed ||

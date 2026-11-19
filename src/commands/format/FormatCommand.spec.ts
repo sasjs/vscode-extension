@@ -35,6 +35,7 @@ jest.mock('vscode', () => {
     TextEdit,
     window: {
       showErrorMessage: jest.fn(),
+      showWarningMessage: jest.fn(),
       activeTextEditor: undefined as unknown,
       visibleTextEditors: [],
       showTextDocument: jest.fn()
@@ -131,6 +132,16 @@ describe('FormatCommand', () => {
       expect.anything(),
       expect.anything()
     )
+  })
+
+  it('does not format documents that may contain inline data', async () => {
+    await new FormatCommand(async () => jest.fn()).initialise({ subscriptions: [] })
+    const provider = mockedRegister.mock.calls[mockedRegister.mock.calls.length - 1][1]
+    const input = { lineCount: 4, getText: () => 'data x;\ndatalines;\nA    \n;\n' }
+    const edits = await provider.provideDocumentFormattingEdits(input)
+    expect(edits).toEqual([])
+    expect(mockedFormatText).not.toHaveBeenCalled()
+    expect(vscode.window.showWarningMessage).toHaveBeenCalledWith(expect.stringContaining('inline data'))
   })
 
   it('leaves the document untouched and says why when the config will not load', async () => {

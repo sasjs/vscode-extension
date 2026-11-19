@@ -10,6 +10,7 @@ import {
   window
 } from 'vscode'
 import { getLintConfig } from '../../utils/getLintConfig'
+import { mayContainInlineData } from '../../utils/mayContainInlineData'
 import {
   clearLintConfigError,
   reportLintConfigError
@@ -76,6 +77,13 @@ export class FormatCommand {
       async provideDocumentFormattingEdits(
         document: TextDocument
       ): Promise<TextEdit[]> {
+        const text = document.getText()
+        if (mayContainInlineData(text)) {
+          window.showWarningMessage(
+            'Formatting was not applied because the document may contain inline data. Format manually to protect data records.'
+          )
+          return []
+        }
         const fullRange = new Range(0, 0, document.lineCount, 0)
 
         let lintConfig
@@ -110,7 +118,7 @@ export class FormatCommand {
         }
 
         const formattedText = await formatText(
-          document.getText(),
+          text,
           lintConfig,
           reprint ? { reprint } : {}
         )
