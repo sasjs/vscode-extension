@@ -39,7 +39,7 @@ export function run(): Promise<void> {
           color: true
         })
 
-        const testsRoot = path.resolve(__dirname, '..')
+        const testsRoot = __dirname
 
         // Add files to the test suite
         findTestFiles(testsRoot).forEach((f) => mocha.addFile(f))

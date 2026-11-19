@@ -24,6 +24,7 @@ const vscode = {
     fs: { readFile: (file) => fs.promises.readFile(file) },
     getConfiguration: () => ({ get: () => ({}) })
   },
+  commands: { registerCommand: () => ({ dispose() {} }) },
   window: { showErrorMessage: (message) => { throw new Error(message) } }
 }
 const load = Module._load
@@ -66,7 +67,7 @@ async function format(text) {
 ;(async () => {
   try {
     const { FormatCommand } = require('../src/commands/format/FormatCommand')
-    await new FormatCommand().initialise()
+    await new FormatCommand().initialise({ subscriptions: [] })
     const result = await format(input)
     assert.equal(result, expected)
     assert.equal(await format(result), result)

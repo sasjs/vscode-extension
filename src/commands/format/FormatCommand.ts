@@ -1,5 +1,14 @@
 import { formatText } from '@sasjs/lint'
-import { languages, TextDocument, TextEdit, Range } from 'vscode'
+import {
+  languages,
+  TextDocument,
+  TextEdit,
+  Range,
+  Uri,
+  ExtensionContext,
+  commands,
+  window
+} from 'vscode'
 import { getLintConfig } from '../../utils/getLintConfig'
 import {
   clearLintConfigError,
@@ -59,11 +68,11 @@ export class FormatCommand {
     }))
   }
 
-  async initialise() {
+  async initialise(context: Pick<ExtensionContext, 'subscriptions'>) {
     // Captured because `this` inside the provider below is the provider itself.
     const loadEngine = () => this.getEngine()
 
-    languages.registerDocumentFormattingEditProvider('sas', {
+    const provider = languages.registerDocumentFormattingEditProvider('sas', {
       async provideDocumentFormattingEdits(
         document: TextDocument
       ): Promise<TextEdit[]> {
@@ -109,5 +118,27 @@ export class FormatCommand {
         return [TextEdit.replace(fullRange, formattedText)]
       }
     })
+
+    context.subscriptions.push(provider)
+    const command = commands.registerCommand('sasjs-for-vscode.formatDocument', async (resource?: unknown) => {
+      if (resource !== undefined) {
+        // The title menu identifies a resource, not necessarily the focused
+        // editor. Never fall back to formatting a different active document.
+        if (!(resource instanceof Uri)) {return}
+
+        if (window.activeTextEditor?.document.uri.toString() !== resource.toString()) {
+          const target = window.visibleTextEditors.find(
+            (editor) => editor.document.uri.toString() === resource.toString()
+          )
+          if (!target || target.document.languageId !== 'sas') {return}
+          await window.showTextDocument(target.document, target.viewColumn)
+        }
+        if (window.activeTextEditor?.document.uri.toString() !== resource.toString()) {return}
+      }
+
+      if (window.activeTextEditor?.document.languageId !== 'sas') {return}
+      await commands.executeCommand('editor.action.formatDocument')
+    })
+    context.subscriptions.push(command)
   }
 }

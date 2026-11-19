@@ -22,12 +22,28 @@ jest.mock('vscode', () => {
     }
   }
 
+  class Uri {
+    constructor(public value: string) {}
+    static isUri(value: unknown) { return value instanceof Uri }
+    toString() { return this.value }
+  }
+
   return {
+    Uri,
     Position,
     Range,
     TextEdit,
-    window: { showErrorMessage: jest.fn() },
-    languages: { registerDocumentFormattingEditProvider: jest.fn() }
+    window: {
+      showErrorMessage: jest.fn(),
+      activeTextEditor: undefined as unknown,
+      visibleTextEditors: [],
+      showTextDocument: jest.fn()
+    },
+    languages: { registerDocumentFormattingEditProvider: jest.fn() },
+    commands: {
+      registerCommand: jest.fn(),
+      executeCommand: jest.fn()
+    }
   }
 })
 
@@ -45,6 +61,27 @@ const mockedGetLintConfig = lintConfigModule.getLintConfig as jest.Mock
 const mockedRegister = vscode.languages
   .registerDocumentFormattingEditProvider as jest.Mock
 const mockedShowError = vscode.window.showErrorMessage as jest.Mock
+const mockedRegisterCommand = vscode.commands.registerCommand as jest.Mock
+const mockedExecuteCommand = vscode.commands.executeCommand as jest.Mock
+
+/** The handler registered under the command id the manifest contributes. */
+const invokeFormatDocument = async (languageId?: string) => {
+  ;(vscode.window as any).activeTextEditor = languageId
+    ? { document: { languageId } }
+    : undefined
+
+  await new (FormatCommand as any)(async () => jest.fn()).initialise({ subscriptions: [] })
+
+  const call = mockedRegisterCommand.mock.calls.find(
+    (registered) => registered[0] === 'sasjs-for-vscode.formatDocument'
+  )
+
+  if (!call) {
+    throw new Error('Format document command was not registered')
+  }
+
+  return call[1]()
+}
 
 const document = {
   lineCount: 2,
@@ -55,7 +92,7 @@ const document = {
 const format = async (
   loadEngine?: () => Promise<unknown>
 ): Promise<vscode.TextEdit[]> => {
-  await new (FormatCommand as any)(loadEngine).initialise()
+  await new (FormatCommand as any)(loadEngine).initialise({ subscriptions: [] })
 
   const provider =
     mockedRegister.mock.calls[mockedRegister.mock.calls.length - 1][1]
@@ -70,7 +107,7 @@ const format = async (
 const formatRepeatedly = async (
   loadEngine?: () => Promise<unknown>
 ): Promise<() => Promise<vscode.TextEdit[]>> => {
-  await new (FormatCommand as any)(loadEngine).initialise()
+  await new (FormatCommand as any)(loadEngine).initialise({ subscriptions: [] })
 
   const provider =
     mockedRegister.mock.calls[mockedRegister.mock.calls.length - 1][1]
@@ -192,5 +229,89 @@ describe('FormatCommand', () => {
     expect(edits).toEqual([
       expect.objectContaining({ newText: 'the rules only' })
     ])
+  })
+
+  it('registers both resources for disposal with the extension context', async () => {
+    const provider = { dispose: jest.fn() }
+    const command = { dispose: jest.fn() }
+    mockedRegister.mockReturnValue(provider)
+    mockedRegisterCommand.mockReturnValue(command)
+    const context = { subscriptions: [] as vscode.Disposable[] }
+
+    await new (FormatCommand as any)(async () => jest.fn()).initialise(context)
+
+    expect(context.subscriptions).toEqual([provider, command])
+    context.subscriptions.forEach((item) => item.dispose())
+    expect(provider.dispose).toHaveBeenCalledTimes(1)
+    expect(command.dispose).toHaveBeenCalledTimes(1)
+  })
+
+  it('registers the format-document command the manifest contributes', async () => {
+    await new (FormatCommand as any)(async () => jest.fn()).initialise({ subscriptions: [] })
+
+    expect(mockedRegisterCommand).toHaveBeenCalledWith(
+      'sasjs-for-vscode.formatDocument',
+      expect.any(Function)
+    )
+  })
+
+  it('runs the format action the button and Shift+Alt+F also run', async () => {
+    // Going through the core action rather than the provider directly is what
+    // keeps one code path for the button, the shortcut and format on save.
+    await invokeFormatDocument('sas')
+
+    expect(mockedExecuteCommand).toHaveBeenCalledWith(
+      'editor.action.formatDocument'
+    )
+  })
+
+  it('does not format the active document when the title resource points elsewhere', async () => {
+    const active = { document: { languageId: 'sas', uri: new (vscode.Uri as any)('file:///wrong.sas') } }
+    ;(vscode.window as any).activeTextEditor = active
+    ;(vscode.window as any).visibleTextEditors = []
+    await new (FormatCommand as any)(async () => jest.fn()).initialise({ subscriptions: [] })
+    const handler = mockedRegisterCommand.mock.calls[0][1]
+
+    await handler(new (vscode.Uri as any)('file:///target.sas'))
+
+    expect(mockedExecuteCommand).not.toHaveBeenCalled()
+  })
+
+  it('focuses the requested visible SAS resource before formatting it', async () => {
+    const target = { document: { languageId: 'sas', uri: new (vscode.Uri as any)('file:///target.sas') }, viewColumn: 2 }
+    ;(vscode.window as any).activeTextEditor = { document: { languageId: 'sas', uri: new (vscode.Uri as any)('file:///wrong.sas') } }
+    ;(vscode.window as any).visibleTextEditors = [target]
+    ;(vscode.window.showTextDocument as jest.Mock).mockImplementation(async () => {
+      ;(vscode.window as any).activeTextEditor = target
+      return target
+    })
+    await new (FormatCommand as any)(async () => jest.fn()).initialise({ subscriptions: [] })
+    await mockedRegisterCommand.mock.calls[0][1](target.document.uri)
+    expect(vscode.window.showTextDocument).toHaveBeenCalledWith(target.document, 2)
+    expect(mockedExecuteCommand).toHaveBeenCalledWith('editor.action.formatDocument')
+  })
+
+  it('does not format another editor if focus changes while opening the target', async () => {
+    const target = { document: { languageId: 'sas', uri: new (vscode.Uri as any)('file:///target.sas') }, viewColumn: 2 }
+    ;(vscode.window as any).activeTextEditor = { document: { languageId: 'sas', uri: new (vscode.Uri as any)('file:///wrong.sas') } }
+    ;(vscode.window as any).visibleTextEditors = [target]
+    ;(vscode.window.showTextDocument as jest.Mock).mockResolvedValue(target)
+    await new (FormatCommand as any)(async () => jest.fn()).initialise({ subscriptions: [] })
+    await mockedRegisterCommand.mock.calls[0][1](target.document.uri)
+    expect(mockedExecuteCommand).not.toHaveBeenCalled()
+  })
+
+  it('does nothing when the active editor is not SAS', async () => {
+    // The palette can be opened over any editor and the core action formats
+    // whatever is active.
+    await invokeFormatDocument('javascript')
+
+    expect(mockedExecuteCommand).not.toHaveBeenCalled()
+  })
+
+  it('does nothing when no editor is active', async () => {
+    await invokeFormatDocument()
+
+    expect(mockedExecuteCommand).not.toHaveBeenCalled()
   })
 })
