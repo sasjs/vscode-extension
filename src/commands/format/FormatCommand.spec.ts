@@ -305,15 +305,19 @@ describe('FormatCommand', () => {
     expect(vscode.window.showWarningMessage).not.toHaveBeenCalled()
   })
 
-  it('does not format the active document when the title resource points elsewhere', async () => {
+  it('warns when the selected title resource is not visible instead of formatting another editor', async () => {
     const active = { document: { languageId: 'sas', uri: new (vscode.Uri as any)('file:///wrong.sas') } }
     ;(vscode.window as any).activeTextEditor = active
-    ;(vscode.window as any).visibleTextEditors = []
+    ;(vscode.window as any).visibleTextEditors = [active]
     await new (FormatCommand as any)(async () => jest.fn()).initialise({ subscriptions: [] })
     const handler = mockedRegisterCommand.mock.calls[0][1]
 
     await handler(new (vscode.Uri as any)('file:///target.sas'))
 
+    expect(vscode.window.showWarningMessage).toHaveBeenCalledWith(
+      'Activate the selected SAS editor and try again.'
+    )
+    expect(vscode.window.showTextDocument).not.toHaveBeenCalled()
     expect(mockedExecuteCommand).not.toHaveBeenCalled()
   })
 

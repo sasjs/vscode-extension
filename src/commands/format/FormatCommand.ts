@@ -135,7 +135,11 @@ export class FormatCommand {
           const target = window.visibleTextEditors.find(
             (editor) => editor.document.uri.toString() === resource.toString()
           )
-          if (!target || target.document.languageId !== 'sas') {return}
+          if (!target) {
+            window.showWarningMessage('Activate the selected SAS editor and try again.')
+            return
+          }
+          if (target.document.languageId !== 'sas') {return}
           await window.showTextDocument(target.document, target.viewColumn)
         }
         if (window.activeTextEditor?.document.uri.toString() !== resource.toString()) {return}
