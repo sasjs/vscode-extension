@@ -3,6 +3,18 @@ import { formatText, LintConfig } from '@sasjs/lint'
 import { getLintConfig } from '../../utils/getLintConfig'
 
 jest.mock('vscode', () => ({
+  Uri: class Uri {
+    constructor(public value: string) {}
+    static isUri(value: unknown) {
+      if (value instanceof this) {return true}
+      if (!value || typeof value !== 'object') {return false}
+      const uri = value as Record<string, unknown>
+      return ['authority', 'fragment', 'path', 'query', 'scheme', 'fsPath']
+        .every((key) => typeof uri[key] === 'string') &&
+        typeof uri.with === 'function' && typeof uri.toString === 'function'
+    }
+    toString() { return this.value }
+  },
   Range: class Range {
     constructor(public start: unknown, public end: unknown) {}
   },
@@ -148,16 +160,45 @@ test('does not apply to an editor no longer active', async () => {
   expect(edit).not.toHaveBeenCalled()
 })
 
+test.each([
+  'file:///active.sas',
+  { toString: () => 'file:///active.sas' },
+  { toString: null },
+  null,
+  false,
+  0,
+  ''
+])('rejects an invalid supplied resource without editing: %p', async (resource) => {
+  const { edit, handler } = setup()
+  await handler(resource)
+  expect(warning).toHaveBeenCalledWith(expect.stringContaining('invalid'))
+  expect(config).not.toHaveBeenCalled()
+  expect(edit).not.toHaveBeenCalled()
+})
+
 test('rejects a title action for a different split editor rather than editing the active document', async () => {
   const { edit, handler } = setup()
-  await handler({ toString: () => 'file:///other.sas' })
+  await handler(new (vscode.Uri as any)('file:///other.sas'))
   expect(edit).not.toHaveBeenCalled()
   expect(config).not.toHaveBeenCalled()
   expect(warning).toHaveBeenCalledWith(expect.stringContaining('Activate'))
 })
 
+test('accepts a VS Code recognized URI with a different prototype', async () => {
+  const { edit, handler } = setup()
+  const resource = {
+    scheme: 'file', authority: '', path: '/active.sas', query: '', fragment: '',
+    fsPath: '/active.sas', with: () => resource, toString: () => 'file:///active.sas'
+  }
+  expect((vscode.Uri as any).isUri(resource)).toBe(true)
+  expect(resource).not.toBeInstanceOf(vscode.Uri)
+  await handler(resource)
+  expect(edit).toHaveBeenCalledTimes(1)
+  expect(warning).not.toHaveBeenCalled()
+})
+
 test('accepts a title action for the active document URI', async () => {
   const { edit, handler } = setup()
-  await handler({ toString: () => 'file:///active.sas' })
+  await handler(new (vscode.Uri as any)('file:///active.sas'))
   expect(edit).toHaveBeenCalledTimes(1)
 })

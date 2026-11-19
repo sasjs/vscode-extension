@@ -24,7 +24,14 @@ jest.mock('vscode', () => {
 
   class Uri {
     constructor(public value: string) {}
-    static isUri(value: unknown) { return value instanceof Uri }
+    static isUri(value: unknown) {
+      if (value instanceof Uri) {return true}
+      if (!value || typeof value !== 'object') {return false}
+      const uri = value as Record<string, unknown>
+      return ['authority', 'fragment', 'path', 'query', 'scheme', 'fsPath']
+        .every((key) => typeof uri[key] === 'string') &&
+        typeof uri.with === 'function' && typeof uri.toString === 'function'
+    }
     toString() { return this.value }
   }
 
@@ -282,6 +289,20 @@ describe('FormatCommand', () => {
 
     expect(vscode.window.showWarningMessage).toHaveBeenCalledWith(expect.stringContaining('resource'))
     expect(mockedExecuteCommand).not.toHaveBeenCalled()
+  })
+
+  it('accepts a URI recognized by VS Code even when it has a different prototype', async () => {
+    const resource = {
+      scheme: 'file', authority: '', path: '/active.sas', query: '', fragment: '',
+      fsPath: '/active.sas', with: () => resource, toString: () => 'file:///active.sas'
+    }
+    expect((vscode.Uri as any).isUri(resource)).toBe(true)
+    expect(resource).not.toBeInstanceOf(vscode.Uri)
+    ;(vscode.window as any).activeTextEditor = { document: { languageId: 'sas', uri: resource } }
+    await new FormatCommand(async () => jest.fn()).initialise({ subscriptions: [] })
+    await mockedRegisterCommand.mock.calls[0][1](resource)
+    expect(mockedExecuteCommand).toHaveBeenCalledWith('editor.action.formatDocument')
+    expect(vscode.window.showWarningMessage).not.toHaveBeenCalled()
   })
 
   it('does not format the active document when the title resource points elsewhere', async () => {

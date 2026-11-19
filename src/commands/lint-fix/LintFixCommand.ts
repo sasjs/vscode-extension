@@ -6,7 +6,15 @@ export function registerLintFixCommand(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
     vscode.commands.registerCommand(
       'sasjs-for-vscode.fixLintIssues',
-      async (resource?: vscode.Uri) => {
+      async (resource?: unknown) => {
+        // VS Code exports URI.isUri at runtime, but its public typings omit it.
+        if (resource !== undefined && !(vscode.Uri as typeof vscode.Uri & {
+          isUri(value: unknown): value is vscode.Uri
+        }).isUri(resource)) {
+          vscode.window.showWarningMessage('Lint fixes were not applied because the selected resource is invalid.')
+          return
+        }
+
         const editor = vscode.window.activeTextEditor
         if (!editor || editor.document.languageId !== 'sas') {
           return

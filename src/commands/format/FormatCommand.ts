@@ -125,7 +125,8 @@ export class FormatCommand {
       if (resource !== undefined) {
         // The title menu identifies a resource, not necessarily the focused
         // editor. Never fall back to formatting a different active document.
-        if (!(resource instanceof Uri)) {
+        // VS Code exports URI.isUri at runtime, but its public typings omit it.
+        if (!(Uri as typeof Uri & { isUri(value: unknown): value is Uri }).isUri(resource)) {
           window.showWarningMessage('Formatting was not applied because the selected resource is invalid.')
           return
         }
