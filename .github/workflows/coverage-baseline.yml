@@ -1,17 +1,20 @@
 name: Coverage baseline
 
-# Publishes the coverage a pull request is measured against. It runs on every
-# push to main, so the baseline is the tree the next pull request is diffed
+# Publishes the coverage a pull request is measured against: it runs on every push
+# to main, so the baseline is the tree the next pull request is diffed
 # against, and on demand, so it can be refreshed after a failed run.
 #
-# The pull request workflow (.github/workflows/run-tests.yml, step "Ratchet the
-# coverage") downloads this artifact and fails a pull request that lowers any
-# metric. See CONTRIBUTING.md.
+# The pipeline is sasjs/release's reusable workflow - the checkout, the node setup,
+# the artifact name and its 90-day retention live there once, instead of in a copy
+# per repository. This file states the build and keeps the concurrency, which a
+# called workflow cannot be given.
+#
+# The comparison is `sasjs-release --coverage-ratchet`, run by
+# .github/workflows/run-tests.yml against this artifact.
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -27,40 +30,13 @@ concurrency:
 
 jobs:
   baseline:
-    name: baseline
-    # A dispatch from a branch would publish a summary for a commit that never
-    # landed on main, and the pull request lookup matches artifacts by head_sha
-    # alone - a stacked pull request based on that commit would then ratchet
-    # against coverage that is not on main. Only main publishes a baseline.
-    if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Use Node.js lts/krypton
-        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: lts/krypton
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Setup snippets and git hooks
-        # Mirrors the pull request workflow: the baseline has to be measured
-        # under the same conditions as the run it is compared with, or a spec
-        # that reads generated snippets could pass in one and not the other.
-        run: npm run setup
-
-      - name: Generate the coverage summary
-        # plain jest rather than a coverage reporting action: there is no pull
-        # request to comment on here, and a reporting action's failure would
-        # skip the upload that this workflow exists to produce.
-        run: npm run test:unit
-
-      - name: Publish the coverage baseline
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: coverage-summary
-          path: coverage/coverage-summary.json
-          retention-days: 90
+    # v0.18.0: the merge commit, since a tag is not a pin and the action-pins check
+    # demands one for every external `uses:`
+    uses: sasjs/release/.github/workflows/coverage-baseline.yml@daaf6bd774f022b4a16e62504e63661b6319a8f2 # v0.18.0
+    with:
+      # required: the toolchain the head summary is measured with has to match
+      runs-on: ubuntu-latest
+      node-version: lts/krypton
+      setup-command: npm run setup
+      test-command: npm run test:unit
+      timeout-minutes: 30

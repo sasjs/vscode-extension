@@ -6,7 +6,7 @@ module.exports = {
   transform: {
     '^.+\\.ts?$': 'ts-jest'
   },
-  // json-summary is what .github/scripts/coverage-ratchet.mjs compares against
+  // json-summary is what `sasjs-release --coverage-ratchet` compares against
   // the published baseline in the pull request workflow; the rest are for a
   // human reading a local run.
   coverageReporters: ['clover', 'json', 'json-summary', 'lcov', 'text'],
