@@ -88,14 +88,14 @@
       },
       {
         "command": "sasjs-for-vscode.formatDocument",
-        "title": "SASjs: Format Document",
-        "icon": "$(edit)",
+        "title": "SASjs: Format",
+        "icon": "$(list-flat)",
         "enablement": "isWorkspaceOpened && editorLangId == sas"
       },
       {
         "command": "sasjs-for-vscode.fixLintIssues",
         "title": "SASjs: Fix Lint Issues",
-        "icon": "$(lightbulb)",
+        "icon": "$(wand)",
         "enablement": "isWorkspaceOpened && editorLangId == sas"
       },
       {
@@ -230,12 +230,12 @@
           "when": "editorLangId == sas && isWorkspaceOpened"
         },
         {
-          "command": "sasjs-for-vscode.formatDocument",
+          "command": "sasjs-for-vscode.fixLintIssues",
           "group": "navigation@5",
           "when": "editorLangId == sas && isWorkspaceOpened"
         },
         {
-          "command": "sasjs-for-vscode.fixLintIssues",
+          "command": "sasjs-for-vscode.formatDocument",
           "group": "navigation@6",
           "when": "editorLangId == sas && isWorkspaceOpened"
         },

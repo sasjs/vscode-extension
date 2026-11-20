@@ -157,13 +157,12 @@ Settings in the project (workspace) root (`.sasjslint`) take the highest precede
 
 ### Formatting
 
-SASjs lint can automatically fix certain problems within SAS files, such as trailing spaces, missing Doxygen header blocks and missing macro names in `%mend` statements.
-You can use this feature in two ways:
+Two buttons rewrite a SAS file, because they are two different jobs. **Fix Lint Issues** (the wand) applies the fixes a rule can make on its own - among them trailing spaces, line endings, the Doxygen header, the macro name in `%mend`, and the macro declarations a header lists but the file never invokes, which are removed from the header. **Format** (the alignment icon) lays the program out first - statement breaks, indentation and the boundaries between macro calls - and then runs those same fixes over the layout. A finding a rule cannot fix on its own, such as a tab used for indentation or a line over the length limit, is reported and left to you by both.
 
-1. On demand - by selecting 'Format Document' either from the right click menu or from the command palette.
+Both sit in the editor title bar and in the command palette ('SASjs: Fix Lint Issues' and 'SASjs: Format'). Both read their rules from the workspace's `.sasjslint`, falling back to `~/.sasjslint` and then the extension setting, as described above.
 ![format](https://user-images.githubusercontent.com/2980428/117260252-c9b5a300-ae46-11eb-9e7e-f70b9166fbbe.gif)
 
-2. By enabling automatic formatting of files on save/paste from the Settings menu.
+Formatting can also be applied automatically to files on save/paste, from the Settings menu.
 ![image](https://user-images.githubusercontent.com/2980428/117259572-15b41800-ae46-11eb-9c7f-b9700b77405b.png)
 
 ## Compile, Build and Deploy
