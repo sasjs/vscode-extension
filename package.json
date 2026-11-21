@@ -313,7 +313,7 @@
   },
   "devDependencies": {
     "@nogoo9/gitleaks": "8.30.1-post.2",
-    "@sasjs/release": "0.14.1",
+    "@sasjs/release": "0.18.0",
     "@types/jest": "30.0.0",
     "@types/mocha": "10.0.10",
     "@types/node": "22.20.5",
