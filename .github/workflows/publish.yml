@@ -246,8 +246,8 @@ jobs:
             exit 1
           fi
           # vsce sorts entries and fixes every ZIP mtime when SOURCE_DATE_EPOCH is set.
-          # Stable for retries of this exact commit; the marketplace hash still gates
-          # attestation if generated inputs or tooling differ across runs.
+          # ZIP metadata is stable for this commit, but other inputs can vary.
+          # The marketplace hash gates attachment, not attestation creation.
           export SOURCE_DATE_EPOCH="$(git show -s --format=%ct HEAD)"
           VSIX="$(node -p 'require("./package.json").name')-${VERSION}.vsix"
           npm run vsix:package --silent -- --out "$VSIX"
@@ -269,6 +269,20 @@ jobs:
         with:
           version: ${{ steps.prepare.outputs.version }}
           subject-path: ${{ steps.package.outputs.vsix }}
+
+      # Fail before the irreversible marketplace publish if the generated bundle
+      # does not verify. Verify again after publishing before attachment.
+      - name: Verify build provenance
+        if: steps.gate.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VSIX: ${{ steps.package.outputs.vsix }}
+          BUNDLE: ${{ steps.attest.outputs.bundle-path }}
+        run: |
+          gh attestation verify "$VSIX" --bundle "$BUNDLE" --repo "$GITHUB_REPOSITORY" \
+            --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/publish.yml" \
+            --source-digest "$GITHUB_SHA" --source-ref refs/heads/main --deny-self-hosted-runners \
+            --predicate-type https://slsa.dev/provenance/v1
 
       - name: Publish to Open VSX
         if: steps.gate.outputs.publish == 'true'

@@ -36,7 +36,7 @@ test('marketplace digest gate fails closed without replacing the build or attach
 
 test('workflow builds, attests, publishes, gates, attaches and publishes the release in order', () => {
   const workflow = readFileSync('.github/workflows/publish.yml', 'utf8')
-  const names = ['Package the extension', 'Attest the VSIX', 'Publish to Open VSX', 'Verify the Open VSX artifact', 'Attach the .vsix and provenance to the release', 'Publish the release']
+  const names = ['Package the extension', 'Attest the VSIX', 'Verify build provenance', 'Publish to Open VSX', 'Verify the Open VSX artifact', 'Attach the .vsix and provenance to the release', 'Publish the release']
   const positions = names.map(name => workflow.indexOf(`      - name: ${name}\n`))
   assert.ok(positions.every(i => i >= 0))
   assert.deepEqual(positions, [...positions].sort((a, b) => a - b))
@@ -61,14 +61,20 @@ test('a mismatch stops the workflow before GitHub attachment or release publicat
     writeFileSync(join(dir, 'curl'), '#!/bin/sh\nprintf "%064d" 0\n')
     writeFileSync(join(dir, 'node'), '#!/bin/sh\nprintf "node %s\\n" "$*" >> "$LOG"\n')
     writeFileSync(join(dir, 'npm'), '#!/bin/sh\nprintf "npm %s\\n" "$*" >> "$LOG"\n')
-    for (const cmd of ['curl', 'node', 'npm']) chmodSync(join(dir, cmd), 0o755)
+    writeFileSync(join(dir, 'gh'), '#!/bin/sh\nprintf "gh %s\\n" "$*" >> "$LOG"\n[ "$VERIFY_FAIL" != 1 ]\n')
+    for (const cmd of ['curl', 'node', 'npm', 'gh']) chmodSync(join(dir, cmd), 0o755)
     const step = name => {
       const block = workflow.split(`      - name: ${name}\n`)[1]?.split(/\n      - (?:name:|uses:|run:)/)[0]
       const line = block.match(/^        run: (.+)$/m)[1]
       return line === '|' ? block.match(/^        run: \|\n((?:          .*\n|\n)+)/m)[1].replace(/^          /gm, '') : line
     }
-    const chain = ['Publish to Open VSX', 'Verify the Open VSX artifact', 'Attach the .vsix and provenance to the release', 'Publish the release'].map(step).join('\n')
-    const r = spawnSync('bash', ['-e', '-o', 'pipefail', '-c', chain], { cwd: process.cwd(), encoding: 'utf8', env: { ...process.env, PATH: `${dir}:${process.env.PATH}`, LOG: log, VSIX: artifact, BUNDLE: bundle, VERSION: '3.3.0', TAG: 'v3.3.0', EVENT_SHA: 'a'.repeat(40), GITHUB_SHA: 'a'.repeat(40), GITHUB_REPOSITORY: 'sasjs/vscode-extension', OVSX_PAT: 'test' } })
+    const chain = ['Verify build provenance', 'Publish to Open VSX', 'Verify the Open VSX artifact', 'Attach the .vsix and provenance to the release', 'Publish the release'].map(step).join('\n')
+    const env = { ...process.env, PATH: `${dir}:${process.env.PATH}`, LOG: log, VSIX: artifact, BUNDLE: bundle, VERSION: '3.3.0', TAG: 'v3.3.0', EVENT_SHA: 'a'.repeat(40), GITHUB_SHA: 'a'.repeat(40), GITHUB_REPOSITORY: 'sasjs/vscode-extension', OVSX_PAT: 'test' }
+    let r = spawnSync('bash', ['-e', '-o', 'pipefail', '-c', chain], { cwd: process.cwd(), encoding: 'utf8', env: { ...env, VERIFY_FAIL: '1' } })
+    assert.notEqual(r.status, 0)
+    assert.doesNotMatch(readFileSync(log, 'utf8'), /npm|release-assets/)
+    writeFileSync(log, '')
+    r = spawnSync('bash', ['-e', '-o', 'pipefail', '-c', chain], { cwd: process.cwd(), encoding: 'utf8', env })
     assert.notEqual(r.status, 0)
     assert.match(r.stderr, /checksum.*manual/i)
     const calls = readFileSync(log, 'utf8')
