@@ -317,7 +317,7 @@ test('marketplace recovery accepts matching hashes and refuses mismatched, unava
     const output = join(dir, 'output')
     const verified = JSON.stringify([{ attestation: { bundle: { mediaType: 'application/vnd.dev.sigstore.bundle+json;version=0.3', dsseEnvelope: { payload: 'b3JpZ2luYWw=' } } } }])
     const run = (bytes, overrides = {}) => {
-      writeFileSync(artifact, bytes); writeFileSync(bundle, 'current provenance'); writeFileSync(output, '')
+      writeFileSync(artifact, bytes); writeFileSync(bundle, JSON.stringify(JSON.parse(verified)[0].attestation.bundle) + '\n'); writeFileSync(output, '')
       const result = spawnSync('bash', [resolve('.github/scripts/recover-open-vsx.sh'), artifact, 'sasjs', 'sasjs-for-vscode', '3.3.0', bundle], {
         encoding: 'utf8', cwd: dir, env: { ...process.env, PATH: `${dir}:${process.env.PATH}`, MOCK_HASH: expected, MOCK_BYTES: 'marketplace bytes', MOCK_VERIFIED: verified, MOCK_VERIFY_FAIL: '0', MOCK_LOG: log, GITHUB_OUTPUT: output, GITHUB_REPOSITORY: 'sasjs/vscode-extension', GITHUB_SHA: 'a'.repeat(40), ...overrides }
       })

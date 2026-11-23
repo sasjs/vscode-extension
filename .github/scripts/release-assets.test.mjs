@@ -69,6 +69,7 @@ if (args.includes('--input')) {
   if (!args.includes('repos/owner/repo/releases/42')) process.exit(6);
   process.stdout.write(JSON.stringify(s.publishResponse === null ? null : s.publishResponse || { id: 42, tag_name: 'v1.0.0', draft: false, target_commitish: 'main' }));
 } else if (args.some(x => x.includes('/releases/42/assets?'))) {
+  if (s.failAssets) process.exit(7);
   process.stdout.write(JSON.stringify(s.pages || [s.assets]));
 } else if (args.some(x => x.includes('/releases?'))) {
   const releases = s.releases || [[{ id: 42, tag_name: 'v1.0.0', draft: true, target_commitish: 'a'.repeat(40) }]];
@@ -130,10 +131,16 @@ if (args.includes('--input')) {
       assert.notEqual(r.status, 0, `must refuse ${JSON.stringify(bad)}`)
       assert.doesNotMatch(r.log, /"PATCH"/, 'must not publish on a bad draft or asset state')
     }
-    for (const bad of [{ assets: [good[0], { ...good[1], digest: hash('wrong') }] }, { assets: [{ name: 'extra' }] }]) {
+    for (const bad of [
+      { assets: [good[0], { ...good[1], digest: hash('wrong') }] },
+      { assets: [{ ...good[0], digest: hash('wrong') }, good[1]] },
+      { assets: good, failAssets: true },
+      { assets: good, pages: { malformed: true } },
+      { assets: [{ name: 'extra' }] }
+    ]) {
       r = run('attach', bad)
       assert.notEqual(r.status, 0)
-      assert.doesNotMatch(r.log, /--input/, 'must not upload or delete on conflict')
+      assert.doesNotMatch(r.log, /--input|DELETE|PATCH/, 'must not upload, delete or publish on conflict or API failure')
     }
   } finally { rmSync(dir, { recursive: true, force: true }) }
 })

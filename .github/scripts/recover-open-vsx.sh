@@ -29,12 +29,17 @@ verify_bundle() {
   result=$(mktemp "${vsix}.bundle-verify.XXXXXXXX")
   if ! gh attestation verify "$1" --bundle "$2" --repo "$GITHUB_REPOSITORY" \
     --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/publish.yml" \
-    --source-digest "$GITHUB_SHA" --deny-self-hosted-runners \
+    --source-digest "$GITHUB_SHA" --source-ref refs/heads/main --deny-self-hosted-runners \
     --predicate-type https://slsa.dev/provenance/v1 --format json > "$result"; then
     rm -f -- "$result"
     return 1
   fi
-  if ! node -e 'const r=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")); if (!Array.isArray(r) || r.length !== 1 || !r[0].attestation?.bundle?.dsseEnvelope) throw Error("expected exactly one verified provenance bundle")' "$result"; then
+  if ! node -e '
+const fs = require("fs"), { isDeepStrictEqual } = require("util");
+const r = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+const input = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
+if (!Array.isArray(r) || r.length !== 1 || !r[0].attestation?.bundle?.dsseEnvelope || !isDeepStrictEqual(input, r[0].attestation.bundle)) throw Error("expected exactly one verified bundle matching the file");
+' "$result" "$2"; then
     rm -f -- "$result"
     return 1
   fi
@@ -59,14 +64,17 @@ download_hash=$(sha256sum -- "$tmp"); download_hash=${download_hash%% *}
 # cryptographic signer workflow and source commit, not just bundle contents.
 gh attestation verify "$tmp" --repo "$GITHUB_REPOSITORY" \
   --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/publish.yml" \
-  --source-digest "$GITHUB_SHA" --deny-self-hosted-runners \
+  --source-digest "$GITHUB_SHA" --source-ref refs/heads/main --deny-self-hosted-runners \
   --predicate-type https://slsa.dev/provenance/v1 --format json > "$verified"
+# The API can return distinct valid attestations for the same artifact. Never
+# pick one by response order: multiple results require manual resolution. An
+# existing draft asset is still matched by digest later; we never overwrite it.
 recovered=$(mktemp "${bundle}.recovery.XXXXXXXX")
 trap 'rm -f -- "$tmp" "$verified" "$recovered"' EXIT
 node -e '
 const fs = require("fs");
 const results = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
-if (!Array.isArray(results) || !results.length || !results[0].attestation?.bundle?.mediaType || !results[0].attestation.bundle.dsseEnvelope) throw Error("no verified provenance bundle");
+if (!Array.isArray(results) || results.length !== 1 || !results[0].attestation?.bundle?.mediaType || !results[0].attestation.bundle.dsseEnvelope) throw Error("expected exactly one verified provenance bundle; resolve manually");
 fs.writeFileSync(process.argv[2], JSON.stringify(results[0].attestation.bundle) + "\n");
 ' "$verified" "$recovered"
 # Re-verify the precise extracted bytes before installing either recovered file.
