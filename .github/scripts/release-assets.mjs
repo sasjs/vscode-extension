@@ -15,7 +15,8 @@ try {
     return { path, name, digest: 'sha256:' + createHash('sha256').update(bytes).digest('hex') }
   })
   if (!files[0].name.endsWith('.vsix') || !files[1].name.endsWith('.intoto.jsonl') || files[0].name === files[1].name) throw Error('invalid asset names')
-  const gh = args => execFileSync('gh', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })
+  // Paginated release bodies can exceed Node's default 1 MiB buffer.
+  const gh = args => execFileSync('gh', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 64 * 1024 * 1024 })
   const pages = endpoint => {
     const data = JSON.parse(gh(['api', '--paginate', '--slurp', endpoint]))
     if (!Array.isArray(data) || !data.length || data.some(page => !Array.isArray(page))) throw Error('invalid paginated API response')

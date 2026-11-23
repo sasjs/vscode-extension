@@ -81,13 +81,15 @@ test('release identity rejects stale drafts, ancestor tags and wrong push SHA', 
     git('remote', 'add', 'origin', remote)
     git('push', '-q', 'origin', 'refs/tags/v1.0.0')
     const gh = join(dir, 'gh')
-    writeFileSync(gh, '#!/bin/sh\nprintf "%s" "$MOCK_RELEASES"\n')
+    writeFileSync(gh, `#!${process.execPath}\nconst data = JSON.parse(process.env.MOCK_RELEASES); if (process.env.MOCK_BIG) data[0][0].body = 'x'.repeat(1200000); process.stdout.write(JSON.stringify(data));\n`)
     chmodSync(gh, 0o755)
     const script = join(process.cwd(), '.github/scripts/verify-release-identity.mjs')
-    const check = (event, target, tag = 'v1.0.0', draft = true) => spawnSync('node', [script, tag, event], {
-      cwd: dir, encoding: 'utf8', env: { ...process.env, PATH: `${dir}:${process.env.PATH}`, GITHUB_REPOSITORY: 'test/repo', MOCK_RELEASES: JSON.stringify([[{ tag_name: tag, draft, target_commitish: target }]]) }
+    const check = (event, target, tag = 'v1.0.0', draft = true, big = false) => spawnSync('node', [script, tag, event], {
+      cwd: dir, encoding: 'utf8', env: { ...process.env, PATH: `${dir}:${process.env.PATH}`, GITHUB_REPOSITORY: 'test/repo', MOCK_BIG: big ? '1' : '', MOCK_RELEASES: JSON.stringify([[{ tag_name: tag, draft, target_commitish: target }]]) }
     })
     assert.equal(check(sha, sha).status, 0, 'matching tag and draft must pass')
+    const large = check(sha, sha, 'v1.0.0', true, true)
+    assert.equal(large.status, 0, `large paginated release response must pass: ${large.stderr}`)
     assert.notEqual(check(sha, old).status, 0, 'stale draft must fail')
     assert.notEqual(check(old, old).status, 0, 'wrong event SHA must fail')
     assert.notEqual(check(sha, 'main').status, 0, 'mutable draft target must fail')

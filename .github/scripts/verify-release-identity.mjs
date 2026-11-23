@@ -5,7 +5,8 @@ import { execFileSync } from 'node:child_process'
 try {
   const [tag, event] = process.argv.slice(2)
   if (!/^v\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/.test(tag || '') || !/^[0-9a-f]{40}$/.test(event || '')) throw new Error('invalid tag or push SHA')
-  const run = (cmd, args) => execFileSync(cmd, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
+  // The paginated release list includes bodies and can exceed Node's 1 MiB default.
+  const run = (cmd, args) => execFileSync(cmd, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 64 * 1024 * 1024 }).trim()
   if (run('git', ['rev-parse', 'HEAD']) !== event) throw new Error('checkout differs from push SHA')
   const local = run('git', ['rev-parse', '--verify', `refs/tags/${tag}^{commit}`])
   if (local !== event) throw new Error('local tag differs from push SHA')

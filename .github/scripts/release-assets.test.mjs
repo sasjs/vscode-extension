@@ -71,7 +71,9 @@ if (args.includes('--input')) {
 } else if (args.some(x => x.includes('/releases/42/assets?'))) {
   process.stdout.write(JSON.stringify(s.pages || [s.assets]));
 } else if (args.some(x => x.includes('/releases?'))) {
-  process.stdout.write(JSON.stringify(s.releases || [[{ id: 42, tag_name: 'v1.0.0', draft: true, target_commitish: 'a'.repeat(40) }]]));
+  const releases = s.releases || [[{ id: 42, tag_name: 'v1.0.0', draft: true, target_commitish: 'a'.repeat(40) }]];
+  if (s.big) releases[0][0].body = 'x'.repeat(1200000);
+  process.stdout.write(JSON.stringify(releases));
 } else process.exit(5);
 `}`)
     chmodSync(gh, 0o755)
@@ -81,7 +83,9 @@ if (args.includes('--input')) {
       return { ...result, state: JSON.parse(readFileSync(state)), log: readFileSync(log, 'utf8') }
     }
     const good = [{ name: basename(vsix), state: 'uploaded', digest: hash('vsix bytes') }, { name: basename(bundle), state: 'uploaded', digest: hash('signed provenance') }]
-    let r = run('attach', { assets: [] })
+    let r = run('attach', { assets: good, big: true })
+    assert.equal(r.status, 0, `large paginated release response must pass: ${r.stderr}`)
+    r = run('attach', { assets: [] })
     assert.equal(r.status, 0, r.stderr)
     assert.equal(r.state.assets.length, 2)
     assert.equal((r.log.match(/--input/g) || []).length, 2)
