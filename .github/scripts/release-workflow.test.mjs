@@ -11,6 +11,19 @@ test('retry test uses the platform temp directory instead of a machine-specific 
   assert.doesNotMatch(source, /['"]\/home\/user\//)
 })
 
+test('step outputs are passed through environment, never interpolated into shell code', () => {
+  const workflow = readFileSync('.github/workflows/publish.yml', 'utf8')
+  const lines = workflow.split('\n')
+  let shell = false
+  for (const line of lines) {
+    if (/^        run:/.test(line)) {
+      shell = /^        run: \|/.test(line)
+      assert.doesNotMatch(line, /\$\{\{\s*steps\./)
+    } else if (shell && /^        \S/.test(line)) shell = false
+    if (shell) assert.doesNotMatch(line, /\$\{\{\s*steps\./)
+  }
+})
+
 test('workflow serializes release runs and fails before either publish when its gates fail', () => {
   const workflow = readFileSync('.github/workflows/publish.yml', 'utf8')
   assert.match(workflow, /^concurrency:\n  group: vscode-extension-release\n  cancel-in-progress: false\n  queue: max$/m)
@@ -39,10 +52,11 @@ test('workflow serializes release runs and fails before either publish when its 
     assert.notEqual(r.status, 0); assert.doesNotMatch(r.log, /^npm /m)
     r = run('Publish the release')
     assert.equal(r.status, 0, r.stderr)
-    assert.match(r.log, /^node .*verify-release-identity.*\nnode .*release-assets.*verify.*\ngh release edit/m)
+    assert.match(r.log, /^node .*verify-release-identity.*\nnode .*release-assets.*publish/m)
+    assert.doesNotMatch(r.log, /^gh /m)
     for (const failure of ['FAIL_IDENTITY', 'FAIL_ASSETS']) {
       r = run('Publish the release', { [failure]: '1' })
-      assert.notEqual(r.status, 0); assert.doesNotMatch(r.log, /^gh release edit/m)
+      assert.notEqual(r.status, 0); assert.doesNotMatch(r.log, /^gh /m)
     }
   } finally { rmSync(dir, { recursive: true, force: true }) }
 })

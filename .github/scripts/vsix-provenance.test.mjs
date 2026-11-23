@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync, mkdtempSync, writeFileSync, chmodSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { spawnSync, spawn } from 'node:child_process'
 import { createServer } from 'node:http'
 
@@ -27,7 +27,8 @@ test('attest the same marketplace-verified VSIX and attach the returned bundle b
   for (const step of [publish, verify, attest, attach, finish]) {
     assert.match(step, /^        if: steps\.gate\.outputs\.publish == 'true'$/m)
   }
-  assert.ok(publish.includes(`npm run vsix:publish --silent -- "${path}" --skip-duplicate`))
+  assert.ok(publish.includes('npm run vsix:publish --silent -- "$VSIX" --skip-duplicate'))
+  assert.ok(publish.includes(`VSIX: ${path}`))
   assert.ok(verify.includes(`VSIX: ${path}`))
   assert.ok(verify.includes('VERSION: ${{ steps.prepare.outputs.version }}'))
   assert.match(verify, /^        run: bash \.github\/scripts\/recover-open-vsx\.sh "\$VSIX" sasjs sasjs-for-vscode "\$VERSION" "\$BUNDLE"$/m)
@@ -136,7 +137,7 @@ test('release gate resumes a draft at the event commit when the release step emi
     const log = join(dir, 'log')
     const run = (draft, event = sha, releases = draft === '' ? [[]] : [[{ tag_name: 'v1.0.0', draft: draft === 'true', target_commitish: sha }]], released = 'false') => {
       writeFileSync(output, ''); writeFileSync(log, '')
-      const result = spawnSync('bash', ['-e', '-o', 'pipefail', '-c', script.replaceAll('${{ steps.release.outputs.released }}', released)], { cwd: dir, encoding: 'utf8', env: { ...process.env, PATH: `${dir}:${process.env.PATH}`, GITHUB_OUTPUT: output, GITHUB_REPOSITORY: 'test/repo', GITHUB_SHA: event, MOCK_LOG: log, MOCK_RELEASES: JSON.stringify(releases) } })
+      const result = spawnSync('bash', ['-e', '-o', 'pipefail', '-c', script], { cwd: dir, encoding: 'utf8', env: { ...process.env, PATH: `${dir}:${process.env.PATH}`, TAG: '', RELEASED: released, GITHUB_OUTPUT: output, GITHUB_REPOSITORY: 'test/repo', GITHUB_SHA: event, MOCK_LOG: log, MOCK_RELEASES: JSON.stringify(releases) } })
       return { ...result, output: readFileSync(output, 'utf8'), log: readFileSync(log, 'utf8') }
     }
     let result = run('true')
@@ -160,7 +161,7 @@ test('release gate resumes a draft at the event commit when the release step emi
     writeFileSync(join(dir, 'file'), 'docs only')
     git('commit', '-qam', 'docs only')
     const newer = git('rev-parse', 'HEAD')
-    result = run('true', newer)
+    result = run('true', newer, [[]])
     assert.equal(result.status, 0)
     assert.match(result.output, /^publish=false$/m, 'ancestor tag must not be selected')
     assert.doesNotMatch(result.output, /^tag=/m)
@@ -173,8 +174,11 @@ test('release gate resumes a draft at the event commit when the release step emi
       assert.notEqual(result.status, 0, 'malformed draft discovery response must not become a no-op')
       assert.doesNotMatch(result.output, /^publish=/m)
     }
-    result = run('true', sha, [[{ tag_name: 'v1.0.0', draft: true, target_commitish: 'main' }]])
-    assert.match(result.output, /^publish=false$/m, 'mutable target cannot identify a draft')
+    for (const target of ['main', 'b'.repeat(40)]) {
+      result = run('true', sha, [[{ tag_name: 'v1.0.0', draft: true, target_commitish: target }]])
+      assert.notEqual(result.status, 0, 'unmatched version draft requires manual resolution')
+      assert.doesNotMatch(result.output, /^publish=/m)
+    }
     result = run('true', sha, [[{ tag_name: 'v1.0.0', draft: true, target_commitish: sha }, { tag_name: 'v1.0.1', draft: true, target_commitish: sha }]])
     assert.notEqual(result.status, 0, 'multiple drafts are ambiguous')
     result = run('true', sha, { unexpected: true })
@@ -202,7 +206,7 @@ test('released=true replay of a public release consults the API and does not pub
     const body = named('Work out whether this run still has something to publish').match(/^        run: \|\n((?:          .*\n|\n)+)/m)?.[1]
     assert.ok(body)
     const script = body.replace(/^          /gm, '').replaceAll('${{ steps.release.outputs.tag }}', 'v1.0.0').replaceAll('${{ steps.release.outputs.released }}', 'true').replaceAll('${{ github.repository }}', 'test/repo')
-    const result = spawnSync('bash', ['-e', '-o', 'pipefail', '-c', script], { cwd: dir, encoding: 'utf8', env: { ...process.env, PATH: `${dir}:${process.env.PATH}`, GITHUB_OUTPUT: output, GITHUB_REPOSITORY: 'test/repo', MOCK_LOG: log, MOCK_RELEASES: JSON.stringify([[{ tag_name: 'v1.0.0', draft: false }]]) } })
+    const result = spawnSync('bash', ['-e', '-o', 'pipefail', '-c', script], { cwd: dir, encoding: 'utf8', env: { ...process.env, PATH: `${dir}:${process.env.PATH}`, TAG: 'v1.0.0', RELEASED: 'true', GITHUB_OUTPUT: output, GITHUB_REPOSITORY: 'test/repo', MOCK_LOG: log, MOCK_RELEASES: JSON.stringify([[{ tag_name: 'v1.0.0', draft: false }]]) } })
     assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`)
     assert.match(readFileSync(log, 'utf8'), /^api .*releases/m, 'must read the release API')
     assert.match(readFileSync(output, 'utf8'), /^publish=false$/m, 'public release is a no-op')
@@ -232,7 +236,7 @@ test('gate consumes real gh pagination against a mock API and rejects HTTP error
     const output = join(dir, 'output')
     const run = async () => {
       writeFileSync(output, '')
-      const child = spawn('bash', ['-e', '-o', 'pipefail', '-c', script], { cwd: dir, env: { ...process.env, GITHUB_OUTPUT: output, GITHUB_REPOSITORY: 'test/repo', GH_ENTERPRISE_TOKEN: 'local-test-token' }, stdio: ['ignore', 'pipe', 'pipe'] })
+      const child = spawn('bash', ['-e', '-o', 'pipefail', '-c', script], { cwd: dir, env: { ...process.env, TAG: 'v1.0.0', RELEASED: 'true', GITHUB_OUTPUT: output, GITHUB_REPOSITORY: 'test/repo', GH_ENTERPRISE_TOKEN: 'local-test-token' }, stdio: ['ignore', 'pipe', 'pipe'] })
       let stdout = '', stderr = ''
       child.stdout.on('data', data => { stdout += data }); child.stderr.on('data', data => { stderr += data })
       const status = await new Promise((resolve, reject) => { child.on('error', reject); child.on('close', resolve) })
@@ -269,7 +273,7 @@ test('gate validates API responses and preserves draft, missing and error behavi
     const run = (released, response, fail = false, createFail = false) => {
       writeFileSync(output, ''); writeFileSync(log, '')
       const script = body.replace(/^          /gm, '').replaceAll('${{ steps.release.outputs.tag }}', 'v1.0.0').replaceAll('${{ steps.release.outputs.released }}', released).replaceAll('${{ github.repository }}', 'test/repo')
-      const result = spawnSync('bash', ['-e', '-o', 'pipefail', '-c', script], { cwd: dir, encoding: 'utf8', env: { ...process.env, PATH: `${dir}:${process.env.PATH}`, GITHUB_OUTPUT: output, GITHUB_REPOSITORY: 'test/repo', MOCK_LOG: log, MOCK_RELEASES: response, MOCK_FAIL: fail ? '1' : '0', MOCK_CREATE_FAIL: createFail ? '1' : '0' } })
+      const result = spawnSync('bash', ['-e', '-o', 'pipefail', '-c', script], { cwd: dir, encoding: 'utf8', env: { ...process.env, PATH: `${dir}:${process.env.PATH}`, TAG: 'v1.0.0', RELEASED: released, GITHUB_OUTPUT: output, GITHUB_REPOSITORY: 'test/repo', MOCK_LOG: log, MOCK_RELEASES: response, MOCK_FAIL: fail ? '1' : '0', MOCK_CREATE_FAIL: createFail ? '1' : '0' } })
       return { ...result, output: readFileSync(output, 'utf8'), log: readFileSync(log, 'utf8') }
     }
     const draft = JSON.stringify([[], [{ tag_name: 'v1.0.0', draft: true }]])
@@ -288,13 +292,12 @@ test('gate validates API responses and preserves draft, missing and error behavi
     assert.notEqual(r.status, 0, 'invisible newly released draft must fail rather than publish or recreate')
     assert.doesNotMatch(r.output, /^publish=/m); assert.doesNotMatch(r.log, /release create/)
     r = run('false', '[[]]')
-    assert.equal(r.status, 0, r.stderr); assert.match(r.output, /^publish=true$/m); assert.match(r.log, new RegExp(`release create v1\\.0\\.0 .*--target ${sha}`))
-    r = run('false', '[[]]', false, true)
-    assert.notEqual(r.status, 0, 'failed draft creation must fail the gate'); assert.doesNotMatch(r.output, /^publish=/m)
+    assert.notEqual(r.status, 0, 'missing release with explicit tag must fail without creating a draft')
+    assert.doesNotMatch(r.output, /^publish=/m); assert.doesNotMatch(r.log, /release create/)
   } finally { rmSync(dir, { recursive: true, force: true }) }
 })
 
-test('marketplace verification accepts matching hashes and refuses mismatched, unavailable or malformed hashes', () => {
+test('marketplace recovery accepts matching hashes and refuses mismatched, unavailable or malformed hashes', () => {
   const dir = mkdtempSync(join(tmpdir(), 'vsix-verify-'))
   try {
     const artifact = join(dir, 'sample.vsix')
@@ -302,14 +305,26 @@ test('marketplace verification accepts matching hashes and refuses mismatched, u
     const expected = spawnSync('sha256sum', [artifact], { encoding: 'utf8' }).stdout.slice(0, 64)
     const curl = join(dir, 'curl')
     const log = join(dir, 'curl-args')
-    writeFileSync(curl, '#!/bin/sh\nprintf "%s\\n" "$*" > "$MOCK_LOG"\n[ "$MOCK_FAIL" = 1 ] && exit 22\nprintf "%s" "$MOCK_HASH"\n')
+    writeFileSync(curl, '#!/bin/bash\nprintf "%s\\n" "$*" > "$MOCK_LOG"\n[ "$MOCK_FAIL" = 1 ] && exit 22\ncase "${*: -1}" in *.sha256) printf "%s" "$MOCK_HASH";; *.vsix) [ "$MOCK_FAIL" != 1 ] && printf "%s" "$MOCK_BYTES" > "${artifact}"; exit 0;; esac\n')
     chmodSync(curl, 0o755)
-    for (const [digest, failure, good] of [[expected, '0', true], ['0'.repeat(64), '0', false], ['', '1', false], ['garbage', '0', false]]) {
-      const result = spawnSync('bash', ['.github/scripts/verify-open-vsx.sh', artifact, 'sasjs', 'sasjs-for-vscode', '3.3.0'], {
-        encoding: 'utf8', env: { ...process.env, PATH: `${dir}:${process.env.PATH}`, MOCK_HASH: digest, MOCK_FAIL: failure, MOCK_LOG: log }
+    writeFileSync(join(dir, 'gh'), '#!/bin/sh\n[ "$MOCK_VERIFY_FAIL" != 1 ] || exit 1\nprintf "%s" "$MOCK_VERIFIED"\n')
+    chmodSync(join(dir, 'gh'), 0o755)
+    const bundle = join(dir, 'current.intoto.jsonl')
+    const output = join(dir, 'output')
+    const verified = JSON.stringify([{ attestation: { bundle: { mediaType: 'application/vnd.dev.sigstore.bundle+json;version=0.3', dsseEnvelope: { payload: 'b3JpZ2luYWw=' } } } }])
+    const run = (bytes, overrides = {}) => {
+      writeFileSync(artifact, bytes); writeFileSync(bundle, 'current provenance'); writeFileSync(output, '')
+      const result = spawnSync('bash', [resolve('.github/scripts/recover-open-vsx.sh'), artifact, 'sasjs', 'sasjs-for-vscode', '3.3.0', bundle], {
+        encoding: 'utf8', cwd: dir, env: { ...process.env, PATH: `${dir}:${process.env.PATH}`, MOCK_HASH: expected, MOCK_BYTES: 'marketplace bytes', MOCK_VERIFIED: verified, MOCK_VERIFY_FAIL: '0', MOCK_LOG: log, GITHUB_OUTPUT: output, GITHUB_REPOSITORY: 'sasjs/vscode-extension', GITHUB_SHA: 'a'.repeat(40), ...overrides }
       })
-      assert.equal(result.status === 0, good, `${digest || 'unavailable'}: ${result.stdout} ${result.stderr}`)
-      assert.ok(readFileSync(log, 'utf8').includes('https://open-vsx.org/api/sasjs/sasjs-for-vscode/3.3.0/file/sasjs.sasjs-for-vscode-3.3.0.sha256'))
+      return { result, artifact: readFileSync(artifact, 'utf8'), output: readFileSync(output, 'utf8') }
+    }
+    let { result } = run('the packaged bytes')
+    assert.equal(result.status, 0, `${result.stdout} ${result.stderr}`)
+    assert.ok(readFileSync(log, 'utf8').includes('https://open-vsx.org/api/sasjs/sasjs-for-vscode/3.3.0/file/sasjs.sasjs-for-vscode-3.3.0.sha256'))
+    for (const overrides of [{ MOCK_HASH: '0'.repeat(64) }, { MOCK_FAIL: '1' }, { MOCK_HASH: 'garbage' }]) {
+      ({ result } = run('the packaged bytes', overrides))
+      assert.notEqual(result.status, 0, `${JSON.stringify(overrides)}: ${result.stdout} ${result.stderr}`)
     }
   } finally { rmSync(dir, { recursive: true, force: true }) }
 })

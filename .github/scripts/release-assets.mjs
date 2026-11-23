@@ -8,7 +8,7 @@ import { basename } from 'node:path'
 try {
   const [mode, tag, event, vsix, bundle] = process.argv.slice(2)
   const repo = process.env.GITHUB_REPOSITORY || ''
-  if (!['attach', 'verify'].includes(mode) || !/^v\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/.test(tag || '') || !/^[0-9a-f]{40}$/.test(event || '') || !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repo) || !vsix || !bundle) throw Error('invalid arguments')
+  if (!['attach', 'verify', 'publish'].includes(mode) || !/^v\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/.test(tag || '') || !/^[0-9a-f]{40}$/.test(event || '') || !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repo) || !vsix || !bundle) throw Error('invalid arguments')
   const files = [vsix, bundle].map(path => {
     const name = basename(path), bytes = readFileSync(path)
     if (!/^[A-Za-z0-9][A-Za-z0-9._+-]*$/.test(name) || !bytes.length) throw Error('invalid or empty asset')
@@ -38,7 +38,7 @@ try {
     return seen
   }
   const id = draft()
-  const seen = inspect(id, mode === 'verify')
+  const seen = inspect(id, mode !== 'attach')
   if (mode === 'attach') {
     for (const file of files) {
       if (seen.has(file.name)) continue
@@ -49,6 +49,14 @@ try {
     }
     if (draft() !== id) throw Error('draft release was replaced')
     inspect(id, true)
+  }
+  if (mode === 'publish') {
+    if (draft() !== id) throw Error('draft release was replaced')
+    // GitHub offers no atomic precondition on tag, target or assets. The ID
+    // prevents publishing a replacement release, but external writers can still
+    // change this release, its assets or the tag between verification and PATCH.
+    const result = JSON.parse(gh(['api', '--method', 'PATCH', `repos/${repo}/releases/${id}`, '-f', 'draft=false']))
+    if (result.id !== id || result.tag_name !== tag || result.target_commitish !== event || result.draft !== false) throw Error('publication response identity mismatch')
   }
   console.log(`${tag}: draft assets match expected SHA-256 digests`)
 } catch (error) {

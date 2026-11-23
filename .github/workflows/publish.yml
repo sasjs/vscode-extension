@@ -97,9 +97,10 @@ jobs:
         # API errors or malformed/ambiguous answers are never a successful no-op.
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.release.outputs.tag }}
+          RELEASED: ${{ steps.release.outputs.released }}
         run: |
           set -euo pipefail
-          TAG="${{ steps.release.outputs.tag }}"
           INFERRED=false
           if [ -z "$TAG" ]; then
             # Only recover a version tag on this exact event commit, never a
@@ -126,7 +127,9 @@ jobs:
                   try {
                     const pages = JSON.parse(data);
                     if (!Array.isArray(pages) || pages.some(page => !Array.isArray(page) || page.some(r => !r || typeof r !== "object" || Array.isArray(r) || typeof r.tag_name !== "string" || typeof r.draft !== "boolean" || (r.draft && typeof r.target_commitish !== "string")))) throw Error("invalid releases response");
-                    const candidates = pages.flat().filter(r => r.draft === true && r.target_commitish === process.env.GITHUB_SHA && /^v\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/.test(r.tag_name));
+                    const drafts = pages.flat().filter(r => r.draft === true && /^v\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/.test(r.tag_name));
+                    if (drafts.some(r => r.target_commitish !== process.env.GITHUB_SHA)) throw Error("version draft has an unmatched or mutable target; resolve manually");
+                    const candidates = drafts;
                     if (candidates.length > 1) throw Error("multiple drafts target the push SHA");
                     if (candidates.length) process.stdout.write(candidates[0].tag_name);
                   } catch (e) { console.error(`::error::${e.message}`); process.exitCode = 1; }
@@ -183,7 +186,7 @@ jobs:
               echo "$TAG is already released: nothing to publish"
               ;;
             "")
-              if [ "${{ steps.release.outputs.released }}" = "true" ]; then
+              if [ "$RELEASED" = "true" ]; then
                 echo "::error::Release for $TAG is not yet visible; retry the workflow"
                 exit 1
               fi
@@ -192,19 +195,8 @@ jobs:
                 echo "No draft for $TAG: nothing to publish"
                 exit 0
               fi
-              # A tag with no release at all: the release call created the tag and
-              # failed before creating the release. Make the draft it was meant to
-              # make, and let the steps below finish it. The notes come from the
-              # GitHub generator here rather than from the tool, which is the one
-              # difference between this repair path and a normal release.
-              # Not `--verify-tag`: a draft has no tag in the repository, which is
-              # exactly why this branch is reached, so that flag aborts every time.
-              # The tag is in this clone (the release step tags locally), so the
-              # commit it names is the target.
-              echo "::warning::$TAG has no release: creating the draft the release step did not"
-              gh release create "$TAG" --draft --title "$TAG" --generate-notes \
-                --target "$(git rev-list -n 1 "$TAG" 2>/dev/null || git rev-parse HEAD)"
-              echo "publish=true" >> "$GITHUB_OUTPUT"
+              echo "::error::Release for $TAG is missing; resolve manually"
+              exit 1
               ;;
             *)
               echo "::error::unexpected answer for $TAG: '$DRAFT'"
@@ -231,7 +223,9 @@ jobs:
         # asking npm whether the version exists answers nothing and reads as though
         # the version were new. Whether this run publishes is the gate's question,
         # which the forge answers; this step only prepares the tree.
-        run: npm run release -- --prepare-publish --branch main --no-registry-lookup --tag "${{ steps.gate.outputs.tag }}" --output "$GITHUB_OUTPUT"
+        env:
+          TAG: ${{ steps.gate.outputs.tag }}
+        run: npm run release -- --prepare-publish --branch main --no-registry-lookup --tag "$TAG" --output "$GITHUB_OUTPUT"
 
       - name: Package the extension
         id: package
@@ -285,12 +279,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.gate.outputs.tag }}
           EVENT_SHA: ${{ github.sha }}
+          VSIX: ${{ steps.package.outputs.vsix }}
         run: |
           # Open VSX is how users receive the extension, so a release that cannot
           # reach it has not shipped. Says so rather than skipping quietly: the
           # fix is the secret, and re-running afterwards is cheap.
           if [ -z "${OVSX_PAT:-}" ]; then
-            echo "::error::OPEN_VSX_TOKEN is empty, so ${{ steps.package.outputs.vsix }} would never reach users"
+            echo "::error::OPEN_VSX_TOKEN is empty, so $VSIX would never reach users"
             exit 1
           fi
           # No -p: ovsx reads OVSX_PAT from the environment (lib/util.js:
@@ -301,7 +296,7 @@ jobs:
           # --skip-duplicate is what makes a re-run safe: the second run meets a
           # version it already published, which is the state it wants.
           node .github/scripts/verify-release-identity.mjs "$TAG" "$EVENT_SHA"
-          npm run vsix:publish --silent -- "${{ steps.package.outputs.vsix }}" --skip-duplicate
+          npm run vsix:publish --silent -- "$VSIX" --skip-duplicate
 
       - name: Verify the Open VSX artifact
         id: verify
@@ -339,5 +334,4 @@ jobs:
           BUNDLE: ${{ steps.verify.outputs.bundle }}
         run: |
           node .github/scripts/verify-release-identity.mjs "$TAG" "$EVENT_SHA"
-          node .github/scripts/release-assets.mjs verify "$TAG" "$EVENT_SHA" "$VSIX" "$BUNDLE"
-          gh release edit "$TAG" --draft=false
+          node .github/scripts/release-assets.mjs publish "$TAG" "$EVENT_SHA" "$VSIX" "$BUNDLE"

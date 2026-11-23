@@ -61,6 +61,9 @@ if (args.includes('--input')) {
   if (s.addExtraOnUpload) s.assets.push({ name: 'raced-extra', state: 'uploaded', digest: 'sha256:' + 'a'.repeat(64) });
   fs.writeFileSync(path, JSON.stringify(s));
   process.stdout.write('{}');
+} else if (args.includes('PATCH')) {
+  if (!args.includes('repos/owner/repo/releases/42') || !args.includes('draft=false')) process.exit(6);
+  process.stdout.write(JSON.stringify(s.publishResponse || { id: 42, tag_name: 'v1.0.0', draft: false, target_commitish: 'a'.repeat(40) }));
 } else if (args.some(x => x.includes('/releases/42/assets?'))) {
   process.stdout.write(JSON.stringify(s.pages || [s.assets]));
 } else if (args.some(x => x.includes('/releases?'))) {
@@ -91,6 +94,21 @@ if (args.includes('--input')) {
     assert.notEqual(r.status, 0, 'post-upload readback must detect a racing extra asset')
     r = run('verify', { assets: good, pages: [[good[0]], [good[1]]] })
     assert.equal(r.status, 0, r.stderr)
+    r = run('publish', { assets: good })
+    assert.equal(r.status, 0, r.stderr)
+    assert.match(r.log, /"PATCH".*"repos\/owner\/repo\/releases\/42".*"draft=false"/)
+    for (const publishResponse of [
+      { id: 43, tag_name: 'v1.0.0', draft: false, target_commitish: 'a'.repeat(40) },
+      { id: 42, tag_name: 'v0.9.0', draft: false, target_commitish: 'a'.repeat(40) },
+      { id: 42, tag_name: 'v1.0.0', draft: true, target_commitish: 'a'.repeat(40) },
+      { id: 42, tag_name: 'v1.0.0', draft: false, target_commitish: 'b'.repeat(40) }
+    ]) {
+      r = run('publish', { assets: good, publishResponse })
+      assert.notEqual(r.status, 0, `publication response identity mismatch must fail: ${JSON.stringify(publishResponse)}`)
+    }
+    r = run('publish', { assets: [good[0]] })
+    assert.notEqual(r.status, 0)
+    assert.doesNotMatch(r.log, /"PATCH"/)
     for (const bad of [
       { assets: [] }, { assets: [good[0]] }, { assets: [...good, { name: 'unexpected', state: 'uploaded', digest: hash('x') }] },
       { assets: [good[0], { ...good[1], digest: hash('wrong') }] }, { assets: [good[0], { ...good[1], digest: null }] },
