@@ -5,7 +5,7 @@
 #   3. npm run release -- --prepare-publish --branch main \
 #        --no-registry-lookup --tag <tag>                        stamp the version
 #   4. build and attest the VSIX, then publish to Open VSX
-#   5. verify/recover marketplace bytes and provenance; attach, publish
+#   5. compare marketplace checksum and verify provenance; attach, publish
 #
 # package.json carries 0.0.0 in git: that is a placeholder, not a version. The
 # release tag is the source of truth for the version, and the second step is what
@@ -31,6 +31,8 @@ permissions: read-all
 jobs:
   release:
     runs-on: ubuntu-latest
+    # OIDC and attestation permissions apply to every step in this job. Third-party
+    # build and publish tools can potentially mint provenance with this identity.
     permissions:
       contents: write # the tag, the release, and the .vsix attached to it
       id-token: write # OIDC identity for build provenance
@@ -224,6 +226,7 @@ jobs:
         if: steps.gate.outputs.publish == 'true'
         env:
           VERSION: ${{ steps.prepare.outputs.version }}
+          TAG: ${{ steps.gate.outputs.tag }}
         # The marketplace tools are `npm run` targets in package.json, so the
         # version of vsce that lists the .vsix on a pull request and the version
         # that packages it here cannot drift apart - a packaging-rule change
@@ -238,6 +241,10 @@ jobs:
         # locked tree - the opposite of what this change is for. The exposure is
         # narrow: a version cannot silently move, because the version is exact.
         run: |
+          if [ "v$VERSION" != "$TAG" ]; then
+            echo '::error::prepared version does not match the release tag; resolve manually'
+            exit 1
+          fi
           # vsce sorts entries and fixes every ZIP mtime when SOURCE_DATE_EPOCH is set.
           # Stable for retries of this exact commit; the marketplace hash still gates
           # attestation if generated inputs or tooling differ across runs.
@@ -254,8 +261,7 @@ jobs:
           npm run vsix:tooling --silent
           echo "vsix=$VSIX" >> "$GITHUB_OUTPUT"
 
-      # Create provenance for this build before publish, so a failed attempt
-      # can recover the original signed statement if a retry rebuilds differently.
+      # Sign the exact VSIX built in this job, before sending it to Open VSX.
       - name: Attest the VSIX
         id: attest
         if: steps.gate.outputs.publish == 'true'
@@ -285,22 +291,21 @@ jobs:
           # the token in this process's argv, where any child process and a `ps` on
           # the runner can read it.
           #
-          # --skip-duplicate is what makes a re-run safe: the second run meets a
-          # version it already published, which is the state it wants.
+          # --skip-duplicate can retain older bytes. The next step compares the
+          # marketplace digest before any release assets can be attached.
           node .github/scripts/verify-release-identity.mjs "$TAG" "$EVENT_SHA"
           npm run vsix:publish --silent -- "$VSIX" --skip-duplicate
 
       - name: Verify the Open VSX artifact
-        id: verify
         if: steps.gate.outputs.publish == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           VSIX: ${{ steps.package.outputs.vsix }}
           VERSION: ${{ steps.prepare.outputs.version }}
           BUNDLE: ${{ steps.attest.outputs.bundle-path }}
-        # Recover only with the original verified build provenance; a downloaded
-        # marketplace artifact was not built by this attempt and cannot be re-attested.
-        run: bash .github/scripts/recover-open-vsx.sh "$VSIX" sasjs sasjs-for-vscode "$VERSION" "$BUNDLE"
+        # This trusts Open VSX's checksum endpoint, not a fresh VSIX download.
+        # A mismatch, unavailable checksum or invalid bundle requires manual recovery.
+        run: bash .github/scripts/verify-open-vsx.sh "$VSIX" sasjs sasjs-for-vscode "$VERSION" "$BUNDLE"
 
       - name: Attach the .vsix and provenance to the release
         if: steps.gate.outputs.publish == 'true'
@@ -309,7 +314,7 @@ jobs:
           TAG: ${{ steps.gate.outputs.tag }}
           EVENT_SHA: ${{ github.sha }}
           VSIX: ${{ steps.package.outputs.vsix }}
-          BUNDLE: ${{ steps.verify.outputs.bundle }}
+          BUNDLE: ${{ steps.attest.outputs.bundle-path }}
         # Conflicting assets require manual resolution; never delete them.
         run: node .github/scripts/release-assets.mjs attach "$TAG" "$EVENT_SHA" "$VSIX" "$BUNDLE"
 
@@ -323,7 +328,7 @@ jobs:
           TAG: ${{ steps.gate.outputs.tag }}
           EVENT_SHA: ${{ github.sha }}
           VSIX: ${{ steps.package.outputs.vsix }}
-          BUNDLE: ${{ steps.verify.outputs.bundle }}
+          BUNDLE: ${{ steps.attest.outputs.bundle-path }}
         run: |
           node .github/scripts/verify-release-identity.mjs "$TAG" "$EVENT_SHA"
           node .github/scripts/release-assets.mjs publish "$TAG" "$EVENT_SHA" "$VSIX" "$BUNDLE"

@@ -31,13 +31,13 @@ test('attest the same marketplace-verified VSIX and attach the returned bundle b
   assert.ok(publish.includes(`VSIX: ${path}`))
   assert.ok(verify.includes(`VSIX: ${path}`))
   assert.ok(verify.includes('VERSION: ${{ steps.prepare.outputs.version }}'))
-  assert.match(verify, /^        run: bash \.github\/scripts\/recover-open-vsx\.sh "\$VSIX" sasjs sasjs-for-vscode "\$VERSION" "\$BUNDLE"$/m)
+  assert.match(verify, /^        run: bash \.github\/scripts\/verify-open-vsx\.sh "\$VSIX" sasjs sasjs-for-vscode "\$VERSION" "\$BUNDLE"$/m)
   assert.match(attest, /^        id: attest$/m)
   assert.match(attest, /^        uses: sasjs\/release\/\.github\/actions\/attest-assets@6bce05cbcd9364c7097f089ea6c9132978a500ca\b/m)
   assert.ok(attest.includes(`subject-path: ${path}`))
   assert.ok(attest.includes('version: ${{ steps.prepare.outputs.version }}'))
   assert.ok(attach.includes(`VSIX: ${path}`))
-  assert.ok(attach.includes('BUNDLE: ${{ steps.verify.outputs.bundle }}'))
+  assert.ok(attach.includes('BUNDLE: ${{ steps.attest.outputs.bundle-path }}'))
   assert.match(attach, /node \.github\/scripts\/release-assets\.mjs attach "\$TAG" "\$EVENT_SHA" "\$VSIX" "\$BUNDLE"/)
   const order = ['Attest the VSIX', 'Publish to Open VSX', 'Verify the Open VSX artifact', 'Attach the .vsix and provenance to the release', 'Publish the release'].map(name => workflow.indexOf(`      - name: ${name}\n`))
   assert.deepEqual(order, [...order].sort((a, b) => a - b))
@@ -298,37 +298,5 @@ test('gate validates API responses and preserves draft, missing and error behavi
     r = run('false', '[[]]')
     assert.notEqual(r.status, 0, 'missing release with explicit tag must fail without creating a draft')
     assert.doesNotMatch(r.output, /^publish=/m); assert.doesNotMatch(r.log, /release create/)
-  } finally { rmSync(dir, { recursive: true, force: true }) }
-})
-
-test('marketplace recovery accepts matching hashes and refuses mismatched, unavailable or malformed hashes', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'vsix-verify-'))
-  try {
-    const artifact = join(dir, 'sample.vsix')
-    writeFileSync(artifact, 'the packaged bytes')
-    const expected = spawnSync('sha256sum', [artifact], { encoding: 'utf8' }).stdout.slice(0, 64)
-    const curl = join(dir, 'curl')
-    const log = join(dir, 'curl-args')
-    writeFileSync(curl, '#!/bin/bash\nprintf "%s\\n" "$*" > "$MOCK_LOG"\n[ "$MOCK_FAIL" = 1 ] && exit 22\ncase "${*: -1}" in *.sha256) printf "%s" "$MOCK_HASH";; *.vsix) [ "$MOCK_FAIL" != 1 ] && printf "%s" "$MOCK_BYTES" > "${artifact}"; exit 0;; esac\n')
-    chmodSync(curl, 0o755)
-    writeFileSync(join(dir, 'gh'), '#!/bin/sh\n[ "$MOCK_VERIFY_FAIL" != 1 ] || exit 1\nprintf "%s" "$MOCK_VERIFIED"\n')
-    chmodSync(join(dir, 'gh'), 0o755)
-    const bundle = join(dir, 'current.intoto.jsonl')
-    const output = join(dir, 'output')
-    const verified = JSON.stringify([{ attestation: { bundle: { mediaType: 'application/vnd.dev.sigstore.bundle+json;version=0.3', dsseEnvelope: { payload: 'b3JpZ2luYWw=' } } } }])
-    const run = (bytes, overrides = {}) => {
-      writeFileSync(artifact, bytes); writeFileSync(bundle, JSON.stringify(JSON.parse(verified)[0].attestation.bundle) + '\n'); writeFileSync(output, '')
-      const result = spawnSync('bash', [resolve('.github/scripts/recover-open-vsx.sh'), artifact, 'sasjs', 'sasjs-for-vscode', '3.3.0', bundle], {
-        encoding: 'utf8', cwd: dir, env: { ...process.env, PATH: `${dir}:${process.env.PATH}`, MOCK_HASH: expected, MOCK_BYTES: 'marketplace bytes', MOCK_VERIFIED: verified, MOCK_VERIFY_FAIL: '0', MOCK_LOG: log, GITHUB_OUTPUT: output, GITHUB_REPOSITORY: 'sasjs/vscode-extension', GITHUB_SHA: 'a'.repeat(40), ...overrides }
-      })
-      return { result, artifact: readFileSync(artifact, 'utf8'), output: readFileSync(output, 'utf8') }
-    }
-    let { result } = run('the packaged bytes')
-    assert.equal(result.status, 0, `${result.stdout} ${result.stderr}`)
-    assert.ok(readFileSync(log, 'utf8').includes('https://open-vsx.org/api/sasjs/sasjs-for-vscode/3.3.0/file/sasjs.sasjs-for-vscode-3.3.0.sha256'))
-    for (const overrides of [{ MOCK_HASH: '0'.repeat(64) }, { MOCK_FAIL: '1' }, { MOCK_HASH: 'garbage' }]) {
-      ({ result } = run('the packaged bytes', overrides))
-      assert.notEqual(result.status, 0, `${JSON.stringify(overrides)}: ${result.stdout} ${result.stderr}`)
-    }
   } finally { rmSync(dir, { recursive: true, force: true }) }
 })
