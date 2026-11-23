@@ -13,16 +13,17 @@ test('retry recovers the exact marketplace VSIX and its original verified proven
     const bundle = join(dir, 'current.intoto.jsonl')
     const output = join(dir, 'output')
     const log = join(dir, 'log')
+    const curlLog = join(dir, 'curl-log')
     const marketplace = 'original published bytes'
     const digest = spawnSync('sha256sum', [], { input: marketplace, encoding: 'utf8' }).stdout.slice(0, 64)
     writeFileSync(bundle, 'current provenance')
-    writeFileSync(join(dir, 'curl'), `#!/bin/bash\n[ "$MOCK_CURL_FAIL" != 1 ] || exit 22\ncase "\${*: -1}" in *.sha256) printf '%s' "$MOCK_HASH";; *.vsix) while [ "$#" -gt 0 ]; do if [ "$1" = -o ]; then shift; printf '%s' "$MOCK_BYTES" > "$1"; exit 0; fi; shift; done; exit 2;; *) exit 3;; esac\n`)
+    writeFileSync(join(dir, 'curl'), `#!/bin/bash\nprintf '%s\\n' "$*" >> "$MOCK_CURL_LOG"\n[ "$MOCK_CURL_FAIL" != 1 ] || exit 22\ncase "\${*: -1}" in *.sha256) printf '%s' "$MOCK_HASH";; *.vsix) while [ "$#" -gt 0 ]; do if [ "$1" = -o ]; then shift; printf '%s' "$MOCK_BYTES" > "$1"; exit 0; fi; shift; done; exit 2;; *) exit 3;; esac\n`)
     writeFileSync(join(dir, 'gh'), `#!/bin/bash\nprintf '%s\\n' "$*" >> "$MOCK_LOG"\n[ "$MOCK_VERIFY_FAIL" != 1 ] || exit 1\nprintf '%s' "$MOCK_VERIFIED"\n`)
     chmodSync(join(dir, 'curl'), 0o755); chmodSync(join(dir, 'gh'), 0o755)
     const run = (bytes, overrides = {}) => {
-      writeFileSync(artifact, bytes); writeFileSync(output, ''); writeFileSync(log, ''); writeFileSync(bundle, 'current provenance')
+      writeFileSync(artifact, bytes); writeFileSync(output, ''); writeFileSync(log, ''); writeFileSync(curlLog, ''); writeFileSync(bundle, 'current provenance')
       const result = spawnSync('bash', [script, artifact, 'sasjs', 'sasjs-for-vscode', '3.3.0', bundle], {
-        encoding: 'utf8', cwd: dir, env: { ...process.env, PATH: `${dir}:${process.env.PATH}`, MOCK_HASH: digest, MOCK_BYTES: marketplace, MOCK_LOG: log, MOCK_VERIFIED: JSON.stringify([{ attestation: { bundle: { mediaType: 'application/vnd.dev.sigstore.bundle+json;version=0.3', dsseEnvelope: { payload: 'b3JpZ2luYWw=' } } } }]), GITHUB_OUTPUT: output, GITHUB_REPOSITORY: 'sasjs/vscode-extension', GITHUB_SHA: 'a'.repeat(40), ...overrides }
+        encoding: 'utf8', cwd: dir, env: { ...process.env, PATH: `${dir}:${process.env.PATH}`, MOCK_HASH: digest, MOCK_BYTES: marketplace, MOCK_LOG: log, MOCK_CURL_LOG: curlLog, MOCK_VERIFIED: JSON.stringify([{ attestation: { bundle: { mediaType: 'application/vnd.dev.sigstore.bundle+json;version=0.3', dsseEnvelope: { payload: 'b3JpZ2luYWw=' } } } }]), GITHUB_OUTPUT: output, GITHUB_REPOSITORY: 'sasjs/vscode-extension', GITHUB_SHA: 'a'.repeat(40), ...overrides }
       })
       return { ...result, output: readFileSync(output, 'utf8'), artifact: readFileSync(artifact, 'utf8'), log: readFileSync(log, 'utf8') }
     }
@@ -30,16 +31,31 @@ test('retry recovers the exact marketplace VSIX and its original verified proven
     assert.equal(result.status, 0, result.stderr)
     assert.equal(result.artifact, marketplace)
     assert.match(result.output, new RegExp(`bundle=${bundle}`))
-    assert.equal(result.log, '', 'matching build uses its own provenance')
+    const matchingArgs = result.log.trim().split('\n')
+    assert.equal(matchingArgs.length, 1)
+    assert.equal(matchingArgs[0], `attestation verify ${artifact} --bundle ${bundle} --repo sasjs/vscode-extension --signer-workflow sasjs/vscode-extension/.github/workflows/publish.yml --source-digest ${'a'.repeat(40)} --deny-self-hosted-runners --predicate-type https://slsa.dev/provenance/v1 --format json`, 'verify exact matching artifact, bundle and policy')
+    result = run(marketplace, { MOCK_VERIFY_FAIL: '1' })
+    assert.notEqual(result.status, 0, 'matching bytes must not permit an invalid provenance bundle')
+    assert.doesNotMatch(result.output, /^bundle=/m)
+    for (const MOCK_VERIFIED of ['[]', 'not json', JSON.stringify([{}, {}])]) {
+      result = run(marketplace, { MOCK_VERIFIED })
+      assert.notEqual(result.status, 0, 'matching bytes must reject invalid or ambiguous verification results')
+      assert.doesNotMatch(result.output, /^bundle=/m)
+    }
     result = run('different rebuilt bytes')
     assert.equal(result.status, 0, result.stderr)
     assert.equal(result.artifact, marketplace)
+    assert.match(readFileSync(curlLog, 'utf8'), /--max-time 600 .*\.vsix/m, 'large recovery download needs a realistic timeout')
     assert.match(result.output, /^bundle=.*\.intoto\.jsonl$/m)
     const recoveredBundle = result.output.match(/^bundle=(.*)$/m)[1]
     assert.deepEqual(JSON.parse(readFileSync(recoveredBundle, 'utf8')), { mediaType: 'application/vnd.dev.sigstore.bundle+json;version=0.3', dsseEnvelope: { payload: 'b3JpZ2luYWw=' } })
     assert.match(result.log, /attestation verify/)
     assert.match(result.log, /--source-digest a{40}/)
     assert.match(result.log, /--signer-workflow sasjs\/vscode-extension\/\.github\/workflows\/publish\.yml/)
+    assert.match(result.log, /--repo sasjs\/vscode-extension/)
+    assert.match(result.log, /--deny-self-hosted-runners/)
+    assert.match(result.log, /--predicate-type https:\/\/slsa.dev\/provenance\/v1/)
+    assert.match(result.log, /--bundle /, 'the extracted recovery bundle is verified again before use')
     result = run('different rebuilt bytes', { MOCK_BYTES: 'wrong download' })
     assert.notEqual(result.status, 0, 'wrong download must fail')
     assert.equal(result.artifact, 'different rebuilt bytes', 'failed recovery cannot replace build')

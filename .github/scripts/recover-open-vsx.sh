@@ -21,9 +21,29 @@ curl_args=(--fail --silent --show-error --location --retry 5 --retry-all-errors 
 remote=$(curl "${curl_args[@]}" "$base.sha256")
 [[ "$remote" =~ ^[0-9a-f]{64}$ ]] || { echo '::error::invalid Open VSX SHA-256' >&2; exit 1; }
 local_hash=$(sha256sum -- "$vsix"); local_hash=${local_hash%% *}
+# Verify the actual bundle to be attached, not merely the marketplace hash.
+# This limits substitution; it does not isolate signing credentials from
+# other code in the job, which remains an open trust-boundary finding.
+verify_bundle() {
+  local result
+  result=$(mktemp "${vsix}.bundle-verify.XXXXXXXX")
+  if ! gh attestation verify "$1" --bundle "$2" --repo "$GITHUB_REPOSITORY" \
+    --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/publish.yml" \
+    --source-digest "$GITHUB_SHA" --deny-self-hosted-runners \
+    --predicate-type https://slsa.dev/provenance/v1 --format json > "$result"; then
+    rm -f -- "$result"
+    return 1
+  fi
+  if ! node -e 'const r=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")); if (!Array.isArray(r) || r.length !== 1 || !r[0].attestation?.bundle?.dsseEnvelope) throw Error("expected exactly one verified provenance bundle")' "$result"; then
+    rm -f -- "$result"
+    return 1
+  fi
+  rm -f -- "$result"
+}
 if [ "$local_hash" = "$remote" ]; then
+  verify_bundle "$vsix" "$bundle"
   printf 'bundle=%s\n' "$bundle" >> "$GITHUB_OUTPUT"
-  echo 'Open VSX matches this build'
+  echo 'Open VSX matches this build and its bundle verifies'
   exit 0
 fi
 # Use a temporary same-directory file and replace only after both the digest
@@ -31,7 +51,7 @@ fi
 tmp=$(mktemp "${vsix}.recovery.XXXXXXXX")
 verified=$(mktemp "${vsix}.verified.XXXXXXXX")
 trap 'rm -f -- "$tmp" "$verified"' EXIT
-curl "${curl_args[@]}" -o "$tmp" "$base.vsix"
+curl "${curl_args[@]}" --max-time 600 -o "$tmp" "$base.vsix"
 [ -s "$tmp" ] || { echo '::error::empty marketplace VSIX' >&2; exit 1; }
 download_hash=$(sha256sum -- "$tmp"); download_hash=${download_hash%% *}
 [ "$download_hash" = "$remote" ] || { echo '::error::marketplace VSIX digest mismatch' >&2; exit 1; }
@@ -39,7 +59,8 @@ download_hash=$(sha256sum -- "$tmp"); download_hash=${download_hash%% *}
 # cryptographic signer workflow and source commit, not just bundle contents.
 gh attestation verify "$tmp" --repo "$GITHUB_REPOSITORY" \
   --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/publish.yml" \
-  --source-digest "$GITHUB_SHA" --deny-self-hosted-runners --format json > "$verified"
+  --source-digest "$GITHUB_SHA" --deny-self-hosted-runners \
+  --predicate-type https://slsa.dev/provenance/v1 --format json > "$verified"
 recovered=$(mktemp "${bundle}.recovery.XXXXXXXX")
 trap 'rm -f -- "$tmp" "$verified" "$recovered"' EXIT
 node -e '
@@ -48,6 +69,8 @@ const results = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
 if (!Array.isArray(results) || !results.length || !results[0].attestation?.bundle?.mediaType || !results[0].attestation.bundle.dsseEnvelope) throw Error("no verified provenance bundle");
 fs.writeFileSync(process.argv[2], JSON.stringify(results[0].attestation.bundle) + "\n");
 ' "$verified" "$recovered"
+# Re-verify the precise extracted bytes before installing either recovered file.
+verify_bundle "$tmp" "$recovered"
 mv -f -- "$recovered" "$bundle"
 mv -f -- "$tmp" "$vsix"
 printf 'bundle=%s\n' "$bundle" >> "$GITHUB_OUTPUT"
