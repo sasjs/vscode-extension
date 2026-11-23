@@ -4,8 +4,8 @@
 #   2. gate: is that tag's release still a draft?                (gh api)
 #   3. npm run release -- --prepare-publish --branch main \
 #        --no-registry-lookup --tag <tag>                        stamp the version
-#   4. npm run vsix:package, then npm run vsix:publish           .vsix + Open VSX
-#   5. gh release upload, then gh release edit --draft=false     attach, publish
+#   4. build and attest the VSIX, then publish to Open VSX
+#   5. verify/recover marketplace bytes and provenance; attach, publish
 #
 # package.json carries 0.0.0 in git: that is a placeholder, not a version. The
 # release tag is the source of truth for the version, and the second step is what
@@ -19,7 +19,13 @@ on:
     branches:
       - main
 
-# read-only by default; the release job asks for the one write it needs
+# Serializes only cooperating runs in this repository; outside writers can race.
+concurrency:
+  group: vscode-extension-release
+  cancel-in-progress: false
+  queue: max
+
+# read-only by default; the release job grants the writes it needs
 permissions: read-all
 
 jobs:
@@ -27,12 +33,14 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write # the tag, the release, and the .vsix attached to it
+      id-token: write # OIDC identity for build provenance
+      attestations: write # record the attestation
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0      # the tool reads commits and tags to decide the version
-          ref: main
+          ref: ${{ github.sha }}
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
@@ -83,44 +91,83 @@ jobs:
 
       - name: Work out whether this run still has something to publish
         id: gate
-        # Two questions, answered in the order that avoids asking the forge for
-        # something it has not been told yet.
-        #
-        # If the step above released, this run created the draft and there is work
-        # below whatever the API says in the next millisecond. The 3.1.0 run read
-        # the release list 20 ms after creating the draft, the list did not show
-        # it, and the fallback then aborted on `--verify-tag` because a draft has
-        # no tag in the repository - so a green build shipped nothing. The answer
-        # was already in `released`; it is now used rather than re-derived.
-        #
-        # A re-run is the case `released` cannot answer: the tag exists, so it
-        # reports false while a draft still needs finishing. That is what the
-        # forge read is for, with retries for the same visibility lag.
+        # The release CLI can report released=true for a tag already published,
+        # so both new releases and retries must consult the forge. A new draft may
+        # take time to appear; retry the list before relying on the CLI's result.
+        # API errors or malformed/ambiguous answers are never a successful no-op.
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           TAG="${{ steps.release.outputs.tag }}"
-          if [ -z "$TAG" ]; then TAG="$(git describe --tags --abbrev=0)"; fi
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          if [ "${{ steps.release.outputs.released }}" = "true" ]; then
-            echo "publish=true" >> "$GITHUB_OUTPUT"
-            echo "$TAG was released by this run: packaging and publishing it"
-            exit 0
+          INFERRED=false
+          if [ -z "$TAG" ]; then
+            # Only recover a version tag on this exact event commit, never a
+            # reachable ancestor. Ambiguous candidates need human intervention.
+            [[ "$GITHUB_SHA" =~ ^[0-9a-f]{40}$ ]] && [ "$(git rev-parse HEAD)" = "$GITHUB_SHA" ] || {
+              echo '::error::checkout differs from the push SHA'; exit 1;
+            }
+            CANDIDATES=()
+            TAGS="$(git tag --points-at "$GITHUB_SHA" --list 'v[0-9]*')"
+            while IFS= read -r candidate; do
+              if [[ "$candidate" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.-]+)?$ ]]; then
+                CANDIDATES+=("$candidate")
+              fi
+            done <<< "$TAGS"
+            if [ "${#CANDIDATES[@]}" -eq 0 ]; then
+              # Draft releases do not necessarily have a remote or local tag.
+              # Find a unique draft whose immutable target is the event SHA,
+              # then create only a local marker for prepare/identity verification.
+              TAG="$(gh api --paginate --slurp "repos/${GITHUB_REPOSITORY}/releases?per_page=100" | node -e '
+                let data = "";
+                process.stdin.setEncoding("utf8");
+                process.stdin.on("data", chunk => data += chunk);
+                process.stdin.on("end", () => {
+                  try {
+                    const pages = JSON.parse(data);
+                    if (!Array.isArray(pages) || pages.some(page => !Array.isArray(page) || page.some(r => !r || typeof r !== "object" || Array.isArray(r) || typeof r.tag_name !== "string" || typeof r.draft !== "boolean" || (r.draft && typeof r.target_commitish !== "string")))) throw Error("invalid releases response");
+                    const candidates = pages.flat().filter(r => r.draft === true && r.target_commitish === process.env.GITHUB_SHA && /^v\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/.test(r.tag_name));
+                    if (candidates.length > 1) throw Error("multiple drafts target the push SHA");
+                    if (candidates.length) process.stdout.write(candidates[0].tag_name);
+                  } catch (e) { console.error(`::error::${e.message}`); process.exitCode = 1; }
+                });
+              ')"
+              if [ -z "$TAG" ]; then
+                echo "publish=false" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
+              if git rev-parse --verify -q "refs/tags/$TAG" >/dev/null; then
+                echo "::error::$TAG exists locally but does not name the push SHA"; exit 1
+              fi
+              git tag "$TAG" "$GITHUB_SHA"
+              INFERRED=true
+            elif [ "${#CANDIDATES[@]}" -ne 1 ]; then
+              echo '::error::multiple release tags point at the push SHA'; exit 1
+            else
+              TAG="${CANDIDATES[0]}"
+              INFERRED=true
+            fi
           fi
-          # `gh release view <tag>` asks /releases/tags/<tag>, which does not return
-          # drafts - the very release this step needs to find. Listed and matched
-          # instead, and paginated: a repo with more than one page of releases would
-          # otherwise read an older tag as having no release at all.
-          #
-          # The filter prints `true`, `false` or nothing, and the branch below reads
-          # all three. It cannot use jq's `//` to default: `false // "missing"`
-          # yields "missing", so a published release would answer identically to an
-          # absent one.
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          # The paginated list includes drafts; the tag endpoint does not. Parse
+          # the whole response so malformed or duplicate matches cannot look like
+          # a missing release, and preserve false as distinct from missing.
           DRAFT=""
           for attempt in 1 2 3 4 5; do
-            DRAFT="$(gh api --paginate "repos/${{ github.repository }}/releases?per_page=100" \
-              -q ".[] | select(.tag_name == \"$TAG\") | .draft")"
+            DRAFT="$(gh api --paginate --slurp "repos/${GITHUB_REPOSITORY}/releases?per_page=100" | TAG="$TAG" node -e '
+              let data = "";
+              process.stdin.setEncoding("utf8");
+              process.stdin.on("data", chunk => data += chunk);
+              process.stdin.on("end", () => {
+                try {
+                  const pages = JSON.parse(data);
+                  if (!Array.isArray(pages) || pages.some(page => !Array.isArray(page) || page.some(r => !r || typeof r !== "object" || Array.isArray(r) || typeof r.tag_name !== "string" || typeof r.draft !== "boolean"))) throw Error("invalid releases response");
+                  const matches = pages.flat().filter(r => r.tag_name === process.env.TAG);
+                  if (matches.length > 1) throw Error("multiple releases have the same tag");
+                  if (matches.length) process.stdout.write(String(matches[0].draft));
+                } catch (e) { console.error(`::error::${e.message}`); process.exitCode = 1; }
+              });
+            ')"
             [ -n "$DRAFT" ] && break
             echo "no release for $TAG yet (attempt $attempt): waiting for the forge"
             sleep 3
@@ -136,6 +183,15 @@ jobs:
               echo "$TAG is already released: nothing to publish"
               ;;
             "")
+              if [ "${{ steps.release.outputs.released }}" = "true" ]; then
+                echo "::error::Release for $TAG is not yet visible; retry the workflow"
+                exit 1
+              fi
+              if [ "$INFERRED" = true ]; then
+                echo "publish=false" >> "$GITHUB_OUTPUT"
+                echo "No draft for $TAG: nothing to publish"
+                exit 0
+              fi
               # A tag with no release at all: the release call created the tag and
               # failed before creating the release. Make the draft it was meant to
               # make, and let the steps below finish it. The notes come from the
@@ -155,6 +211,14 @@ jobs:
               exit 1
               ;;
           esac
+
+      - name: Verify release identity
+        if: steps.gate.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.gate.outputs.tag }}
+          EVENT_SHA: ${{ github.sha }}
+        run: node .github/scripts/verify-release-identity.mjs "$TAG" "$EVENT_SHA"
 
       - name: Decide what to package
         id: prepare
@@ -188,6 +252,10 @@ jobs:
         # locked tree - the opposite of what this change is for. The exposure is
         # narrow: a version cannot silently move, because the version is exact.
         run: |
+          # vsce sorts entries and fixes every ZIP mtime when SOURCE_DATE_EPOCH is set.
+          # Stable for retries of this exact commit; the marketplace hash still gates
+          # attestation if generated inputs or tooling differ across runs.
+          export SOURCE_DATE_EPOCH="$(git show -s --format=%ct HEAD)"
           VSIX="$(node -p 'require("./package.json").name')-${VERSION}.vsix"
           npm run vsix:package --silent -- --out "$VSIX"
           # Fetch both tools here, where no token is in scope. npx caches per job,
@@ -200,10 +268,23 @@ jobs:
           npm run vsix:tooling --silent
           echo "vsix=$VSIX" >> "$GITHUB_OUTPUT"
 
+      # Create provenance for this build before publish, so a failed attempt
+      # can recover the original signed statement if a retry rebuilds differently.
+      - name: Attest the VSIX
+        id: attest
+        if: steps.gate.outputs.publish == 'true'
+        uses: sasjs/release/.github/actions/attest-assets@6bce05cbcd9364c7097f089ea6c9132978a500ca # v0.19.0
+        with:
+          version: ${{ steps.prepare.outputs.version }}
+          subject-path: ${{ steps.package.outputs.vsix }}
+
       - name: Publish to Open VSX
         if: steps.gate.outputs.publish == 'true'
         env:
           OVSX_PAT: ${{ secrets.OPEN_VSX_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.gate.outputs.tag }}
+          EVENT_SHA: ${{ github.sha }}
         run: |
           # Open VSX is how users receive the extension, so a release that cannot
           # reach it has not shipped. Says so rather than skipping quietly: the
@@ -219,17 +300,31 @@ jobs:
           #
           # --skip-duplicate is what makes a re-run safe: the second run meets a
           # version it already published, which is the state it wants.
+          node .github/scripts/verify-release-identity.mjs "$TAG" "$EVENT_SHA"
           npm run vsix:publish --silent -- "${{ steps.package.outputs.vsix }}" --skip-duplicate
 
-      - name: Attach the .vsix to the release
+      - name: Verify the Open VSX artifact
+        id: verify
+        if: steps.gate.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VSIX: ${{ steps.package.outputs.vsix }}
+          VERSION: ${{ steps.prepare.outputs.version }}
+          BUNDLE: ${{ steps.attest.outputs.bundle-path }}
+        # Recover only with the original verified build provenance; a downloaded
+        # marketplace artifact was not built by this attempt and cannot be re-attested.
+        run: bash .github/scripts/recover-open-vsx.sh "$VSIX" sasjs sasjs-for-vscode "$VERSION" "$BUNDLE"
+
+      - name: Attach the .vsix and provenance to the release
         if: steps.gate.outputs.publish == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.gate.outputs.tag }}
-        # TAG from the gate, not from the release step: on a re-run the release
-        # step reports released=false and writes no tag at all, which is the empty
-        # interpolation that would have stopped this step before the edit below.
-        run: gh release upload "$TAG" "${{ steps.package.outputs.vsix }}" --clobber
+          EVENT_SHA: ${{ github.sha }}
+          VSIX: ${{ steps.package.outputs.vsix }}
+          BUNDLE: ${{ steps.verify.outputs.bundle }}
+        # Conflicting assets require manual resolution; never delete them.
+        run: node .github/scripts/release-assets.mjs attach "$TAG" "$EVENT_SHA" "$VSIX" "$BUNDLE"
 
       - name: Publish the release
         # Last: the release is created as a draft, so a version is never advertised
@@ -239,4 +334,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.gate.outputs.tag }}
-        run: gh release edit "$TAG" --draft=false
+          EVENT_SHA: ${{ github.sha }}
+          VSIX: ${{ steps.package.outputs.vsix }}
+          BUNDLE: ${{ steps.verify.outputs.bundle }}
+        run: |
+          node .github/scripts/verify-release-identity.mjs "$TAG" "$EVENT_SHA"
+          node .github/scripts/release-assets.mjs verify "$TAG" "$EVENT_SHA" "$VSIX" "$BUNDLE"
+          gh release edit "$TAG" --draft=false

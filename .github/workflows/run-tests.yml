@@ -85,6 +85,9 @@ jobs:
         # already sets up, and it runs in well under a second
         run: node --test .github/scripts/coverage-ratchet.test.mjs
 
+      - name: Test release provenance wiring
+        run: node --test .github/scripts/vsix-provenance.test.mjs .github/scripts/vsix-retry.test.mjs .github/scripts/release-assets.test.mjs .github/scripts/release-workflow.test.mjs
+
       - name: Run Unit Tests
         # produces coverage/coverage-summary.json, which the ratchet reads
         run: npm run test:unit
