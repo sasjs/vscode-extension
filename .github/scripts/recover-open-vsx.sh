@@ -38,7 +38,10 @@ verify_bundle() {
 const fs = require("fs"), { isDeepStrictEqual } = require("util");
 const r = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
 const input = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
-if (!Array.isArray(r) || r.length !== 1 || !r[0].attestation?.bundle?.dsseEnvelope || !isDeepStrictEqual(input, r[0].attestation.bundle)) throw Error("expected exactly one verified bundle matching the file");
+// gh parses and may normalize bundle metadata on output. Bind its verified
+// result to the exact DSSE envelope in the single input object, not the
+// serialization of unsigned verification metadata.
+if (!Array.isArray(r) || r.length !== 1 || !input.dsseEnvelope || !isDeepStrictEqual(input.dsseEnvelope, r[0].attestation?.bundle?.dsseEnvelope)) throw Error("expected one verified envelope matching the file");
 ' "$result" "$2"; then
     rm -f -- "$result"
     return 1
@@ -66,20 +69,26 @@ gh attestation verify "$tmp" --repo "$GITHUB_REPOSITORY" \
   --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/publish.yml" \
   --source-digest "$GITHUB_SHA" --source-ref refs/heads/main --deny-self-hosted-runners \
   --predicate-type https://slsa.dev/provenance/v1 --format json > "$verified"
-# The API can return distinct valid attestations for the same artifact. Never
-# pick one by response order: multiple results require manual resolution. An
-# existing draft asset is still matched by digest later; we never overwrite it.
-recovered=$(mktemp "${bundle}.recovery.XXXXXXXX")
-trap 'rm -f -- "$tmp" "$verified" "$recovered"' EXIT
+# The API can return distinct valid attestations for the same artifact. Identical
+# verified results can be deduplicated; distinct bundles require manual resolution.
+# The lookup is limited by gh, so uniqueness beyond the returned set is unknown.
+# Stage the bundle in a private directory with the original asset name. The
+# original bundle never changes; the single artifact rename is the commit point.
+recovery_dir=$(mktemp -d "${vsix}.provenance.XXXXXXXX")
+recovered="$recovery_dir/$(basename -- "$bundle")"
+trap 'rm -f -- "$tmp" "$verified"; [ -z "${recovery_dir:-}" ] || rm -rf -- "$recovery_dir"' EXIT
 node -e '
-const fs = require("fs");
+const fs = require("fs"), { isDeepStrictEqual } = require("util");
 const results = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
-if (!Array.isArray(results) || results.length !== 1 || !results[0].attestation?.bundle?.mediaType || !results[0].attestation.bundle.dsseEnvelope) throw Error("expected exactly one verified provenance bundle; resolve manually");
+if (!Array.isArray(results) || !results.length || results.some(r => !r.attestation?.bundle?.mediaType || !r.attestation.bundle.dsseEnvelope) || results.some(r => !isDeepStrictEqual(r.attestation.bundle, results[0].attestation.bundle))) throw Error("expected one distinct verified provenance bundle; resolve manually");
 fs.writeFileSync(process.argv[2], JSON.stringify(results[0].attestation.bundle) + "\n");
 ' "$verified" "$recovered"
 # Re-verify the precise extracted bytes before installing either recovered file.
 verify_bundle "$tmp" "$recovered"
-mv -f -- "$recovered" "$bundle"
+# The output is written first, and only used by subsequent steps on success.
+# If either this write or the rename fails, the original files remain intact.
+printf 'bundle=%s\n' "$recovered" >> "$GITHUB_OUTPUT"
+echo 'Installing the verified marketplace VSIX and original provenance'
 mv -f -- "$tmp" "$vsix"
-printf 'bundle=%s\n' "$bundle" >> "$GITHUB_OUTPUT"
-echo 'Recovered the marketplace VSIX and its verified original provenance'
+# Keep the staged bundle for the subsequent attachment step.
+recovery_dir=
