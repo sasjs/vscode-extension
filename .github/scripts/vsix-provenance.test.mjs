@@ -176,8 +176,9 @@ test('release gate resumes a draft at the event commit when the release step emi
     }
     for (const target of ['main', 'b'.repeat(40)]) {
       result = run('true', sha, [[{ tag_name: 'v1.0.0', draft: true, target_commitish: target }]])
-      assert.notEqual(result.status, 0, 'unmatched version draft requires manual resolution')
-      assert.doesNotMatch(result.output, /^publish=/m)
+      assert.equal(result.status, 0, 'an unmatched draft must not wedge the pipeline')
+      assert.match(result.output, /^publish=false$/m, 'an unmatched draft cannot be resumed')
+      assert.match(result.stderr, new RegExp(`no draft targets the push SHA; version drafts not resumed: v1\\.0\\.0 -> ${target === 'main' ? 'main' : 'b{40}'}`), 'must name the stray draft')
     }
     result = run('true', sha, [[{ tag_name: 'v1.0.0', draft: true, target_commitish: sha }, { tag_name: 'v1.0.1', draft: true, target_commitish: sha }]])
     assert.notEqual(result.status, 0, 'multiple drafts are ambiguous')

@@ -62,8 +62,12 @@ if (args.includes('--input')) {
   fs.writeFileSync(path, JSON.stringify(s));
   process.stdout.write('{}');
 } else if (args.includes('PATCH')) {
-  if (!args.includes('repos/owner/repo/releases/42') || !args.includes('draft=false')) process.exit(6);
-  process.stdout.write(JSON.stringify(s.publishResponse || { id: 42, tag_name: 'v1.0.0', draft: false, target_commitish: 'a'.repeat(40) }));
+  // -F (typed field), never -f: 'draft' is documented as boolean, and -f
+  // would send the string "false". The flag itself is the thing under test.
+  const fIndex = args.indexOf('-F');
+  if (fIndex === -1 || args[fIndex + 1] !== 'draft=false' || args.includes('-f')) process.exit(6);
+  if (!args.includes('repos/owner/repo/releases/42')) process.exit(6);
+  process.stdout.write(JSON.stringify(s.publishResponse === null ? null : s.publishResponse || { id: 42, tag_name: 'v1.0.0', draft: false, target_commitish: 'main' }));
 } else if (args.some(x => x.includes('/releases/42/assets?'))) {
   process.stdout.write(JSON.stringify(s.pages || [s.assets]));
 } else if (args.some(x => x.includes('/releases?'))) {
@@ -92,16 +96,15 @@ if (args.includes('--input')) {
     assert.doesNotMatch(r.log, /DELETE|--clobber/)
     r = run('attach', { assets: [], addExtraOnUpload: true })
     assert.notEqual(r.status, 0, 'post-upload readback must detect a racing extra asset')
-    r = run('verify', { assets: good, pages: [[good[0]], [good[1]]] })
+    r = run('publish', { assets: good, pages: [[good[0]], [good[1]]] })
     assert.equal(r.status, 0, r.stderr)
-    r = run('publish', { assets: good })
-    assert.equal(r.status, 0, r.stderr)
-    assert.match(r.log, /"PATCH".*"repos\/owner\/repo\/releases\/42".*"draft=false"/)
+    assert.match(r.log, /"-F".*"draft=false"/)
+    assert.doesNotMatch(r.log, /"-f"/)
     for (const publishResponse of [
-      { id: 43, tag_name: 'v1.0.0', draft: false, target_commitish: 'a'.repeat(40) },
-      { id: 42, tag_name: 'v0.9.0', draft: false, target_commitish: 'a'.repeat(40) },
-      { id: 42, tag_name: 'v1.0.0', draft: true, target_commitish: 'a'.repeat(40) },
-      { id: 42, tag_name: 'v1.0.0', draft: false, target_commitish: 'b'.repeat(40) }
+      { id: 43, tag_name: 'v1.0.0', draft: false },
+      { id: 42, tag_name: 'v0.9.0', draft: false },
+      { id: 42, tag_name: 'v1.0.0', draft: true },
+      null
     ]) {
       r = run('publish', { assets: good, publishResponse })
       assert.notEqual(r.status, 0, `publication response identity mismatch must fail: ${JSON.stringify(publishResponse)}`)
@@ -119,8 +122,9 @@ if (args.includes('--input')) {
       { assets: good, releases: [[{ id: 42, tag_name: 'v1.0.0', draft: true, target_commitish: 'b'.repeat(40) }]] },
       { assets: good, releases: [[]] }
     ]) {
-      r = run('verify', bad)
+      r = run('publish', bad)
       assert.notEqual(r.status, 0, `must refuse ${JSON.stringify(bad)}`)
+      assert.doesNotMatch(r.log, /"PATCH"/, 'must not publish on a bad draft or asset state')
     }
     for (const bad of [{ assets: [good[0], { ...good[1], digest: hash('wrong') }] }, { assets: [{ name: 'extra' }] }]) {
       r = run('attach', bad)

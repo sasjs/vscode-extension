@@ -127,11 +127,11 @@ jobs:
                   try {
                     const pages = JSON.parse(data);
                     if (!Array.isArray(pages) || pages.some(page => !Array.isArray(page) || page.some(r => !r || typeof r !== "object" || Array.isArray(r) || typeof r.tag_name !== "string" || typeof r.draft !== "boolean" || (r.draft && typeof r.target_commitish !== "string")))) throw Error("invalid releases response");
-                    const drafts = pages.flat().filter(r => r.draft === true && /^v\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/.test(r.tag_name));
-                    if (drafts.some(r => r.target_commitish !== process.env.GITHUB_SHA)) throw Error("version draft has an unmatched or mutable target; resolve manually");
-                    const candidates = drafts;
+                    const versionDrafts = pages.flat().filter(r => r.draft === true && /^v\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/.test(r.tag_name));
+                    const candidates = versionDrafts.filter(r => r.target_commitish === process.env.GITHUB_SHA);
                     if (candidates.length > 1) throw Error("multiple drafts target the push SHA");
                     if (candidates.length) process.stdout.write(candidates[0].tag_name);
+                    else if (versionDrafts.length) console.error(`::warning::no draft targets the push SHA; version drafts not resumed: ${versionDrafts.map(r => `${r.tag_name} -> ${r.target_commitish}`).join(", ")}`);
                   } catch (e) { console.error(`::error::${e.message}`); process.exitCode = 1; }
                 });
               ')"
