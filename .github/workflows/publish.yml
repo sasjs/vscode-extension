@@ -101,7 +101,6 @@ jobs:
           RELEASED: ${{ steps.release.outputs.released }}
         run: |
           set -euo pipefail
-          INFERRED=false
           if [ -z "$TAG" ]; then
             # Only recover a version tag on this exact event commit, never a
             # reachable ancestor. Ambiguous candidates need human intervention.
@@ -143,12 +142,10 @@ jobs:
                 echo "::error::$TAG exists locally but does not name the push SHA"; exit 1
               fi
               git tag "$TAG" "$GITHUB_SHA"
-              INFERRED=true
             elif [ "${#CANDIDATES[@]}" -ne 1 ]; then
               echo '::error::multiple release tags point at the push SHA'; exit 1
             else
               TAG="${CANDIDATES[0]}"
-              INFERRED=true
             fi
           fi
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
@@ -189,11 +186,6 @@ jobs:
               if [ "$RELEASED" = "true" ]; then
                 echo "::error::Release for $TAG is not yet visible; retry the workflow"
                 exit 1
-              fi
-              if [ "$INFERRED" = true ]; then
-                echo "publish=false" >> "$GITHUB_OUTPUT"
-                echo "No draft for $TAG: nothing to publish"
-                exit 0
               fi
               echo "::error::Release for $TAG is missing; resolve manually"
               exit 1
