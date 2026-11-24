@@ -4,7 +4,10 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'nod
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { spawnSync } from 'node:child_process'
+import { createRequire } from 'node:module'
 import { checkSnippets, checkListing } from './check-snippets.mjs'
+
+const require = createRequire(import.meta.url)
 
 const snippet = { prefix: 'proc sql', body: 'proc sql;' }
 const pkgWith = paths => ({ contributes: { snippets: paths.map(path => ({ language: 'sas', path })) } })
@@ -87,6 +90,14 @@ test('a directory whose name starts with dots is not an escape', () => {
     assert.deepEqual(checkSnippets({ pkg: pkgWith(['./..snippets/x.json']), root }), [])
     assert.match(checkSnippets({ pkg: pkgWith(['../outside.json']), root })[0], /escapes the package/)
   } finally { rmSync(root, { recursive: true, force: true }) }
+})
+
+test('Jest measures source but not the editor-host test tree', () => {
+  const { globsToMatcher } = require('jest-util')
+  const { collectCoverageFrom } = require('../../jest.config.js')
+  const matchesCoverage = globsToMatcher(collectCoverageFrom)
+  assert.equal(matchesCoverage('src/test/suite/languageServer.test.ts'), false)
+  assert.equal(matchesCoverage('src/languageServer/languageServer.ts'), true)
 })
 
 test('the extension preserves SAS function snippets with argument placeholders', () => {

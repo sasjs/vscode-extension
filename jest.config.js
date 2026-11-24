@@ -19,6 +19,7 @@ module.exports = {
   //     statements: -10
   //   }
   // },
-  collectCoverageFrom: ['src/**/{!(index),}.ts'],
+  // Editor-host integration tests are exercised separately, not by Jest.
+  collectCoverageFrom: ['src/**/{!(index),}.ts', '!src/test/**'],
   testMatch: ['**/*spec.[j|t]s?(x)']
 }
