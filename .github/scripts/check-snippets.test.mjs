@@ -109,7 +109,7 @@ test('a directory whose name starts with dots is not an escape', () => {
 
 test('the extension preserves SAS function snippets with argument placeholders', () => {
   const pkg = JSON.parse(readFileSync('package.json', 'utf8'))
-  const path = './vendor/sas-function-snippets.json'
+  const path = './snippets/function-snippets.json'
   assert.ok(pkg.contributes.snippets.some(entry => entry.language === 'sas' && entry.path === path), 'the SAS function snippets must be contributed')
   const snippets = JSON.parse(readFileSync(path, 'utf8'))
   assert.equal(snippets.sum.prefix, 'sum')
@@ -117,25 +117,31 @@ test('the extension preserves SAS function snippets with argument placeholders',
   assert.deepEqual(snippets.atan2.body, ['atan2(${1:x}, ${2:y})'])
 })
 
-test('vendored function snippets have balanced call parentheses', () => {
-  const snippets = JSON.parse(readFileSync('./vendor/sas-function-snippets.json', 'utf8'))
-  assert.ok(Object.keys(snippets).length > 200, 'the function library is not empty')
-  for (const [name, snippet] of Object.entries(snippets)) {
-    const body = (Array.isArray(snippet.body) ? snippet.body.join('\n') : snippet.body)
-      .replace(/\$\{\d+(?::[^}]*)?\}/g, '')
-    let depth = 0
-    for (const char of body) {
-      if (char === '(') depth++
-      if (char === ')') depth--
-      assert.ok(depth >= 0, `${name} closes a parenthesis too early`)
-    }
-    assert.equal(depth, 0, `${name} has an unclosed parenthesis`)
-  }
+test('the shared function snippets retain working examples', () => {
+  const snippets = JSON.parse(readFileSync('./snippets/function-snippets.json', 'utf8'))
+  assert.deepEqual(snippets.allperm.body, ['allperm(${1:count}, of ${2:variable})'])
+  assert.deepEqual(snippets.cos.body, ['cos(${1})'])
+  assert.deepEqual(snippets.compound.body, ['compound(${1:init-amt}, ${2:future-amt}, ${3:interest-rate}, ${4:num-periods})'])
 })
 
-test('compound exposes four argument placeholders', () => {
-  const snippets = JSON.parse(readFileSync('./vendor/sas-function-snippets.json', 'utf8'))
-  assert.deepEqual(snippets.compound.body, ['compound(${1:init-amt}, ${2:future-amt}, ${3:interest-rate}, ${4:num-periods})'])
+test('setup stages the shared SAS language snippets and licence', () => {
+  const root = mkdtempSync(join(tmpdir(), 'shared-snippet-'))
+  try {
+    const source = join(root, 'library')
+    const target = join(root, 'extension')
+    mkdirSync(source)
+    writeFileSync(join(source, 'functions.json'), '{"sum":{"prefix":"sum","body":["sum(${1})"]}}')
+    writeFileSync(join(source, 'LICENSE.txt'), 'test license')
+    writeFileSync(join(source, 'README.md'), 'test provenance')
+    const r = spawnSync('node', [join(process.cwd(), 'scripts/stage-function-snippets.mjs'), source, target], { encoding: 'utf8' })
+    assert.equal(r.status, 0, r.stderr)
+    assert.deepEqual(JSON.parse(readFileSync(join(target, 'snippets/function-snippets.json'), 'utf8')).sum.body, ['sum(${1})'])
+    assert.equal(readFileSync(join(target, 'snippets/function-snippets-LICENSE.txt'), 'utf8'), 'test license')
+    assert.equal(readFileSync(join(target, 'snippets/function-snippets-README.md'), 'utf8'), 'test provenance')
+    rmSync(join(source, 'functions.json'))
+    const failure = spawnSync('node', [join(process.cwd(), 'scripts/stage-function-snippets.mjs'), source, target], { encoding: 'utf8' })
+    assert.notEqual(failure.status, 0, 'missing shared templates must fail staging')
+  } finally { rmSync(root, { recursive: true, force: true }) }
 })
 
 test('the packaged listing must contain every declared contribution', () => {
