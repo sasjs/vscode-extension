@@ -89,6 +89,16 @@ test('a directory whose name starts with dots is not an escape', () => {
   } finally { rmSync(root, { recursive: true, force: true }) }
 })
 
+test('the extension preserves SAS function snippets with argument placeholders', () => {
+  const pkg = JSON.parse(readFileSync('package.json', 'utf8'))
+  const path = './vendor/sas-function-snippets.json'
+  assert.ok(pkg.contributes.snippets.some(entry => entry.language === 'sas' && entry.path === path), 'the SAS function snippets must be contributed')
+  const snippets = JSON.parse(readFileSync(path, 'utf8'))
+  assert.equal(snippets.sum.prefix, 'sum')
+  assert.deepEqual(snippets.sum.body, ['sum(${1})'])
+  assert.deepEqual(snippets.atan2.body, ['atan2(${1:x}, ${2:y})'])
+})
+
 test('the packaged listing must contain every declared contribution', () => {
   const pkg = pkgWith(['./snippets/proc-snippets.json', './snippets/function-snippets.json'])
   // `vsce ls` paths are relative to the extension root, without the leading ./.

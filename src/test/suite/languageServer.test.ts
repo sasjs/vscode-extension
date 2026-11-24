@@ -113,6 +113,33 @@ suite('SAS Language Server', () => {
     assert.ok(items.length > 5, `completions answer (got ${items.length})`)
   })
 
+  test('function snippets insert argument placeholders', async () => {
+    const document = await vscode.workspace.openTextDocument({
+      language: 'sas',
+      content: 'data test;\n  x = ata\nrun;'
+    })
+    const editor = await vscode.window.showTextDocument(document)
+    const position = new vscode.Position(1, 9)
+    const list = await vscode.commands.executeCommand<vscode.CompletionList | vscode.CompletionItem[]>(
+      'vscode.executeCompletionItemProvider', document.uri, position
+    )
+    const items = Array.isArray(list) ? list : list?.items ?? []
+    const snippet = items.find((item) => {
+      const label = typeof item.label === 'string' ? item.label : item.label.label
+      return label.toLowerCase() === 'atan2' && item.kind === vscode.CompletionItemKind.Snippet
+    })
+    assert.ok(snippet, 'atan2 function snippet is available')
+    assert.ok(snippet.insertText instanceof vscode.SnippetString)
+    assert.strictEqual(snippet.insertText.value, 'atan2(${1:x}, ${2:y})')
+    const range = new vscode.Range(new vscode.Position(1, 6), position)
+    assert.strictEqual(await editor.insertSnippet(snippet.insertText, range), true)
+    assert.strictEqual(document.lineAt(1).text, '  x = atan2(x, y)')
+    await vscode.commands.executeCommand('type', { text: 'height' })
+    await vscode.commands.executeCommand('jumpToNextSnippetPlaceholder')
+    await vscode.commands.executeCommand('type', { text: 'weight' })
+    assert.strictEqual(document.lineAt(1).text, '  x = atan2(height, weight)')
+  })
+
   test('document symbols outline the program', async () => {
     const document = await vscode.workspace.openTextDocument(
       path.join(vscode.workspace.workspaceFolders![0].uri.fsPath, workspaceFile)
