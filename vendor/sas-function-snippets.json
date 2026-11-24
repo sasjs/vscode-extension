@@ -26,7 +26,7 @@
   },
   "allperm": {
     "prefix": "allperm",
-    "body": ["allperm(${1:count}, of ${2:variable}"],
+    "body": ["allperm(${1:count}, of ${2:variable})"],
     "description": "Generates all permutations of the values of several variables in a minimal change order."
   },
   "anorm420": {
@@ -297,7 +297,7 @@
   "compound": {
     "prefix": "compound",
     "body": [
-      "compound(${1:init-amt}, ${2:future-amt}, ${3:interest-rate}, {4:num-periods})"
+      "compound(${1:init-amt}, ${2:future-amt}, ${3:interest-rate}, ${4:num-periods})"
     ],
     "description": "Returns compound interest parameters. Calculates the missing perameter."
   },
@@ -308,7 +308,7 @@
   },
   "cos": {
     "prefix": "cos",
-    "body": ["cos(${1}"],
+    "body": ["cos(${1})"],
     "description": "Returns the cosine in radians."
   },
   "cosh": {

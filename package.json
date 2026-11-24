@@ -302,7 +302,7 @@
     "lint": "eslint src",
     "test": "node ./out/test/runTest.js",
     "test:unit": "jest --config=jest.config.js --coverage",
-    "sas:snippets": "degit sassoftware/vscode-sas-extension/snippets snippets --force",
+    "sas:snippets": "degit sassoftware/vscode-sas-extension/snippets#97892fea1c3e909b12ae25aa50dfd22fa91d9c17 snippets --force",
     "sasjs:snippets": "npx sasjs snippets -o ./snippets/sasjs-macro-snippets.json",
     "setup": "npm run sas:snippets && npm run sasjs:snippets && { [ -d .git ] && git config core.hooksPath ./.git-hooks || true; }",
     "release": "sasjs-release",

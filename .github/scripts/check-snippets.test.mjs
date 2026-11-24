@@ -4,10 +4,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'nod
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { spawnSync } from 'node:child_process'
-import { createRequire } from 'node:module'
 import { checkSnippets, checkListing } from './check-snippets.mjs'
-
-const require = createRequire(import.meta.url)
 
 const snippet = { prefix: 'proc sql', body: 'proc sql;' }
 const pkgWith = paths => ({ contributes: { snippets: paths.map(path => ({ language: 'sas', path })) } })
@@ -53,6 +50,24 @@ test('the object spelling upstream actually uses is accepted', () => {
   } finally { rmSync(root, { recursive: true, force: true }) }
 })
 
+test('a snippet body with an unterminated placeholder is refused', () => {
+  const root = fixture(['./snippets/proc.json'], {
+    'proc.json': JSON.stringify([{ prefix: 'bad', body: 'bad(${1' }])
+  })
+  try {
+    assert.match(checkSnippets({ pkg: pkgWith(['./snippets/proc.json']), root })[0], /unterminated.*placeholder/)
+    writeFileSync(join(root, 'snippets', 'proc.json'), JSON.stringify([
+      { prefix: 'ok', body: 'ok(${1})' },
+      { prefix: 'nested', body: '${1:outer ${2:inner}}' },
+      { prefix: 'escaped', body: 'literal \\${1' },
+      { prefix: 'multiline', body: ['${1:line one', 'line two}'] }
+    ]))
+    assert.deepEqual(checkSnippets({ pkg: pkgWith(['./snippets/proc.json']), root }), [])
+    writeFileSync(join(root, 'snippets', 'proc.json'), JSON.stringify([{ prefix: 'nested-bad', body: '${1:${2:inner}' }]))
+    assert.match(checkSnippets({ pkg: pkgWith(['./snippets/proc.json']), root })[0], /unterminated.*placeholder/)
+  } finally { rmSync(root, { recursive: true, force: true }) }
+})
+
 test('invalid, empty, malformed and escaping contributions are refused', () => {
   const root = fixture(['./snippets/a.json', './snippets/b.json', './snippets/c.json', './snippets/d.json', './snippets/e.json'], {
     'a.json': 'not json',
@@ -92,14 +107,6 @@ test('a directory whose name starts with dots is not an escape', () => {
   } finally { rmSync(root, { recursive: true, force: true }) }
 })
 
-test('Jest measures source but not the editor-host test tree', () => {
-  const { globsToMatcher } = require('jest-util')
-  const { collectCoverageFrom } = require('../../jest.config.js')
-  const matchesCoverage = globsToMatcher(collectCoverageFrom)
-  assert.equal(matchesCoverage('src/test/suite/languageServer.test.ts'), false)
-  assert.equal(matchesCoverage('src/languageServer/languageServer.ts'), true)
-})
-
 test('the extension preserves SAS function snippets with argument placeholders', () => {
   const pkg = JSON.parse(readFileSync('package.json', 'utf8'))
   const path = './vendor/sas-function-snippets.json'
@@ -108,6 +115,27 @@ test('the extension preserves SAS function snippets with argument placeholders',
   assert.equal(snippets.sum.prefix, 'sum')
   assert.deepEqual(snippets.sum.body, ['sum(${1})'])
   assert.deepEqual(snippets.atan2.body, ['atan2(${1:x}, ${2:y})'])
+})
+
+test('vendored function snippets have balanced call parentheses', () => {
+  const snippets = JSON.parse(readFileSync('./vendor/sas-function-snippets.json', 'utf8'))
+  assert.ok(Object.keys(snippets).length > 200, 'the function library is not empty')
+  for (const [name, snippet] of Object.entries(snippets)) {
+    const body = (Array.isArray(snippet.body) ? snippet.body.join('\n') : snippet.body)
+      .replace(/\$\{\d+(?::[^}]*)?\}/g, '')
+    let depth = 0
+    for (const char of body) {
+      if (char === '(') depth++
+      if (char === ')') depth--
+      assert.ok(depth >= 0, `${name} closes a parenthesis too early`)
+    }
+    assert.equal(depth, 0, `${name} has an unclosed parenthesis`)
+  }
+})
+
+test('compound exposes four argument placeholders', () => {
+  const snippets = JSON.parse(readFileSync('./vendor/sas-function-snippets.json', 'utf8'))
+  assert.deepEqual(snippets.compound.body, ['compound(${1:init-amt}, ${2:future-amt}, ${3:interest-rate}, ${4:num-periods})'])
 })
 
 test('the packaged listing must contain every declared contribution', () => {
@@ -143,6 +171,11 @@ test('the check runs where the snippets were fetched, in both workflows', () => 
   const block = release.slice(stepStart, stepEnd === -1 ? release.length : stepEnd)
   assert.match(block, /^      - name: /m)
   assert.doesNotMatch(block, /^        (?:if|continue-on-error):/m)
+})
+
+test('the upstream SAS snippet fetch uses an immutable commit', () => {
+  const command = JSON.parse(readFileSync('package.json', 'utf8')).scripts['sas:snippets']
+  assert.match(command, /sassoftware\/vscode-sas-extension\/snippets#[0-9a-f]{40}(?:\s|$)/)
 })
 
 test('setup propagates either snippet failure but tolerates failed git hook configuration', () => {

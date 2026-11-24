@@ -7,7 +7,7 @@
 // went out in 3.3.0 - the upstream directory stopped carrying it, `degit` fetched
 // what was there, and nothing compared the two.
 //
-// The snippets are fetched at setup time from an unpinned upstream directory, so
+// The upstream snippets are fetched at setup time, so
 // this check belongs immediately after the fetch (pull request and release) and
 // not in a lint pass that runs before it.
 import { readFileSync, statSync, readdirSync } from 'node:fs'
@@ -81,6 +81,19 @@ export function checkSnippets ({ pkg, root }) {
     if (broken) {
       const label = broken[0] ?? broken[2]
       problems.push(`snippet contribution ${index} entry ${label} has no body, or no prefix/name: ${declared}`)
+      continue
+    }
+    // Check balanced snippet placeholders, allowing escapes and nesting; this is
+    // deliberately not a complete VS Code snippet grammar validator.
+    for (const [key, snippet, position] of entries) {
+      const text = Array.isArray(snippet.body) ? snippet.body.join('\n') : snippet.body
+      let depth = 0
+      for (let i = 0; i < text.length; i++) {
+        if (text[i] === '\\') { i++; continue }
+        if (text[i] === '$' && text[i + 1] === '{') { depth++; i++; continue }
+        if (text[i] === '}' && depth > 0) depth--
+      }
+      if (depth > 0) problems.push(`snippet contribution ${index} entry ${key ?? position} has an unterminated placeholder: ${declared}`)
     }
   }
   return problems

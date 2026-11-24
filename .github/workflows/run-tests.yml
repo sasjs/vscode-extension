@@ -78,13 +78,16 @@ jobs:
         run: npm run setup
 
       - name: Check the snippet contributions point at files that exist
-        # The snippets are fetched from an unpinned upstream directory, so the
+        # The upstream snippets are fetched at setup time, so the
         # contribution list and the fetched tree have to be compared where the
         # fetch happened. This is the step that would have caught 3.3.0 shipping a
         # manifest entry for a file upstream had deleted in January 2024.
         run: |
           node --test .github/scripts/check-snippets.test.mjs
           node .github/scripts/check-snippets.mjs
+
+      - name: Check coverage collection
+        run: node --test .github/scripts/coverage-config.test.cjs
 
       - name: Check Code Style
         run: npm run lint
