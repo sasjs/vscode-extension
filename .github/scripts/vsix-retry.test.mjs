@@ -34,18 +34,25 @@ test('marketplace digest gate fails closed without replacing the build or attach
   } finally { rmSync(dir, { recursive: true, force: true }) }
 })
 
-test('workflow builds, attests, publishes, gates, attaches and publishes the release in order', () => {
+test('workflow packages, attests, publishes, gates, attaches and publishes the release in order', () => {
   const workflow = readFileSync('.github/workflows/publish.yml', 'utf8')
-  const names = ['Package the extension', 'Attest the VSIX', 'Verify build provenance', 'Publish to Open VSX', 'Verify the Open VSX artifact', 'Attach the .vsix and provenance to the release', 'Publish the release']
+  const names = ['Decide what to package', 'Package the extension', 'Digest the packaged extension', 'Attest the VSIX', 'Verify the Open VSX artifact', 'Attach the .vsix and provenance to the release', 'Publish the release']
   const positions = names.map(name => workflow.indexOf(`      - name: ${name}\n`))
   assert.ok(positions.every(i => i >= 0))
   assert.deepEqual(positions, [...positions].sort((a, b) => a - b))
   assert.match(workflow, /run: bash \.github\/scripts\/verify-open-vsx\.sh/)
   assert.doesNotMatch(workflow, /recover-open-vsx|steps\.verify\.outputs\.bundle/)
-  assert.match(workflow, /\$\{\{ steps\.attest\.outputs\.bundle-path \}\}/)
+  // The bundle is named from the version, so both the signed and the reused path
+  // produce the file the later steps verify and attach.
+  assert.match(workflow, /BUNDLE: dist\/provenance-\$\{\{ needs\.build\.outputs\.version \}\}\.intoto\.jsonl/)
   assert.match(workflow, /vsix:publish --silent -- "\$VSIX" --skip-duplicate/)
   assert.match(workflow, /ref: \$\{\{ github\.sha \}\}/)
   assert.match(workflow, /sasjs\/release\/\.github\/actions\/attest-assets@[0-9a-f]{40}/)
+  // The version is stamped in the job that packages, from the tag the release job
+  // resolved - not carried in a mutable intermediate.
+  assert.match(workflow, /run: npm run release -- --prepare-publish --branch main --no-registry-lookup --tag "\$TAG" --output "\$GITHUB_OUTPUT"/)
+  assert.match(workflow, /TAG: \$\{\{ needs\.release\.outputs\.tag \}\}/)
+  assert.match(workflow, /VSIX="\$\(node -p 'require\("\.\/package\.json"\)\.name'\)-\$\{VERSION\}\.vsix"/)
   const pkg = JSON.parse(readFileSync('package.json', 'utf8'))
   const lock = JSON.parse(readFileSync('package-lock.json', 'utf8'))
   assert.equal(pkg.devDependencies['@sasjs/release'], '0.19.1')
@@ -68,11 +75,19 @@ test('a mismatch stops the workflow before GitHub attachment or release publicat
       const line = block.match(/^        run: (.+)$/m)[1]
       return line === '|' ? block.match(/^        run: \|\n((?:          .*\n|\n)+)/m)[1].replace(/^          /gm, '') : line
     }
-    const chain = ['Verify build provenance', 'Publish to Open VSX', 'Verify the Open VSX artifact', 'Attach the .vsix and provenance to the release', 'Publish the release'].map(step).join('\n')
+    const chain = ['Verify build provenance before publishing', 'Publish to Open VSX', 'Verify the Open VSX artifact', 'Attach the .vsix and provenance to the release', 'Publish the release'].map(step).join('\n')
     const env = { ...process.env, PATH: `${dir}:${process.env.PATH}`, LOG: log, VSIX: artifact, BUNDLE: bundle, VERSION: '3.3.0', TAG: 'v3.3.0', EVENT_SHA: 'a'.repeat(40), GITHUB_SHA: 'a'.repeat(40), GITHUB_REPOSITORY: 'sasjs/vscode-extension', OVSX_PAT: 'test' }
     let r = spawnSync('bash', ['-e', '-o', 'pipefail', '-c', chain], { cwd: process.cwd(), encoding: 'utf8', env: { ...env, VERIFY_FAIL: '1' } })
     assert.notEqual(r.status, 0)
     assert.doesNotMatch(readFileSync(log, 'utf8'), /npm|release-assets/)
+    // An empty bundle is a file, so it has to be refused before anything is published.
+    writeFileSync(log, '')
+    writeFileSync(bundle, '')
+    r = spawnSync('bash', ['-e', '-o', 'pipefail', '-c', chain], { cwd: process.cwd(), encoding: 'utf8', env })
+    assert.notEqual(r.status, 0)
+    assert.match(r.stdout + r.stderr, /no provenance bundle/)
+    assert.doesNotMatch(readFileSync(log, 'utf8'), /npm|release-assets/)
+    writeFileSync(bundle, 'bundle')
     writeFileSync(log, '')
     r = spawnSync('bash', ['-e', '-o', 'pipefail', '-c', chain], { cwd: process.cwd(), encoding: 'utf8', env })
     assert.notEqual(r.status, 0)

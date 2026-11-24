@@ -14,34 +14,71 @@ const named = name => {
   return found[0][2]
 }
 
-test('attest the same marketplace-verified VSIX and attach the returned bundle before publishing', () => {
-  assert.match(workflow, /^      contents: write\b/m)
-  assert.match(workflow, /^      id-token: write\b/m)
-  assert.match(workflow, /^      attestations: write\b/m)
-  const publish = named('Publish to Open VSX')
-  const verify = named('Verify the Open VSX artifact')
-  const attest = named('Attest the VSIX')
-  const attach = named('Attach the .vsix and provenance to the release')
-  const finish = named('Publish the release')
-  const path = '${{ steps.package.outputs.vsix }}'
-  for (const step of [publish, verify, attest, attach, finish]) {
-    assert.match(step, /^        if: steps\.gate\.outputs\.publish == 'true'$/m)
+// The jobs block, so a permission asserted here cannot be satisfied by a
+// different job's grant.
+const jobsText = workflow.slice(workflow.indexOf('\njobs:\n') + 1)
+const jobBody = name => {
+  const parts = jobsText.split(/\n(?=  [a-z][a-z-]*:\n)/)
+  const found = parts.filter(part => part.startsWith(`  ${name}:\n`))
+  assert.equal(found.length, 1, `expected one ${name} job`)
+  return found[0]
+}
+
+test('the extension is published from a job that holds the marketplace token and no identity', () => {
+  const sign = jobBody('sign')
+  const publish = jobBody('publish')
+  const build = jobBody('build')
+  const release = jobBody('release')
+
+  // One identity in the workflow, and it is not beside a secret or a build tool.
+  assert.equal((workflow.match(/^      id-token: write\b/gm) || []).length, 1)
+  assert.equal((workflow.match(/^      attestations: write\b/gm) || []).length, 1)
+  for (const body of [release, build, publish]) {
+    assert.doesNotMatch(body, /^      id-token:/m)
+    assert.doesNotMatch(body, /^      attestations: write/m)
   }
-  assert.ok(publish.includes('npm run vsix:publish --silent -- "$VSIX" --skip-duplicate'))
-  assert.ok(publish.includes(`VSIX: ${path}`))
-  assert.ok(verify.includes(`VSIX: ${path}`))
-  assert.ok(verify.includes('VERSION: ${{ steps.prepare.outputs.version }}'))
-  assert.match(verify, /^        run: bash \.github\/scripts\/verify-open-vsx\.sh "\$VSIX" sasjs sasjs-for-vscode "\$VERSION" "\$BUNDLE"$/m)
-  assert.match(attest, /^        id: attest$/m)
-  assert.match(attest, /^        uses: sasjs\/release\/\.github\/actions\/attest-assets@6bce05cbcd9364c7097f089ea6c9132978a500ca\b/m)
-  assert.ok(attest.includes(`subject-path: ${path}`))
-  assert.ok(attest.includes('version: ${{ steps.prepare.outputs.version }}'))
-  assert.ok(attach.includes(`VSIX: ${path}`))
-  assert.ok(attach.includes('BUNDLE: ${{ steps.attest.outputs.bundle-path }}'))
-  assert.match(attach, /node \.github\/scripts\/release-assets\.mjs attach "\$TAG" "\$EVENT_SHA" "\$VSIX" "\$BUNDLE"/)
-  const order = ['Attest the VSIX', 'Publish to Open VSX', 'Verify the Open VSX artifact', 'Attach the .vsix and provenance to the release', 'Publish the release'].map(name => workflow.indexOf(`      - name: ${name}\n`))
+  assert.match(sign, /^      id-token: write\b/m)
+  assert.match(sign, /^      attestations: write\b/m)
+  assert.match(sign, /^      contents: read\b/m)
+  // No third-party tooling where an attestation can be minted.
+  assert.doesNotMatch(sign, /^          (?:npm|npx) /m)
+  // And no secret or OIDC where it is published.
+  assert.match(publish, /^      contents: write\b/m)
+  assert.doesNotMatch(publish, /id-token|attestations: write/)
+  for (const body of [release, build, sign]) assert.doesNotMatch(body, /OPEN_VSX_TOKEN/)
+  assert.equal((workflow.match(/secrets\.OPEN_VSX_TOKEN/g) || []).length, 1)
+
+  // The hand-off is by artifact id, and the bytes are the same digest end to end.
+  const upload = named('Upload the extension as an artifact')
+  assert.match(upload, /^        uses: actions\/upload-artifact@[0-9a-f]{40}/m)
+  assert.ok(upload.includes('archive: false'))
+  assert.ok(upload.includes('if-no-files-found: error'))
+  assert.match(build, /^      artifact-id: \$\{\{ steps\.upload\.outputs\.artifact-id \}\}$/m)
+  assert.match(build, /^      digest: \$\{\{ steps\.digest\.outputs\.sha256 \}\}$/m)
+  const download = named('Download the VSIX artifact')
+  assert.ok(download.includes('artifact-ids: ${{ needs.build.outputs.artifact-id }}'))
+  assert.match(jobBody('sign'), /^      bundle-artifact-id: \$\{\{ steps\.bundle\.outputs\.artifact-id \}\}$/m)
+
+  // Provenance is verified before the irreversible publish, from the file itself.
+  const before = named('Verify build provenance before publishing')
+  const sel = 'VSIX: dist/${{ needs.build.outputs.vsix }}'
+  const bun = 'BUNDLE: dist/provenance-${{ needs.build.outputs.version }}.intoto.jsonl'
+  assert.ok(before.includes(sel))
+  assert.ok(before.includes(bun))
+  assert.match(before, /gh attestation verify "\$VSIX" --bundle "\$BUNDLE" --repo "\$GITHUB_REPOSITORY"/)
+  assert.match(before, /--signer-workflow "\$GITHUB_REPOSITORY\/\.github\/workflows\/publish\.yml"/)
+  assert.match(before, /--source-digest "\$GITHUB_SHA" --source-ref refs\/heads\/main/)
+  assert.match(before, /--deny-self-hosted-runners/)
+  const publishStep = named('Publish to Open VSX')
+  assert.ok(publishStep.includes('npm run vsix:publish --silent -- "$VSIX" --skip-duplicate'))
+  assert.ok(publishStep.includes(sel))
+  assert.match(named('Verify the Open VSX artifact'), /^        run: bash \.github\/scripts\/verify-open-vsx\.sh "\$VSIX" sasjs sasjs-for-vscode "\$VERSION" "\$BUNDLE"$/m)
+  assert.ok(named('Attach the .vsix and provenance to the release').includes(sel))
+  assert.match(named('Attach the .vsix and provenance to the release'), /node \.github\/scripts\/release-assets\.mjs attach "\$TAG" "\$EVENT_SHA" "\$VSIX" "\$BUNDLE"/)
+
+  const order = ['Package the extension', 'Attest the VSIX', 'Verify the Open VSX artifact', 'Attach the .vsix and provenance to the release', 'Publish the release'].map(name => workflow.indexOf(`      - name: ${name}\n`))
   assert.deepEqual(order, [...order].sort((a, b) => a - b))
-  assert.match(readFileSync('.github/workflows/run-tests.yml', 'utf8'), /^        run: node --test \.github\/scripts\/vsix-provenance\.test\.mjs \.github\/scripts\/vsix-retry\.test\.mjs \.github\/scripts\/release-assets\.test\.mjs \.github\/scripts\/release-workflow\.test\.mjs$/m)
+  assert.match(readFileSync('.github/workflows/run-tests.yml', 'utf8'), /^        run: node --test \.github\/scripts\/vsix-provenance\.test\.mjs \.github\/scripts\/vsix-retry\.test\.mjs \.github\/scripts\/release-assets\.test\.mjs \.github\/scripts\/release-workflow\.test\.mjs \.github\/scripts\/vsix-bind\.test\.mjs \.github\/scripts\/select-attestation-bundle\.test\.mjs$/m)
 })
 
 test('build uses the push SHA and reproducible ZIP timestamps, and verifies the actual release identity', () => {

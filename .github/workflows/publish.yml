@@ -1,16 +1,27 @@
-# Publishes the extension, in five steps:
+# Publishes the extension in four jobs, each holding only the permission it
+# needs. The split is a trust-boundary decision, not tidying:
 #
-#   1. npm run release -- --host github --release --draft        tag + draft release
-#   2. gate: is that tag's release still a draft?                (gh api)
-#   3. npm run release -- --prepare-publish --branch main \
-#        --no-registry-lookup --tag <tag>                        stamp the version
-#   4. build and attest the VSIX, then publish to Open VSX
-#   5. compare marketplace checksum and verify provenance; attach, publish
+#   1. release  contents: write                     tag the commit, open the draft
+#                                                   release, decide whether to publish
+#   2. build    contents: read                      build and package the VSIX,
+#                                                   upload it as an artifact
+#   3. sign     id-token + attestations: write      bind that artifact to this run,
+#                                                   attest the exact bytes
+#   4. publish  contents: write + marketplace token verify the bundle, publish to
+#                                                   Open VSX, attach assets, release
+#
+# No job holds both an OIDC identity and a publish credential. The job that runs
+# third-party build tooling (npm, vsce, ovsx) has no identity to mint provenance
+# with, and the job that can mint provenance runs none of that tooling and holds
+# no secret. A compromised dependency can therefore neither mint an attestation
+# nor reach the marketplace token; it can only influence the bytes its own job
+# produces, which is what the attestation then says.
 #
 # package.json carries 0.0.0 in git: that is a placeholder, not a version. The
-# release tag is the source of truth for the version, and the second step is what
-# writes it into package.json for the packaging to read. So a checkout cannot claim
-# a version, and a released .vsix cannot claim a different one from its tag.
+# release tag is the source of truth for the version, and --prepare-publish is
+# what writes it into package.json for the packaging to read. So a checkout
+# cannot claim a version, and a released .vsix cannot claim a different one
+# from its tag.
 
 name: SASjs VS Code Extension Deploy
 
@@ -25,18 +36,19 @@ concurrency:
   cancel-in-progress: false
   queue: max
 
-# read-only by default; the release job grants the writes it needs
+# read-only by default; each job grants the writes it needs
 permissions: read-all
 
 jobs:
   release:
     runs-on: ubuntu-latest
-    # OIDC and attestation permissions apply to every step in this job. Third-party
-    # build and publish tools can potentially mint provenance with this identity.
+    # Tag and draft release only. No OIDC identity, no marketplace token: the
+    # release tool and the npm tree it runs in cannot sign anything.
     permissions:
-      contents: write # the tag, the release, and the .vsix attached to it
-      id-token: write # OIDC identity for build provenance
-      attestations: write # record the attestation
+      contents: write # the tag and the draft release
+    outputs:
+      publish: ${{ steps.gate.outputs.publish }}
+      tag: ${{ steps.gate.outputs.tag }}
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -48,14 +60,6 @@ jobs:
         with:
           node-version: lts/krypton
       - run: npm ci
-
-      - name: Setup snippets and git hooks
-        run: npm run setup
-
-      - name: Build Project
-        run: npm run vscode:prepublish
-
-      - run: npm audit signatures
 
       - name: Check the release tool has no dependencies of its own
         # It runs with `contents: write`, so its tree has to be auditable, and the
@@ -206,27 +210,59 @@ jobs:
           EVENT_SHA: ${{ github.sha }}
         run: node .github/scripts/verify-release-identity.mjs "$TAG" "$EVENT_SHA"
 
+  build:
+    needs: release
+    if: needs.release.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    # Read-only, and no secrets. This job runs npm, npx, vsce and the snippet
+    # fetchers, so it is the job most exposed to a compromised dependency: it is
+    # given nothing that could sign an attestation or publish to the marketplace.
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.prepare.outputs.version }}
+      vsix: ${{ steps.package.outputs.vsix }}
+      digest: ${{ steps.digest.outputs.sha256 }}
+      artifact-id: ${{ steps.upload.outputs.artifact-id }}
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0      # the version tag has to be in the clone
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: lts/krypton
+      - run: npm ci
+      - run: npm audit signatures
+
+      - name: Setup snippets and git hooks
+        run: npm run setup
+
+      - name: Build Project
+        run: npm run vscode:prepublish
+
       - name: Decide what to package
         id: prepare
-        if: steps.gate.outputs.publish == 'true'
-        # Reads the tag the gate resolved - a draft release has no tag of its own
-        # until it is published - and stamps that version into package.json.
-        # Refuses a tag that is not in this clone or not an ancestor of main.
+        # Reads the tag the release job resolved - a draft release has no tag of
+        # its own until it is published - and stamps that version into
+        # package.json. Refuses a tag that is not in this clone or not an
+        # ancestor of main.
         #
-        # --no-registry-lookup: this package ships to Open VSX and never to npm, so
-        # asking npm whether the version exists answers nothing and reads as though
-        # the version were new. Whether this run publishes is the gate's question,
-        # which the forge answers; this step only prepares the tree.
+        # --no-registry-lookup: this package ships to Open VSX and never to npm,
+        # so asking npm whether the version exists answers nothing and reads as
+        # though the version were new. Whether this run publishes is the release
+        # job's question, which the forge answered.
         env:
-          TAG: ${{ steps.gate.outputs.tag }}
+          TAG: ${{ needs.release.outputs.tag }}
         run: npm run release -- --prepare-publish --branch main --no-registry-lookup --tag "$TAG" --output "$GITHUB_OUTPUT"
 
       - name: Package the extension
         id: package
-        if: steps.gate.outputs.publish == 'true'
         env:
           VERSION: ${{ steps.prepare.outputs.version }}
-          TAG: ${{ steps.gate.outputs.tag }}
+          TAG: ${{ needs.release.outputs.tag }}
         # The marketplace tools are `npm run` targets in package.json, so the
         # version of vsce that lists the .vsix on a pull request and the version
         # that packages it here cannot drift apart - a packaging-rule change
@@ -251,47 +287,197 @@ jobs:
           export SOURCE_DATE_EPOCH="$(git show -s --format=%ct HEAD)"
           VSIX="$(node -p 'require("./package.json").name')-${VERSION}.vsix"
           npm run vsix:package --silent -- --out "$VSIX"
-          # Fetch both tools here, where no token is in scope. npx caches per job,
-          # so the step that holds OVSX_PAT resolves from the cache instead of
-          # downloading - which is what keeps the download itself outside the
-          # credentialed step. The flag goes on the CLI, not after the subcommand:
-          # `ovsx publish --version` happens to print the version in 1.4.0, but that
-          # is the subcommand's argument parser deciding, and it would be a packaging
-          # failure if it ever stopped.
-          npm run vsix:tooling --silent
           echo "vsix=$VSIX" >> "$GITHUB_OUTPUT"
 
-      # Sign the exact VSIX built in this job, before sending it to Open VSX.
-      - name: Attest the VSIX
-        id: attest
-        if: steps.gate.outputs.publish == 'true'
-        uses: sasjs/release/.github/actions/attest-assets@6bce05cbcd9364c7097f089ea6c9132978a500ca # v0.19.0
-        with:
-          version: ${{ steps.prepare.outputs.version }}
-          subject-path: ${{ steps.package.outputs.vsix }}
+      - name: Digest the packaged extension
+        id: digest
+        # The bytes that leave this job, named by digest. The sign job compares
+        # this against the file it downloads and against the artifact API, so a
+        # mismatch between what was packaged and what was attested is a failure
+        # rather than a silent difference.
+        env:
+          VSIX: ${{ steps.package.outputs.vsix }}
+        run: echo "sha256=$(sha256sum "$VSIX" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
 
-      # Fail before the irreversible marketplace publish if the generated bundle
-      # does not verify. Verify again after publishing before attachment.
-      - name: Verify build provenance
-        if: steps.gate.outputs.publish == 'true'
+      - name: Upload the extension as an artifact
+        id: upload
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          # Unarchived on purpose: with a single file the artifact digest is the
+          # file's own SHA-256, so the artifact API record and the bytes the sign
+          # job reads are the same thing.
+          path: ${{ steps.package.outputs.vsix }}
+          archive: false
+          if-no-files-found: error
+          retention-days: 7
+
+  sign:
+    needs: [release, build]
+    if: needs.release.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    # The only job with an OIDC identity and attestation write. It runs no npm,
+    # npx or marketplace tooling, and holds no secret: the token here is the
+    # read-only one, used to read the artifact's own record and to record the
+    # attestation.
+    permissions:
+      contents: read
+      actions: read          # read the artifact's own record from the API
+      id-token: write        # OIDC identity for build provenance
+      attestations: write    # record the attestation (which also allows reading it back)
+    outputs:
+      bundle-artifact-id: ${{ steps.bundle.outputs.artifact-id }}
+      bundle-digest: ${{ steps.bundle.outputs.artifact-digest }}
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ github.sha }}
+
+      - name: Download the VSIX artifact
+        id: download
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          # By id, not by name: an artifact name is chosen by whatever uploaded
+          # it, so a name is not an identity.
+          artifact-ids: ${{ needs.build.outputs.artifact-id }}
+          path: dist
+
+      - name: Bind the artifact to this run
+        id: bind
         env:
           GH_TOKEN: ${{ github.token }}
-          VSIX: ${{ steps.package.outputs.vsix }}
-          BUNDLE: ${{ steps.attest.outputs.bundle-path }}
+          ARTIFACT_ID: ${{ needs.build.outputs.artifact-id }}
+          EXPECTED_DIGEST: ${{ needs.build.outputs.digest }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+          VSIX: dist/${{ needs.build.outputs.vsix }}
+          METADATA: dist/artifact-metadata.json
+        # Fails closed unless the artifact API says this id belongs to this run at
+        # this SHA with this digest, and the downloaded file hashes to that digest.
+        # On a re-run it also refuses to sign and says so through `mode`.
         run: |
+          gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/${ARTIFACT_ID}" > "$METADATA"
+          node .github/scripts/vsix-bind.mjs "$METADATA" "$VSIX"
+
+      - name: Attest the VSIX
+        id: attest
+        if: steps.bind.outputs.mode == 'sign'
+        uses: sasjs/release/.github/actions/attest-assets@6bce05cbcd9364c7097f089ea6c9132978a500ca # v0.19.0
+        with:
+          version: ${{ needs.build.outputs.version }}
+          subject-path: dist/${{ needs.build.outputs.vsix }}
+          output-dir: dist
+
+      - name: Reuse the attestation already recorded for these bytes
+        if: steps.bind.outputs.mode == 'reuse'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VSIX: dist/${{ needs.build.outputs.vsix }}
+          VERSION: ${{ needs.build.outputs.version }}
+          ATTESTATIONS: dist/attestations.json
+          BUNDLE: dist/provenance-${{ needs.build.outputs.version }}.intoto.jsonl
+        # A re-run cannot sign (see vsix-bind.mjs), so it finishes the release
+        # only if an attestation for exactly these bytes already exists. `gh`
+        # verifies every bundle it returns against the identity policy below;
+        # the selector then refuses to choose between distinct bundles.
+        run: |
+          gh attestation verify "$VSIX" --repo "$GITHUB_REPOSITORY" \
+            --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/publish.yml" \
+            --source-digest "$GITHUB_SHA" --source-ref refs/heads/main \
+            --deny-self-hosted-runners \
+            --predicate-type https://slsa.dev/provenance/v1 \
+            --format json > "$ATTESTATIONS"
+          node .github/scripts/select-attestation-bundle.mjs "$ATTESTATIONS" "$BUNDLE"
+
+      - name: Verify the bundle against the exact VSIX
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VSIX: dist/${{ needs.build.outputs.vsix }}
+          BUNDLE: dist/provenance-${{ needs.build.outputs.version }}.intoto.jsonl
+        # Both paths - freshly signed and reused - are checked the same way, so a
+        # bundle that does not cryptographically cover this VSIX stops here rather
+        # than reaching the marketplace.
+        run: |
+          test -s "$BUNDLE" || { echo '::error::no provenance bundle to verify; resolve manually'; exit 1; }
           gh attestation verify "$VSIX" --bundle "$BUNDLE" --repo "$GITHUB_REPOSITORY" \
             --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/publish.yml" \
-            --source-digest "$GITHUB_SHA" --source-ref refs/heads/main --deny-self-hosted-runners \
+            --source-digest "$GITHUB_SHA" --source-ref refs/heads/main \
+            --deny-self-hosted-runners \
             --predicate-type https://slsa.dev/provenance/v1
 
+      - name: Upload the provenance bundle
+        id: bundle
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          path: dist/provenance-${{ needs.build.outputs.version }}.intoto.jsonl
+          archive: false
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    needs: [release, build, sign]
+    if: needs.release.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    # The marketplace token and the release writes live here, and the identity
+    # does not: this job cannot mint provenance for anything it might publish.
+    permissions:
+      contents: write        # release assets, then the published release
+      attestations: read     # verify the bundle against the repository's record
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ github.sha }}
+          fetch-depth: 0      # the identity check reads the release tag from the clone
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: lts/krypton
+
+      - name: Download the extension and its bundle
+        id: download
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          # Both by id, and both unarchived, so the file on disk is the bytes the
+          # sign job attested. The artifact digests are pinned through the same
+          # record the sign job checked.
+          artifact-ids: ${{ needs.build.outputs.artifact-id }},${{ needs.sign.outputs.bundle-artifact-id }}
+          path: dist
+          merge-multiple: true
+
+      - name: Verify build provenance before publishing
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VSIX: dist/${{ needs.build.outputs.vsix }}
+          BUNDLE: dist/provenance-${{ needs.build.outputs.version }}.intoto.jsonl
+        # Runs before the irreversible marketplace publish, not only after: Open
+        # VSX has no delete, so a provenance failure discovered afterwards burns
+        # the version. The bundle is verified against the exact file here, not
+        # assumed to have survived the hand-off unmodified.
+        run: |
+          test -s "$BUNDLE" || { echo '::error::no provenance bundle was uploaded; resolve manually'; exit 1; }
+          gh attestation verify "$VSIX" --bundle "$BUNDLE" --repo "$GITHUB_REPOSITORY" \
+            --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/publish.yml" \
+            --source-digest "$GITHUB_SHA" --source-ref refs/heads/main \
+            --deny-self-hosted-runners \
+            --predicate-type https://slsa.dev/provenance/v1
+
+      - name: Fetch the marketplace tooling
+        # Fetched here, where no marketplace token is in scope. npx caches per
+        # job, so the step that holds OVSX_PAT resolves from the cache instead of
+        # downloading - which is what keeps the download itself outside the
+        # credentialed step. The flag goes on the CLI, not after the subcommand:
+        # `ovsx publish --version` happens to print the version in 1.4.0, but that
+        # is the subcommand's argument parser deciding, and it would be a
+        # packaging failure if it ever stopped.
+        run: npm run vsix:tooling --silent
+
       - name: Publish to Open VSX
-        if: steps.gate.outputs.publish == 'true'
         env:
           OVSX_PAT: ${{ secrets.OPEN_VSX_TOKEN }}
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ steps.gate.outputs.tag }}
+          TAG: ${{ needs.release.outputs.tag }}
           EVENT_SHA: ${{ github.sha }}
-          VSIX: ${{ steps.package.outputs.vsix }}
+          VSIX: dist/${{ needs.build.outputs.vsix }}
         run: |
           # Open VSX is how users receive the extension, so a release that cannot
           # reach it has not shipped. Says so rather than skipping quietly: the
@@ -311,24 +497,22 @@ jobs:
           npm run vsix:publish --silent -- "$VSIX" --skip-duplicate
 
       - name: Verify the Open VSX artifact
-        if: steps.gate.outputs.publish == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
-          VSIX: ${{ steps.package.outputs.vsix }}
-          VERSION: ${{ steps.prepare.outputs.version }}
-          BUNDLE: ${{ steps.attest.outputs.bundle-path }}
+          VSIX: dist/${{ needs.build.outputs.vsix }}
+          VERSION: ${{ needs.build.outputs.version }}
+          BUNDLE: dist/provenance-${{ needs.build.outputs.version }}.intoto.jsonl
         # This trusts Open VSX's checksum endpoint, not a fresh VSIX download.
         # A mismatch, unavailable checksum or invalid bundle requires manual recovery.
         run: bash .github/scripts/verify-open-vsx.sh "$VSIX" sasjs sasjs-for-vscode "$VERSION" "$BUNDLE"
 
       - name: Attach the .vsix and provenance to the release
-        if: steps.gate.outputs.publish == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ steps.gate.outputs.tag }}
+          TAG: ${{ needs.release.outputs.tag }}
           EVENT_SHA: ${{ github.sha }}
-          VSIX: ${{ steps.package.outputs.vsix }}
-          BUNDLE: ${{ steps.attest.outputs.bundle-path }}
+          VSIX: dist/${{ needs.build.outputs.vsix }}
+          BUNDLE: dist/provenance-${{ needs.build.outputs.version }}.intoto.jsonl
         # Conflicting assets require manual resolution; never delete them.
         run: node .github/scripts/release-assets.mjs attach "$TAG" "$EVENT_SHA" "$VSIX" "$BUNDLE"
 
@@ -336,13 +520,12 @@ jobs:
         # Last: the release is created as a draft, so a version is never advertised
         # before its .vsix exists on the page. Running on the gate rather than on
         # `released` is what makes a re-run finish a failed job.
-        if: steps.gate.outputs.publish == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ steps.gate.outputs.tag }}
+          TAG: ${{ needs.release.outputs.tag }}
           EVENT_SHA: ${{ github.sha }}
-          VSIX: ${{ steps.package.outputs.vsix }}
-          BUNDLE: ${{ steps.attest.outputs.bundle-path }}
+          VSIX: dist/${{ needs.build.outputs.vsix }}
+          BUNDLE: dist/provenance-${{ needs.build.outputs.version }}.intoto.jsonl
         run: |
           node .github/scripts/verify-release-identity.mjs "$TAG" "$EVENT_SHA"
           node .github/scripts/release-assets.mjs publish "$TAG" "$EVENT_SHA" "$VSIX" "$BUNDLE"
