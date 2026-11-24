@@ -66,7 +66,7 @@ npm test             # the VS Code integration harness (node ./out/test/runTest.
 There is **no fixed coverage threshold**: `jest.config.js` keeps `coverageThreshold` commented out, and adding one would only move a number nobody maintains. Coverage is **ratcheted** instead, in both directions:
 
 - `.github/workflows/coverage-baseline.yml` publishes `coverage/coverage-summary.json` for every push to `main`, as a 90-day artifact.
-- The pull request workflow downloads the baseline published for the base commit (or, failing that, for the newest commit the base commit descends from, which the comment names) and runs `.github/scripts/coverage-ratchet.mjs`.
+- The pull request workflow downloads the baseline published for the base commit (or, failing that, for the newest commit the base commit descends from, which the comment names) and runs `sasjs-release --coverage-ratchet`, which is pinned in `devDependencies` like the release itself.
 - Any metric more than 0.05pt below the baseline fails the job, and an improvement passes, so the bar tracks the repository without a commit. The comparison is posted as a single comment on the pull request, edited in place on each push.
 - A missing baseline fails rather than passing quietly. The one exception is a base commit that predates the workflow, which is detected from the workflow file being absent there and retires itself.
 
@@ -74,9 +74,9 @@ There is **no fixed coverage threshold**: `jest.config.js` keeps `coverageThresh
 
 ```bash
 npm run test:unit
-node .github/scripts/coverage-ratchet.mjs \
-  --head coverage/coverage-summary.json \
-  --base <a downloaded coverage-summary.json from main>
+npm run release -- --coverage-ratchet \
+  --coverage-head coverage/coverage-summary.json \
+  --coverage-base <a downloaded coverage-summary.json from main>
 ```
 
 A deliberate drop - deleting code that was tested, or a toolchain upgrade that counts differently - has to be argued in the pull request description, because there is no floor to lower. Write the tests a change needs rather than relying on a gate to catch their absence.
