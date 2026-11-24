@@ -7,10 +7,4 @@ const source = process.argv[2] || dirname(require.resolve('@sasjs/sas-language/s
 const root = resolve(process.argv[3] || process.cwd())
 const target = resolve(root, 'snippets')
 mkdirSync(target, { recursive: true })
-for (const [from, to] of [
-  ['functions.json', 'function-snippets.json'],
-  ['LICENSE.txt', 'function-snippets-LICENSE.txt'],
-  ['README.md', 'function-snippets-README.md']
-]) {
-  copyFileSync(resolve(source, from), resolve(target, to))
-}
+copyFileSync(resolve(source, 'functions.json'), resolve(target, 'function-snippets.json'))

@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, readdirSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { spawnSync } from 'node:child_process'
@@ -124,20 +124,17 @@ test('the shared function snippets retain working examples', () => {
   assert.deepEqual(snippets.compound.body, ['compound(${1:init-amt}, ${2:future-amt}, ${3:interest-rate}, ${4:num-periods})'])
 })
 
-test('setup stages the shared SAS language snippets and licence', () => {
+test('setup stages the shared function JSON without requiring snippet-specific documents', () => {
   const root = mkdtempSync(join(tmpdir(), 'shared-snippet-'))
   try {
     const source = join(root, 'library')
     const target = join(root, 'extension')
     mkdirSync(source)
     writeFileSync(join(source, 'functions.json'), '{"sum":{"prefix":"sum","body":["sum(${1})"]}}')
-    writeFileSync(join(source, 'LICENSE.txt'), 'test license')
-    writeFileSync(join(source, 'README.md'), 'test provenance')
     const r = spawnSync('node', [join(process.cwd(), 'scripts/stage-function-snippets.mjs'), source, target], { encoding: 'utf8' })
     assert.equal(r.status, 0, r.stderr)
     assert.deepEqual(JSON.parse(readFileSync(join(target, 'snippets/function-snippets.json'), 'utf8')).sum.body, ['sum(${1})'])
-    assert.equal(readFileSync(join(target, 'snippets/function-snippets-LICENSE.txt'), 'utf8'), 'test license')
-    assert.equal(readFileSync(join(target, 'snippets/function-snippets-README.md'), 'utf8'), 'test provenance')
+    assert.deepEqual(readdirSync(join(target, 'snippets')), ['function-snippets.json'])
     rmSync(join(source, 'functions.json'))
     const failure = spawnSync('node', [join(process.cwd(), 'scripts/stage-function-snippets.mjs'), source, target], { encoding: 'utf8' })
     assert.notEqual(failure.status, 0, 'missing shared templates must fail staging')
