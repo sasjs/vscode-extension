@@ -268,10 +268,6 @@
       },
       {
         "language": "sas",
-        "path": "./snippets/function-snippets.json"
-      },
-      {
-        "language": "sas",
         "path": "./snippets/sasjs-macro-snippets.json"
       }
     ]
@@ -304,7 +300,7 @@
     "test:unit": "jest --config=jest.config.js --coverage",
     "sas:snippets": "degit sassoftware/vscode-sas-extension/snippets snippets --force",
     "sasjs:snippets": "npx sasjs snippets -o ./snippets/sasjs-macro-snippets.json",
-    "setup": "npm run sas:snippets && npm run sasjs:snippets && [ -d .git ] && git config core.hooksPath ./.git-hooks || true",
+    "setup": "npm run sas:snippets && npm run sasjs:snippets && { [ -d .git ] && git config core.hooksPath ./.git-hooks || true; }",
     "release": "sasjs-release",
     "vsix:tooling": "npx --yes @vscode/vsce@4.1.1 --version && npx --yes ovsx@1.4.0 --version",
     "vsix:list": "npx --yes @vscode/vsce@4.1.1 ls",
