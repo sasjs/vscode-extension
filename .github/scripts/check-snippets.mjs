@@ -11,7 +11,7 @@
 // this check belongs immediately after the fetch (pull request and release) and
 // not in a lint pass that runs before it.
 import { readFileSync, statSync, readdirSync } from 'node:fs'
-import { resolve, relative, isAbsolute } from 'node:path'
+import { resolve, relative, isAbsolute, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 export function checkSnippets ({ pkg, root }) {
@@ -33,7 +33,10 @@ export function checkSnippets ({ pkg, root }) {
     }
     const full = resolve(root, declared)
     const inside = relative(root, full)
-    if (inside.startsWith('..') || isAbsolute(inside)) {
+    // `..escapes` as a first segment is not escaping: only `..` or `../` is. A
+    // bare startsWith('..') also rejects a legitimate directory whose name begins
+    // with dots.
+    if (inside === '..' || inside.startsWith(`..${sep}`) || isAbsolute(inside)) {
       problems.push(`snippet contribution ${index} escapes the package: ${declared}`)
       continue
     }

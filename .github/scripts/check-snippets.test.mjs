@@ -78,6 +78,17 @@ test('invalid, empty, malformed and escaping contributions are refused', () => {
   } finally { rmSync(root, { recursive: true, force: true }) }
 })
 
+test('a directory whose name starts with dots is not an escape', () => {
+  // `..snippets/x.json` is inside the package; only `..` and `../` leave it.
+  const root = mkdtempSync(join(tmpdir(), 'snippets-'))
+  try {
+    mkdirSync(join(root, '..snippets'), { recursive: true })
+    writeFileSync(join(root, '..snippets', 'x.json'), JSON.stringify([snippet]))
+    assert.deepEqual(checkSnippets({ pkg: pkgWith(['./..snippets/x.json']), root }), [])
+    assert.match(checkSnippets({ pkg: pkgWith(['../outside.json']), root })[0], /escapes the package/)
+  } finally { rmSync(root, { recursive: true, force: true }) }
+})
+
 test('the packaged listing must contain every declared contribution', () => {
   const pkg = pkgWith(['./snippets/proc-snippets.json', './snippets/function-snippets.json'])
   // `vsce ls` paths are relative to the extension root, without the leading ./.
