@@ -86,9 +86,6 @@ jobs:
           node --test .github/scripts/check-snippets.test.mjs
           node .github/scripts/check-snippets.mjs
 
-      - name: Check coverage collection
-        run: node --test .github/scripts/coverage-config.test.cjs
-
       - name: Check Code Style
         run: npm run lint
 
@@ -98,6 +95,11 @@ jobs:
       - name: Run Unit Tests
         # produces coverage/coverage-summary.json, which the ratchet reads
         run: npm run test:unit
+
+      - name: Check coverage collection
+        run: |
+          node --test .github/scripts/coverage-config.test.cjs
+          node .github/scripts/check-coverage.cjs
 
       - name: Find the coverage baseline
         id: coverage-baseline
