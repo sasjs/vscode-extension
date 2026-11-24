@@ -77,6 +77,15 @@ jobs:
       - name: Setup snippets and git hooks
         run: npm run setup
 
+      - name: Check the snippet contributions point at files that exist
+        # The upstream snippets are fetched at setup time, so the
+        # contribution list and the fetched tree have to be compared where the
+        # fetch happened. This is the step that would have caught 3.3.0 shipping a
+        # manifest entry for a file upstream had deleted in January 2024.
+        run: |
+          node --test .github/scripts/check-snippets.test.mjs
+          node .github/scripts/check-snippets.mjs
+
       - name: Check Code Style
         run: npm run lint
 
@@ -86,6 +95,11 @@ jobs:
       - name: Run Unit Tests
         # produces coverage/coverage-summary.json, which the ratchet reads
         run: npm run test:unit
+
+      - name: Check coverage collection
+        run: |
+          node --test .github/scripts/coverage-config.test.cjs
+          node .github/scripts/check-coverage.cjs
 
       - name: Find the coverage baseline
         id: coverage-baseline
@@ -288,3 +302,9 @@ jobs:
             echo "::error::the language server is staged one level too deep"
             exit 1
           fi
+
+      - name: Check the packaged extension carries its snippet contributions
+        # The listing is the stronger claim: a snippet file can exist in the
+        # workspace and still be dropped by .vscodeignore, which is exactly the
+        # gap between what package.json advertises and what users receive.
+        run: node .github/scripts/check-snippets.mjs --vsix-list "$RUNNER_TEMP/vsix-files.txt"
