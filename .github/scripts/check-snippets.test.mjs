@@ -124,12 +124,31 @@ test('the check runs where the snippets were fetched, in both workflows', () => 
   assert.doesNotMatch(block, /^        (?:if|continue-on-error):/m)
 })
 
-test('the snippet fetch in setup is not masked by || true', () => {
-  // `npm run setup` used to end `... && [ -d .git ] && git config ... || true`,
-  // which made a failed fetch exit 0 and left the snippets directory empty.
+test('setup propagates either snippet failure but tolerates failed git hook configuration', () => {
   const setup = JSON.parse(readFileSync('package.json', 'utf8')).scripts.setup
-  assert.match(setup, /sas:snippets && npm run sasjs:snippets && \{/)
-  assert.match(setup, /\{ \[ -d \.git \] && git config core\.hooksPath \.\/\.git-hooks \|\| true; \}/)
+  const root = mkdtempSync(join(tmpdir(), 'snippet-setup-'))
+  const bin = join(root, 'bin')
+  mkdirSync(bin)
+  writeFileSync(join(bin, 'npm'), '#!/bin/sh\nprintf "%s\\n" "$2" >> "$CALLS"\n[ "$2" != "$FAIL_SCRIPT" ]\n', { mode: 0o755 })
+  writeFileSync(join(bin, 'git'), '#!/bin/sh\nprintf "git\\n" >> "$CALLS"\nexit 1\n', { mode: 0o755 })
+  const run = fail => {
+    const calls = join(root, 'calls')
+    writeFileSync(calls, '')
+    const result = spawnSync('/bin/sh', ['-c', setup], {
+      cwd: root,
+      env: { ...process.env, PATH: bin, CALLS: calls, FAIL_SCRIPT: fail },
+      encoding: 'utf8'
+    })
+    assert.ifError(result.error)
+    return { status: result.status, calls: readFileSync(calls, 'utf8').trim().split('\n') }
+  }
+  try {
+    assert.deepEqual(run('sas:snippets'), { status: 1, calls: ['sas:snippets'] })
+    assert.deepEqual(run('sasjs:snippets'), { status: 1, calls: ['sas:snippets', 'sasjs:snippets'] })
+    assert.deepEqual(run(''), { status: 0, calls: ['sas:snippets', 'sasjs:snippets'] })
+    mkdirSync(join(root, '.git'))
+    assert.deepEqual(run(''), { status: 0, calls: ['sas:snippets', 'sasjs:snippets', 'git'] })
+  } finally { rmSync(root, { recursive: true, force: true }) }
 })
 
 test('the CLI exits non-zero on a missing contribution and reports the file', () => {
