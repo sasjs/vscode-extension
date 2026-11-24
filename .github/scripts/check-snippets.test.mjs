@@ -109,9 +109,16 @@ test('the check runs where the snippets were fetched, in both workflows', () => 
   const setup = release.indexOf('run: npm run setup')
   const check = release.indexOf('node .github/scripts/check-snippets.mjs')
   assert.ok(setup > 0 && check > setup, 'the release build must check the fetched snippets before packaging')
-  // And unconditionally: a step that can be skipped is not a gate.
-  const start = release.indexOf('      - name: Check the snippet contributions point at files that exist')
-  const block = release.slice(start, release.indexOf('\n      - ', start + 1))
+  // And unconditionally: a step that can be skipped is not a gate. Anchored on
+  // the command, not the step name - slicing from a name that had been reworded
+  // would give an empty string, and doesNotMatch on nothing passes vacuously.
+  const command = release.indexOf('node .github/scripts/check-snippets.mjs')
+  assert.ok(command > 0, 'the release build must run the snippet check')
+  const stepStart = release.lastIndexOf('\n      - ', command)
+  const stepEnd = release.indexOf('\n      - ', command)
+  assert.ok(stepStart > 0, 'the check must be a step of its own')
+  const block = release.slice(stepStart, stepEnd === -1 ? release.length : stepEnd)
+  assert.match(block, /^      - name: /m)
   assert.doesNotMatch(block, /^        if:/m)
 })
 
