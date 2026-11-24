@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdtempSync, writeFileSync, readFileSync, rmSync } from 'node:fs'
-import { join } from 'node:path'
+import { mkdtempSync, writeFileSync, readFileSync, rmSync, symlinkSync } from 'node:fs'
+import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 import { spawnSync } from 'node:child_process'
 import { selectBundle } from './select-attestation-bundle.mjs'
@@ -18,6 +18,15 @@ test('one verified attestation is reused as a single JSONL line', () => {
 
 test('identical duplicates are one attestation, not a choice', () => {
   assert.equal(selectBundle([{ attestation: { bundle } }, { attestation: { bundle: JSON.stringify(bundle) } }]), JSON.stringify(bundle))
+  // Key order is not part of the meaning: the same bundle spelled differently is
+  // still one attestation.
+  const reordered = { dsseEnvelope: { signatures: [], payload: 'e30=' } }
+  assert.equal(selectBundle([{ attestation: { bundle } }, { attestation: { bundle: reordered } }]), selectBundle([{ attestation: { bundle } }]))
+})
+
+test('an object that is not an attestation bundle is refused', () => {
+  assert.throws(() => selectBundle([{ attestation: { bundle: {} } }]), /no dsseEnvelope/)
+  assert.throws(() => selectBundle([{ attestation: { bundle: { dsseEnvelope: [] } } }]), /no dsseEnvelope/)
 })
 
 test('distinct verified bundles fail closed rather than picking by response order', () => {
@@ -50,5 +59,15 @@ test('the CLI writes the bundle and reports what it reused', () => {
     r = spawnSync('node', ['.github/scripts/select-attestation-bundle.mjs', input, output], { encoding: 'utf8' })
     assert.notEqual(r.status, 0)
     assert.match(r.stderr, /::error::no verified attestation/)
+
+    // Invoked through a symlink, main() must still run: a script that exits 0
+    // having written nothing is indistinguishable from success to the workflow.
+    const link = join(dir, 'selector.mjs')
+    symlinkSync(resolve('.github/scripts/select-attestation-bundle.mjs'), link)
+    writeFileSync(input, JSON.stringify(wrapped(bundle)))
+    writeFileSync(output, '')
+    r = spawnSync('node', [link, input, output], { encoding: 'utf8' })
+    assert.equal(r.status, 0, r.stderr)
+    assert.match(r.stdout, /reusing the recorded attestation/)
   } finally { rmSync(dir, { recursive: true, force: true }) }
 })

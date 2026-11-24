@@ -8,8 +8,17 @@ try {
   // The paginated release list includes bodies and can exceed Node's 1 MiB default.
   const run = (cmd, args) => execFileSync(cmd, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 64 * 1024 * 1024 }).trim()
   if (run('git', ['rev-parse', 'HEAD']) !== event) throw new Error('checkout differs from push SHA')
-  const local = run('git', ['rev-parse', '--verify', `refs/tags/${tag}^{commit}`])
-  if (local !== event) throw new Error('local tag differs from push SHA')
+  // A draft release creates no tag ref, so a fresh clone - a later job in the
+  // same run, or a retry - legitimately has no local tag. When one exists it must
+  // name the push SHA; the release target and any remote tag are checked below,
+  // and those are the checks that mean something outside the cloning job.
+  let local = null
+  try {
+    local = run('git', ['rev-parse', '--verify', `refs/tags/${tag}^{commit}`])
+  } catch (error) {
+    local = null
+  }
+  if (local !== null && local !== event) throw new Error('local tag differs from push SHA')
   const pages = JSON.parse(run('gh', ['api', '--paginate', '--slurp', `repos/${process.env.GITHUB_REPOSITORY}/releases?per_page=100`]))
   if (!Array.isArray(pages) || pages.some(page => !Array.isArray(page))) throw new Error('invalid releases response')
   const releases = pages.flat().filter(r => r.tag_name === tag)

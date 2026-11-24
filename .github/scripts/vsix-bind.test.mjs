@@ -59,6 +59,21 @@ refused('a build job that reported no digest', input => ({ ...input, expectedDig
 refused('a malformed downloaded digest', input => ({ ...input, actualDigest: 'nothex', artifact: artifact({ digest: `sha256:nothex` }) }), /not a sha256/)
 refused('a non-object artifact response', input => ({ ...input, artifact: [artifact()] }), /not a JSON object/)
 refused('an attempt that is not a number', input => ({ ...input, runAttempt: 0 }), /run attempt/)
+refused('an attempt that is absent', input => ({ ...input, runAttempt: undefined }), /run attempt/)
+refused('an attempt that is a string', input => ({ ...input, runAttempt: '1' }), /run attempt/)
+refused('an artifact with no expired flag', input => ({ ...input, artifact: artifact({ expired: undefined }) }), /expired/)
+refused('an artifact whose fields are arrays', input => ({ ...input, artifact: { id: ['42'], expired: false, digest: [`sha256:${digest}`], workflow_run: { id: [1000], head_sha: [sha] } } }), /not a scalar/)
+
+test('refuses to bind when an expectation is missing, rather than comparing two absents', () => {
+  for (const missing of ['artifactId', 'runId', 'sha']) {
+    const { mode, problems } = evaluate({ ...base, [missing]: undefined })
+    assert.equal(mode, null, `missing ${missing} was ignored`)
+    assert.ok(problems.some(p => p.includes('is not set')), JSON.stringify(problems))
+  }
+  const { mode, problems } = evaluate({ ...base, artifactId: '' })
+  assert.equal(mode, null)
+  assert.ok(problems.some(p => p.includes('is not set')))
+})
 
 test('the CLI writes the decision to GITHUB_OUTPUT and fails closed on a mismatch', () => {
   const dir = mkdtempSync(join(tmpdir(), 'vsix-bind-'))

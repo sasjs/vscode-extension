@@ -15,7 +15,8 @@
 //      bytes were built now; it may only reuse an attestation already recorded
 //      for exactly these bytes, and must stop if there is none.
 import { createHash } from 'node:crypto'
-import { readFileSync, statSync, appendFileSync } from 'node:fs'
+import { readFileSync, statSync, appendFileSync, realpathSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 
 export const SIGN = 'sign'
 export const REUSE = 'reuse'
@@ -39,10 +40,19 @@ export function evaluate ({
   sha
 }) {
   const problems = []
+  // A comparison between two absent values is not a match: it means the caller
+  // (or the environment) forgot to supply the thing being compared, so nothing
+  // was actually bound. Every expectation has to be a non-empty scalar.
+  const scalar = (value) => typeof value === 'string' || typeof value === 'number'
   const check = (name, actual, expected) => {
-    if (String(actual) !== String(expected)) {
-      problems.push(`${name}: expected ${expected}, got ${actual === undefined || actual === null ? 'missing' : JSON.stringify(actual)}`)
+    if (!scalar(actual)) {
+      problems.push(`${name}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)} - not a scalar`)
+    } else if (String(actual) !== String(expected)) {
+      problems.push(`${name}: expected ${expected}, got ${actual}`)
     }
+  }
+  for (const [name, value] of Object.entries({ artifactId, runId, sha })) {
+    if (!scalar(value) || String(value).trim() === '') problems.push(`expected ${name.replace(/([A-Z])/g, '-$1').toLowerCase()} is not set, so nothing can be bound to this run`)
   }
 
   if (!artifact || typeof artifact !== 'object' || Array.isArray(artifact)) {
@@ -117,4 +127,15 @@ function main () {
   }
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) main()
+// Comparing import.meta.url to a hand-built file URL skips main() when the script
+// is invoked through a symlink, which would exit 0 having bound nothing. Compare
+// real paths instead, and on any doubt run main.
+function invokedDirectly () {
+  try {
+    return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))
+  } catch (error) {
+    return true
+  }
+}
+
+if (invokedDirectly()) main()

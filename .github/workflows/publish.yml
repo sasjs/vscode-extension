@@ -15,7 +15,9 @@
 # with, and the job that can mint provenance runs none of that tooling and holds
 # no secret. A compromised dependency can therefore neither mint an attestation
 # nor reach the marketplace token; it can only influence the bytes its own job
-# produces, which is what the attestation then says.
+# produces, which is what the attestation then covers. The packaged tree includes
+# snippets fetched from the network, so the attestation names the workflow, the
+# commit and the bytes - not a reproducible build.
 #
 # package.json carries 0.0.0 in git: that is a placeholder, not a version. The
 # release tag is the source of truth for the version, and --prepare-publish is
@@ -234,6 +236,22 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: lts/krypton
+      - name: Mark the release tag locally
+        # A draft release creates no tag ref, and this job is a fresh checkout, so
+        # the tag the release job resolved does not exist here. --prepare-publish
+        # refuses a tag it cannot resolve, so recreate the marker at the push SHA -
+        # never moving an existing one - and let the identity checks judge it.
+        env:
+          TAG: ${{ needs.release.outputs.tag }}
+          EVENT_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          [ "$(git rev-parse HEAD)" = "$EVENT_SHA" ] || { echo '::error::checkout differs from the push SHA'; exit 1; }
+          if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+            [ "$(git rev-parse "refs/tags/$TAG^{commit}")" = "$EVENT_SHA" ] || { echo "::error::$TAG names another commit"; exit 1; }
+          else
+            git tag "$TAG" "$EVENT_SHA"
+          fi
       - run: npm ci
       - run: npm audit signatures
 
@@ -326,7 +344,6 @@ jobs:
       attestations: write    # record the attestation (which also allows reading it back)
     outputs:
       bundle-artifact-id: ${{ steps.bundle.outputs.artifact-id }}
-      bundle-digest: ${{ steps.bundle.outputs.artifact-digest }}
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -349,7 +366,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           ARTIFACT_ID: ${{ needs.build.outputs.artifact-id }}
           EXPECTED_DIGEST: ${{ needs.build.outputs.digest }}
-          RUN_ATTEMPT: ${{ github.run_attempt }}
           VSIX: dist/${{ needs.build.outputs.vsix }}
           METADATA: dist/artifact-metadata.json
         # Fails closed unless the artifact API says this id belongs to this run at
@@ -422,13 +438,14 @@ jobs:
     # does not: this job cannot mint provenance for anything it might publish.
     permissions:
       contents: write        # release assets, then the published release
-      attestations: read     # verify the bundle against the repository's record
+                             # no identity, and no attestation permission: both
+                             # verifications in this job read the uploaded bundle,
+                             # so nothing here calls the attestations API
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           ref: ${{ github.sha }}
-          fetch-depth: 0      # the identity check reads the release tag from the clone
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: lts/krypton
@@ -438,8 +455,9 @@ jobs:
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           # Both by id, and both unarchived, so the file on disk is the bytes the
-          # sign job attested. The artifact digests are pinned through the same
-          # record the sign job checked.
+          # sign job attested. download-artifact checks each download against the
+          # digest the artifact API reports, and the bundle is verified against
+          # this file before it is used.
           artifact-ids: ${{ needs.build.outputs.artifact-id }},${{ needs.sign.outputs.bundle-artifact-id }}
           path: dist
           merge-multiple: true
@@ -519,7 +537,9 @@ jobs:
       - name: Publish the release
         # Last: the release is created as a draft, so a version is never advertised
         # before its .vsix exists on the page. Running on the gate rather than on
-        # `released` is what makes a re-run finish a failed job.
+        # `released` is what lets a re-run of the FAILED JOBS finish a release;
+        # re-running all jobs rebuilds the VSIX, and those new bytes have no
+        # attestation, so the sign job refuses (see vsix-bind.mjs).
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ needs.release.outputs.tag }}

@@ -40,11 +40,16 @@ test('the extension is published from a job that holds the marketplace token and
   assert.match(sign, /^      id-token: write\b/m)
   assert.match(sign, /^      attestations: write\b/m)
   assert.match(sign, /^      contents: read\b/m)
-  // No third-party tooling where an attestation can be minted.
-  assert.doesNotMatch(sign, /^          (?:npm|npx) /m)
+  // No third-party tooling, and no secret, where an attestation can be minted.
+  const signCode = sign.split('\n').filter(line => !line.trim().startsWith('#')).join('\n')
+  assert.doesNotMatch(signCode, /\bnpm\b|\bnpx\b|\bovsx\b|\bvsce\b|\bdegit\b/)
+  assert.doesNotMatch(signCode, /secrets\./)
+  // The artifact API read in the bind step needs this, and dropping it fails the
+  // release at the last gate rather than at lint time.
+  assert.match(sign, /^      actions: read\b/m)
   // And no secret or OIDC where it is published.
   assert.match(publish, /^      contents: write\b/m)
-  assert.doesNotMatch(publish, /id-token|attestations: write/)
+  assert.doesNotMatch(publish, /id-token|attestations:/)
   for (const body of [release, build, sign]) assert.doesNotMatch(body, /OPEN_VSX_TOKEN/)
   assert.equal((workflow.match(/secrets\.OPEN_VSX_TOKEN/g) || []).length, 1)
 
@@ -58,6 +63,13 @@ test('the extension is published from a job that holds the marketplace token and
   const download = named('Download the VSIX artifact')
   assert.ok(download.includes('artifact-ids: ${{ needs.build.outputs.artifact-id }}'))
   assert.match(jobBody('sign'), /^      bundle-artifact-id: \$\{\{ steps\.bundle\.outputs\.artifact-id \}\}$/m)
+
+  // The build job is a fresh checkout, where a draft's tag does not exist, so it
+  // recreates the marker before --prepare-publish refuses an unresolvable tag.
+  const marker = named('Mark the release tag locally')
+  assert.ok(marker.includes('TAG: ${{ needs.release.outputs.tag }}'))
+  assert.ok(marker.includes('git tag "$TAG" "$EVENT_SHA"'))
+  assert.ok(workflow.indexOf('      - name: Mark the release tag locally\n') < workflow.indexOf('      - name: Decide what to package\n'))
 
   // Provenance is verified before the irreversible publish, from the file itself.
   const before = named('Verify build provenance before publishing')
@@ -138,6 +150,13 @@ test('release identity rejects stale drafts, ancestor tags and wrong push SHA', 
     assert.notEqual(check(sha, sha).status, 0, 'remote ancestor tag must fail even if draft target matches')
     git('push', '-q', 'origin', ':refs/tags/v1.0.0')
     assert.equal(check(sha, sha).status, 0, 'uncreated remote draft tag is valid')
+    // A later job's checkout is a fresh clone: a draft creates no tag ref, so
+    // there is no local tag to check. The draft target and the remote tag are what
+    // the check can rely on there; a local tag that does exist must still match.
+    git('tag', '-d', 'v1.0.0')
+    assert.equal(check(sha, sha).status, 0, 'a fresh clone with no local tag must pass when the draft targets the push SHA')
+    git('tag', 'v1.0.0', old)
+    assert.notEqual(check(sha, sha).status, 0, 'a local tag naming another commit must still fail')
     git('tag', '-fa', 'v1.0.0', sha, '-m', 'release')
     git('push', '-q', 'origin', 'refs/tags/v1.0.0')
     assert.equal(check(sha, sha).status, 0, 'annotated remote tag is peeled')

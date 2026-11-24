@@ -11,7 +11,18 @@
 // Two or more *distinct* verified bundles is not a choice the workflow is allowed
 // to make: picking one by response order would attach an attestation nobody
 // chose. That fails closed and needs a human.
-import { readFileSync, writeFileSync } from 'node:fs'
+import { readFileSync, writeFileSync, realpathSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+
+// Key order is not part of a bundle's meaning, so two spellings of the same
+// bundle must collapse rather than look like two different attestations.
+export function canonical (value) {
+  if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`
+  if (value && typeof value === 'object') {
+    return `{${Object.keys(value).sort().map(key => `${JSON.stringify(key)}:${canonical(value[key])}`).join(',')}}`
+  }
+  return JSON.stringify(value)
+}
 
 export function selectBundle (input) {
   const list = Array.isArray(input)
@@ -41,8 +52,15 @@ export function selectBundle (input) {
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
       throw new Error(`attestation ${index} bundle is not a JSON object`)
     }
-    return JSON.stringify(parsed)
+    // Any object would satisfy `test -s`, so require the shape `gh` returns;
+    // the cryptographic check downstream is the real one, but this keeps an empty
+    // or unrelated object from being carried around as a "bundle".
+    if (!parsed.dsseEnvelope || typeof parsed.dsseEnvelope !== 'object' || Array.isArray(parsed.dsseEnvelope)) {
+      throw new Error(`attestation ${index} bundle has no dsseEnvelope, so it is not an attestation bundle`)
+    }
+    return canonical(parsed)
   })
+  // `lines` is already canonical, so equality here is structural.
   const distinct = [...new Set(lines)]
   if (distinct.length > 1) {
     throw new Error(`${distinct.length} distinct verified attestations cover these bytes; resolve manually rather than picking one`)
@@ -69,4 +87,15 @@ function main () {
   console.log(`reusing the recorded attestation: ${outputPath} (${line.length} bytes)`)
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) main()
+// Comparing import.meta.url to a hand-built file URL skips main() when the script
+// is invoked through a symlink, which would exit 0 having done nothing. Compare
+// real paths instead, and on any doubt run main.
+function invokedDirectly () {
+  try {
+    return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))
+  } catch (error) {
+    return true
+  }
+}
+
+if (invokedDirectly()) main()
