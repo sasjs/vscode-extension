@@ -103,7 +103,9 @@ test('the check runs where the snippets were fetched, in both workflows', () => 
   // After `npm run setup`, or the check inspects an empty directory and fails
   // for the wrong reason; and in the release job, or a bad fetch ships.
   const pr = readFileSync('.github/workflows/run-tests.yml', 'utf8')
-  assert.ok(pr.indexOf('node .github/scripts/check-snippets.mjs') > pr.indexOf('run: npm run setup'))
+  const prSetup = pr.indexOf('run: npm run setup')
+  const prCheck = pr.indexOf('node .github/scripts/check-snippets.mjs')
+  assert.ok(prSetup >= 0 && prCheck > prSetup, 'the PR build must check the fetched snippets')
   assert.match(pr, /check-snippets\.mjs --vsix-list "\$RUNNER_TEMP\/vsix-files\.txt"/)
   const release = readFileSync('.github/workflows/publish.yml', 'utf8')
   const setup = release.indexOf('run: npm run setup')
@@ -119,7 +121,7 @@ test('the check runs where the snippets were fetched, in both workflows', () => 
   assert.ok(stepStart > 0, 'the check must be a step of its own')
   const block = release.slice(stepStart, stepEnd === -1 ? release.length : stepEnd)
   assert.match(block, /^      - name: /m)
-  assert.doesNotMatch(block, /^        if:/m)
+  assert.doesNotMatch(block, /^        (?:if|continue-on-error):/m)
 })
 
 test('the snippet fetch in setup is not masked by || true', () => {
