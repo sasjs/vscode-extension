@@ -34,10 +34,10 @@ function fixture () {
     copyFileSync(join(original, file), join(lang, file))
   }
   const bytes = Buffer.from('{"proc fixture":{"prefix":"proc fixture","body":["proc fixture;"]}}\n')
-  writeFileSync(join(lang, 'snippets/proc-snippets.json'), bytes)
+  writeFileSync(join(lang, 'snippets/procedures.json'), bytes)
   writeFileSync(join(lang, 'package.json'), JSON.stringify({ name: '@sasjs/sas-language', exports: {
     './snippets/functions.json': './snippets/functions.json',
-    './snippets/proc-snippets.json': './snippets/proc-snippets.json'
+    './snippets/procedures.json': './snippets/procedures.json'
   } }))
   return { root, lang, bytes }
 }
@@ -61,10 +61,10 @@ test('real setup stages package proc snippets and attribution, and fails when th
     ]) {
       assert.deepEqual(readFileSync(join(root, 'snippets', staged)), readFileSync(join(lang, source)))
     }
-    rmSync(join(lang, 'snippets/proc-snippets.json'))
+    rmSync(join(lang, 'snippets/procedures.json'))
     const missing = setup(root)
     assert.ifError(missing.error)
     assert.notEqual(missing.status, 0, 'setup must fail even when a stale staged snippet exists')
-    assert.match(missing.stderr, /proc-snippets\.json/)
+    assert.match(missing.stderr, /procedures\.json/)
   } finally { rmSync(root, { recursive: true, force: true }) }
 })

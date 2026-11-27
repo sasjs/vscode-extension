@@ -3,7 +3,7 @@ import { dirname, resolve } from 'node:path'
 import { createRequire } from 'node:module'
 
 const require = createRequire(import.meta.url)
-const source = require.resolve('@sasjs/sas-language/snippets/proc-snippets.json')
+const source = require.resolve('@sasjs/sas-language/snippets/procedures.json')
 const packageRoot = resolve(dirname(source), '..')
 const target = resolve(process.cwd(), 'snippets')
 mkdirSync(target, { recursive: true })
