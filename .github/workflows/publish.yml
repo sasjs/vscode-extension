@@ -387,7 +387,7 @@ jobs:
       - name: Attest the VSIX
         id: attest
         if: steps.bind.outputs.mode == 'sign'
-        uses: sasjs/release/.github/actions/attest-assets@6bce05cbcd9364c7097f089ea6c9132978a500ca # v0.19.0
+        uses: sasjs/release/.github/actions/attest-assets@50aa817d263594d824d20af3498ea593352c78d2 # v0.19.1
         with:
           version: ${{ needs.build.outputs.version }}
           subject-path: dist/${{ needs.build.outputs.vsix }}
