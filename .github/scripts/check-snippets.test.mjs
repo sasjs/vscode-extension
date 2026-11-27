@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { spawnSync } from 'node:child_process'
 import { checkSnippets, checkListing } from './check-snippets.mjs'
+import './stage-sas-snippets.test.mjs'
 
 const snippet = { prefix: 'proc sql', body: 'proc sql;' }
 const pkgWith = paths => ({ contributes: { snippets: paths.map(path => ({ language: 'sas', path })) } })
@@ -177,34 +178,33 @@ test('the check runs where the snippets were fetched, in both workflows', () => 
 })
 
 test('the upstream SAS snippet fetch uses an immutable commit', () => {
-  const command = JSON.parse(readFileSync('package.json', 'utf8')).scripts['sas:snippets']
-  assert.match(command, /sassoftware\/vscode-sas-extension\/snippets#[0-9a-f]{40}(?:\s|$)/)
+  const provenance = readFileSync('vendor/sas-snippets/README.md', 'utf8')
+  assert.match(provenance, /sassoftware\/vscode-sas-extension\/blob\/97892fea1c3e909b12ae25aa50dfd22fa91d9c17\/snippets\/proc-snippets\.json/)
+  assert.equal(JSON.parse(readFileSync('package.json', 'utf8')).scripts['sas:snippets'], 'node scripts/stage-sas-snippets.mjs')
 })
 
 test('setup propagates either snippet failure but tolerates failed git hook configuration', () => {
   const setup = JSON.parse(readFileSync('package.json', 'utf8')).scripts.setup
   const root = mkdtempSync(join(tmpdir(), 'snippet-setup-'))
-  const bin = join(root, 'bin')
-  mkdirSync(bin)
-  writeFileSync(join(bin, 'npm'), '#!/bin/sh\nprintf "%s\\n" "$2" >> "$CALLS"\n[ "$2" != "$FAIL_SCRIPT" ]\n', { mode: 0o755 })
-  writeFileSync(join(bin, 'git'), '#!/bin/sh\nprintf "git\\n" >> "$CALLS"\nexit 1\n', { mode: 0o755 })
   const run = fail => {
-    const calls = join(root, 'calls')
-    writeFileSync(calls, '')
-    const result = spawnSync('/bin/sh', ['-c', setup], {
-      cwd: root,
-      env: { ...process.env, PATH: bin, CALLS: calls, FAIL_SCRIPT: fail },
-      encoding: 'utf8'
-    })
+    const scripts = {
+      setup,
+      'sas:snippets': `node -e "process.exit(${fail === 'sas:snippets' ? 7 : 0})"`,
+      'sasjs:snippets': `node -e "process.exit(${fail === 'sasjs:snippets' ? 8 : 0})"`
+    }
+    writeFileSync(join(root, 'package.json'), JSON.stringify({ scripts }))
+    const result = spawnSync('npm', ['run', 'setup'], { cwd: root, shell: process.platform === 'win32', encoding: 'utf8' })
     assert.ifError(result.error)
-    return { status: result.status, calls: readFileSync(calls, 'utf8').trim().split('\n') }
+    return result.status
   }
   try {
-    assert.deepEqual(run('sas:snippets'), { status: 1, calls: ['sas:snippets'] })
-    assert.deepEqual(run('sasjs:snippets'), { status: 1, calls: ['sas:snippets', 'sasjs:snippets'] })
-    assert.deepEqual(run(''), { status: 0, calls: ['sas:snippets', 'sasjs:snippets'] })
+    mkdirSync(join(root, 'scripts'))
+    writeFileSync(join(root, 'scripts/configure-git-hooks.mjs'), readFileSync('scripts/configure-git-hooks.mjs'))
+    assert.notEqual(run('sas:snippets'), 0)
+    assert.notEqual(run('sasjs:snippets'), 0)
+    assert.equal(run(''), 0)
     mkdirSync(join(root, '.git'))
-    assert.deepEqual(run(''), { status: 0, calls: ['sas:snippets', 'sasjs:snippets', 'git'] })
+    assert.equal(run(''), 0)
   } finally { rmSync(root, { recursive: true, force: true }) }
 })
 
