@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process'
 import * as path from 'node:path'
 
 describe('real formatting provider', () => {
-  it('aligns macro end after returned values and remains stable', () => {
+  it('preserves masking and cards data and remains stable', () => {
     execFileSync(process.execPath, [
       '-r',
       'ts-node/register/transpile-only',

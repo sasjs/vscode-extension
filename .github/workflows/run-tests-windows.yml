@@ -31,6 +31,9 @@ jobs:
       - name: Setup snippets and git hooks
         run: npm run setup
 
+      - name: Check snippet staging on Windows
+        run: node --test .github/scripts/check-snippets.test.mjs .github/scripts/stage-sas-snippets.test.mjs
+
       - name: Run Unit Tests
         run: npm run test:unit
 

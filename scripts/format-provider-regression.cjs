@@ -71,6 +71,19 @@ async function format(text) {
     const result = await format(input)
     assert.equal(result, expected)
     assert.equal(await format(result), result)
+
+    // A marked delimiter can poison the lexer past the mask. The data records
+    // after it must survive the whole extension provider, not just the engine.
+    const masked = '%let z=%bquote(%();\ndata w;\ninput x $;\ndatalines;\nrun;   DATA\n;\nrun;\n'
+    const maskedResult = await format(masked)
+    assert.equal(maskedResult, masked)
+    assert.equal(await format(maskedResult), maskedResult)
+
+    const cards = 'filename f temp;\nparmcards4;\nalpha\n  ;;;;\n  x   y\n;;;;\n%put TAIL;\n'
+    const cardsResult = await format(cards)
+    assert.ok(cardsResult.includes('\nalpha\n  ;;;;\n  x   y\n;;;;\n'), cardsResult)
+    assert.ok(cardsResult.includes('%put TAIL;'), cardsResult)
+    assert.equal(await format(cardsResult), cardsResult)
   } finally {
     fs.rmSync(project, { recursive: true, force: true })
   }

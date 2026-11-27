@@ -4,7 +4,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, readdirSync, rmSyn
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { spawnSync } from 'node:child_process'
-import { checkSnippets, checkListing } from './check-snippets.mjs'
+import { checkSnippets, checkListing, checkAttributionListing } from './check-snippets.mjs'
 
 const snippet = { prefix: 'proc sql', body: 'proc sql;' }
 const pkgWith = paths => ({ contributes: { snippets: paths.map(path => ({ language: 'sas', path })) } })
@@ -176,35 +176,74 @@ test('the check runs where the snippets were fetched, in both workflows', () => 
   assert.doesNotMatch(block, /^        (?:if|continue-on-error):/m)
 })
 
-test('the upstream SAS snippet fetch uses an immutable commit', () => {
-  const command = JSON.parse(readFileSync('package.json', 'utf8')).scripts['sas:snippets']
-  assert.match(command, /sassoftware\/vscode-sas-extension\/snippets#[0-9a-f]{40}(?:\s|$)/)
+test('attribution files must be in the VSIX listing even with Windows CRLF', () => {
+  const files = ['NOTICE.sas-language', 'LICENSE.sas-language', 'LICENSE.sas-upstream.txt', 'provenance.sas-language.json']
+  const listing = files.map(file => `snippets/${file}`).join('\r\n') + '\r\n'
+  assert.deepEqual(checkAttributionListing({ listing }), [])
+  for (const omitted of files) {
+    const incomplete = files.filter(file => file !== omitted).map(file => `snippets/${file}`).join('\r\n')
+    assert.match(checkAttributionListing({ listing: incomplete })[0], new RegExp(omitted.replaceAll('.', '\\.')))
+  }
 })
 
-test('setup propagates either snippet failure but tolerates failed git hook configuration', () => {
+test('setup stages proc snippets from the language package', () => {
+  assert.match(JSON.parse(readFileSync('package.json', 'utf8')).scripts['sas:snippets'], /(?:^|\s)scripts\/stage-sas-snippets\.mjs(?:\s|$)/)
+})
+
+test('setup propagates either snippet failure', () => {
   const setup = JSON.parse(readFileSync('package.json', 'utf8')).scripts.setup
   const root = mkdtempSync(join(tmpdir(), 'snippet-setup-'))
-  const bin = join(root, 'bin')
-  mkdirSync(bin)
-  writeFileSync(join(bin, 'npm'), '#!/bin/sh\nprintf "%s\\n" "$2" >> "$CALLS"\n[ "$2" != "$FAIL_SCRIPT" ]\n', { mode: 0o755 })
-  writeFileSync(join(bin, 'git'), '#!/bin/sh\nprintf "git\\n" >> "$CALLS"\nexit 1\n', { mode: 0o755 })
   const run = fail => {
-    const calls = join(root, 'calls')
-    writeFileSync(calls, '')
-    const result = spawnSync('/bin/sh', ['-c', setup], {
-      cwd: root,
-      env: { ...process.env, PATH: bin, CALLS: calls, FAIL_SCRIPT: fail },
-      encoding: 'utf8'
-    })
+    const scripts = {
+      setup,
+      'sas:snippets': `node -e "process.exit(${fail === 'sas:snippets' ? 7 : 0})"`,
+      'sasjs:snippets': `node -e "process.exit(${fail === 'sasjs:snippets' ? 8 : 0})"`
+    }
+    writeFileSync(join(root, 'package.json'), JSON.stringify({ scripts }))
+    const result = spawnSync('npm', ['run', 'setup'], { cwd: root, shell: process.platform === 'win32', encoding: 'utf8' })
     assert.ifError(result.error)
-    return { status: result.status, calls: readFileSync(calls, 'utf8').trim().split('\n') }
+    return result.status
   }
   try {
-    assert.deepEqual(run('sas:snippets'), { status: 1, calls: ['sas:snippets'] })
-    assert.deepEqual(run('sasjs:snippets'), { status: 1, calls: ['sas:snippets', 'sasjs:snippets'] })
-    assert.deepEqual(run(''), { status: 0, calls: ['sas:snippets', 'sasjs:snippets'] })
+    mkdirSync(join(root, 'scripts'))
+    writeFileSync(join(root, 'scripts/configure-git-hooks.mjs'), readFileSync('scripts/configure-git-hooks.mjs'))
+    assert.notEqual(run('sas:snippets'), 0)
+    assert.notEqual(run('sasjs:snippets'), 0)
+    assert.equal(run(''), 0)
+  } finally { rmSync(root, { recursive: true, force: true }) }
+})
+
+test('hook configuration warns and continues when git cannot be launched', () => {
+  const root = mkdtempSync(join(tmpdir(), 'missing-git-'))
+  try {
     mkdirSync(join(root, '.git'))
-    assert.deepEqual(run(''), { status: 0, calls: ['sas:snippets', 'sasjs:snippets', 'git'] })
+    const emptyPath = join(root, 'empty-path')
+    mkdirSync(emptyPath)
+    const script = join(process.cwd(), 'scripts/configure-git-hooks.mjs')
+    const result = spawnSync(process.execPath, [script], {
+      cwd: root, env: { ...process.env, PATH: emptyPath }, encoding: 'utf8'
+    })
+    assert.ifError(result.error)
+    assert.equal(result.status, 0, result.stderr)
+    assert.match(result.stderr, /Could not configure git hooks; continuing setup/)
+  } finally { rmSync(root, { recursive: true, force: true }) }
+})
+
+test('the CLI distinguishes missing attribution from missing declared snippets', () => {
+  const root = fixture(['./snippets/proc.json'], { 'proc.json': JSON.stringify([snippet]) })
+  const script = join(process.cwd(), '.github/scripts/check-snippets.mjs')
+  const list = join(root, 'listing.txt')
+  try {
+    writeFileSync(list, 'snippets/proc.json\n')
+    const attribution = spawnSync('node', [script, '--vsix-list', list], { cwd: root, encoding: 'utf8' })
+    assert.equal(attribution.status, 1)
+    assert.match(attribution.stderr, /the package would not contain required snippet attribution/)
+    assert.doesNotMatch(attribution.stderr, /the package would not contain a file its manifest advertises/)
+    writeFileSync(list, '')
+    const both = spawnSync('node', [script, '--vsix-list', list], { cwd: root, encoding: 'utf8' })
+    assert.equal(both.status, 1)
+    assert.match(both.stderr, /the package would not contain required snippet attribution/)
+    assert.match(both.stderr, /the package would not contain a file its manifest advertises/)
   } finally { rmSync(root, { recursive: true, force: true }) }
 })
 

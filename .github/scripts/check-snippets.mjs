@@ -130,6 +130,14 @@ export function checkListing ({ pkg, listing }) {
   return problems
 }
 
+export function checkAttributionListing ({ listing }) {
+  const files = new Set(listing.split('\n').map(line => line.trim().replace(/^\.\//, '')).filter(Boolean))
+  return ['NOTICE.sas-language', 'LICENSE.sas-language', 'LICENSE.sas-upstream.txt', 'provenance.sas-language.json']
+    .map(name => `snippets/${name}`)
+    .filter(path => !files.has(path))
+    .map(path => `snippet attribution is not in the package listing: ${path}`)
+}
+
 function main () {
   const root = process.cwd()
   const vsixList = process.argv.indexOf('--vsix-list')
@@ -153,11 +161,11 @@ function main () {
       console.error(`::error::cannot read the package listing ${listingPath}: ${error.message}`)
       process.exit(1)
     }
-    const listingProblems = checkListing({ pkg, listing })
-    if (!report(listingProblems)) {
-      console.error('::error::the package would not contain a file its manifest advertises')
-      process.exit(1)
-    }
+    const snippetsOk = report(checkListing({ pkg, listing }))
+    const attributionOk = report(checkAttributionListing({ listing }))
+    if (!snippetsOk) console.error('::error::the package would not contain a file its manifest advertises')
+    if (!attributionOk) console.error('::error::the package would not contain required snippet attribution')
+    if (!snippetsOk || !attributionOk) process.exit(1)
     console.log(`every declared snippet contribution is in ${listingPath}`)
     return
   }
