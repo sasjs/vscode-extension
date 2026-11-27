@@ -13,7 +13,7 @@ npm ci
 npm run setup
 ```
 
-`npm run setup` generates the SAS snippets (`degit` + `npx sasjs snippets`) and wires the local git hooks. Snippets are gitignored, so a fresh clone has none until this runs - CI runs the same step after `npm ci`.
+`npm run setup` stages SAS procedure and function snippets from the pinned `@sasjs/sas-language` package, generates SASjs macro snippets with `npx sasjs snippets`, and wires the local git hooks. Snippets are gitignored, so a fresh clone has none until this runs - CI runs the same step after `npm ci`.
 
 The extension itself needs VS Code 1.125 or later (`engines.vscode`), which is the oldest line whose extension host runs Node 24.
 
