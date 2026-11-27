@@ -161,11 +161,11 @@ function main () {
       console.error(`::error::cannot read the package listing ${listingPath}: ${error.message}`)
       process.exit(1)
     }
-    const listingProblems = [...checkListing({ pkg, listing }), ...checkAttributionListing({ listing })]
-    if (!report(listingProblems)) {
-      console.error('::error::the package would not contain a file its manifest advertises')
-      process.exit(1)
-    }
+    const snippetsOk = report(checkListing({ pkg, listing }))
+    const attributionOk = report(checkAttributionListing({ listing }))
+    if (!snippetsOk) console.error('::error::the package would not contain a file its manifest advertises')
+    if (!attributionOk) console.error('::error::the package would not contain required snippet attribution')
+    if (!snippetsOk || !attributionOk) process.exit(1)
     console.log(`every declared snippet contribution is in ${listingPath}`)
     return
   }

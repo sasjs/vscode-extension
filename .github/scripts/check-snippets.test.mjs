@@ -187,10 +187,10 @@ test('attribution files must be in the VSIX listing even with Windows CRLF', () 
 })
 
 test('setup stages proc snippets from the language package', () => {
-  assert.equal(JSON.parse(readFileSync('package.json', 'utf8')).scripts['sas:snippets'], 'node scripts/stage-sas-snippets.mjs')
+  assert.match(JSON.parse(readFileSync('package.json', 'utf8')).scripts['sas:snippets'], /(?:^|\s)scripts\/stage-sas-snippets\.mjs(?:\s|$)/)
 })
 
-test('setup propagates either snippet failure but tolerates failed git hook configuration', () => {
+test('setup propagates either snippet failure', () => {
   const setup = JSON.parse(readFileSync('package.json', 'utf8')).scripts.setup
   const root = mkdtempSync(join(tmpdir(), 'snippet-setup-'))
   const run = fail => {
@@ -210,8 +210,40 @@ test('setup propagates either snippet failure but tolerates failed git hook conf
     assert.notEqual(run('sas:snippets'), 0)
     assert.notEqual(run('sasjs:snippets'), 0)
     assert.equal(run(''), 0)
+  } finally { rmSync(root, { recursive: true, force: true }) }
+})
+
+test('hook configuration warns and continues when git cannot be launched', () => {
+  const root = mkdtempSync(join(tmpdir(), 'missing-git-'))
+  try {
     mkdirSync(join(root, '.git'))
-    assert.equal(run(''), 0)
+    const emptyPath = join(root, 'empty-path')
+    mkdirSync(emptyPath)
+    const script = join(process.cwd(), 'scripts/configure-git-hooks.mjs')
+    const result = spawnSync(process.execPath, [script], {
+      cwd: root, env: { ...process.env, PATH: emptyPath }, encoding: 'utf8'
+    })
+    assert.ifError(result.error)
+    assert.equal(result.status, 0, result.stderr)
+    assert.match(result.stderr, /Could not configure git hooks; continuing setup/)
+  } finally { rmSync(root, { recursive: true, force: true }) }
+})
+
+test('the CLI distinguishes missing attribution from missing declared snippets', () => {
+  const root = fixture(['./snippets/proc.json'], { 'proc.json': JSON.stringify([snippet]) })
+  const script = join(process.cwd(), '.github/scripts/check-snippets.mjs')
+  const list = join(root, 'listing.txt')
+  try {
+    writeFileSync(list, 'snippets/proc.json\n')
+    const attribution = spawnSync('node', [script, '--vsix-list', list], { cwd: root, encoding: 'utf8' })
+    assert.equal(attribution.status, 1)
+    assert.match(attribution.stderr, /the package would not contain required snippet attribution/)
+    assert.doesNotMatch(attribution.stderr, /the package would not contain a file its manifest advertises/)
+    writeFileSync(list, '')
+    const both = spawnSync('node', [script, '--vsix-list', list], { cwd: root, encoding: 'utf8' })
+    assert.equal(both.status, 1)
+    assert.match(both.stderr, /the package would not contain required snippet attribution/)
+    assert.match(both.stderr, /the package would not contain a file its manifest advertises/)
   } finally { rmSync(root, { recursive: true, force: true }) }
 })
 
