@@ -83,7 +83,7 @@ jobs:
         # fetch happened. This is the step that would have caught 3.3.0 shipping a
         # manifest entry for a file upstream had deleted in January 2024.
         run: |
-          node --test .github/scripts/check-snippets.test.mjs
+          node --test .github/scripts/check-snippets.test.mjs .github/scripts/stage-sas-snippets.test.mjs
           node .github/scripts/check-snippets.mjs
 
       - name: Check Code Style

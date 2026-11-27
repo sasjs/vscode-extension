@@ -4,8 +4,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, readdirSync, rmSyn
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { spawnSync } from 'node:child_process'
-import { checkSnippets, checkListing } from './check-snippets.mjs'
-import './stage-sas-snippets.test.mjs'
+import { checkSnippets, checkListing, checkAttributionListing } from './check-snippets.mjs'
 
 const snippet = { prefix: 'proc sql', body: 'proc sql;' }
 const pkgWith = paths => ({ contributes: { snippets: paths.map(path => ({ language: 'sas', path })) } })
@@ -177,9 +176,17 @@ test('the check runs where the snippets were fetched, in both workflows', () => 
   assert.doesNotMatch(block, /^        (?:if|continue-on-error):/m)
 })
 
-test('the upstream SAS snippet fetch uses an immutable commit', () => {
-  const provenance = readFileSync('vendor/sas-snippets/README.md', 'utf8')
-  assert.match(provenance, /sassoftware\/vscode-sas-extension\/blob\/97892fea1c3e909b12ae25aa50dfd22fa91d9c17\/snippets\/proc-snippets\.json/)
+test('attribution files must be in the VSIX listing even with Windows CRLF', () => {
+  const files = ['NOTICE.sas-language', 'LICENSE.sas-language', 'LICENSE.sas-upstream.txt', 'provenance.sas-language.json']
+  const listing = files.map(file => `snippets/${file}`).join('\r\n') + '\r\n'
+  assert.deepEqual(checkAttributionListing({ listing }), [])
+  for (const omitted of files) {
+    const incomplete = files.filter(file => file !== omitted).map(file => `snippets/${file}`).join('\r\n')
+    assert.match(checkAttributionListing({ listing: incomplete })[0], new RegExp(omitted.replaceAll('.', '\\.')))
+  }
+})
+
+test('setup stages proc snippets from the language package', () => {
   assert.equal(JSON.parse(readFileSync('package.json', 'utf8')).scripts['sas:snippets'], 'node scripts/stage-sas-snippets.mjs')
 })
 

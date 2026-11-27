@@ -1,15 +1,20 @@
-import { createHash } from 'node:crypto'
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { copyFileSync, mkdirSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { createRequire } from 'node:module'
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const source = resolve(process.argv[2] || resolve(root, 'vendor/sas-snippets/proc-snippets.json'))
-const target = resolve(process.argv[3] || root, 'snippets')
-const bytes = readFileSync(source)
-const expected = '4627235ead83531a38b6b1fa98d5de00f0fd4509931038f8425a458addc6ae2f'
-if (createHash('sha256').update(bytes).digest('hex') !== expected) {
-  throw new Error('SAS snippet integrity check failed')
-}
+const require = createRequire(import.meta.url)
+const source = require.resolve('@sasjs/sas-language/snippets/proc-snippets.json')
+const packageRoot = resolve(dirname(source), '..')
+const target = resolve(process.cwd(), 'snippets')
 mkdirSync(target, { recursive: true })
-writeFileSync(resolve(target, 'proc-snippets.json'), bytes)
+copyFileSync(source, resolve(target, 'proc-snippets.json'))
+// Distribute the upstream licence and the package's attribution and provenance
+// with the copied snippets, even if packaging excludes node_modules.
+for (const [from, to] of [
+  ['NOTICE', 'NOTICE.sas-language'],
+  ['LICENSE', 'LICENSE.sas-language'],
+  ['server/LICENSE.txt', 'LICENSE.sas-upstream.txt'],
+  ['provenance.json', 'provenance.sas-language.json']
+]) {
+  copyFileSync(resolve(packageRoot, from), resolve(target, to))
+}

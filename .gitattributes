@@ -1,2 +1,0 @@
-# Preserve the exact upstream blob for the SHA-256 integrity check.
-/vendor/sas-snippets/proc-snippets.json -text

@@ -1,28 +1,70 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { createHash } from 'node:crypto'
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { copyFileSync, cpSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { spawnSync } from 'node:child_process'
 
-const source = resolve('vendor/sas-snippets/proc-snippets.json')
-const stage = resolve('scripts/stage-sas-snippets.mjs')
-const sha256 = '4627235ead83531a38b6b1fa98d5de00f0fd4509931038f8425a458addc6ae2f'
+const rootDir = process.cwd()
+const pkg = JSON.parse(readFileSync('package.json', 'utf8'))
 
-test('stages exactly the pinned upstream snippet and rejects tampering', () => {
-  const root = mkdtempSync(join(tmpdir(), 'sas-snippet-'))
+function fixture () {
+  const root = mkdtempSync(join(tmpdir(), 'sas setup spaces '))
+  mkdirSync(join(root, 'scripts'))
+  cpSync('scripts', join(root, 'scripts'), { recursive: true })
+  cpSync('sasjs', join(root, 'sasjs'), { recursive: true })
+  writeFileSync(join(root, 'package.json'), JSON.stringify({ scripts: pkg.scripts }))
+  const modules = join(root, 'node_modules')
+  mkdirSync(join(modules, '@sasjs'), { recursive: true })
+  // Use the real installed CLI and its dependencies, but an isolated unpublished
+  // language package whose exported files can be removed independently.
+  for (const entry of readdirSync('node_modules', { withFileTypes: true })) {
+    if (entry.name === '@sasjs' || !entry.isDirectory()) continue
+    symlinkSync(resolve('node_modules', entry.name), join(modules, entry.name), 'junction')
+  }
+  for (const entry of readdirSync('node_modules/@sasjs', { withFileTypes: true })) {
+    if (entry.name === 'sas-language' || !entry.isDirectory()) continue
+    symlinkSync(resolve('node_modules/@sasjs', entry.name), join(modules, '@sasjs', entry.name), 'junction')
+  }
+  const lang = join(modules, '@sasjs', 'sas-language')
+  mkdirSync(join(lang, 'snippets'), { recursive: true })
+  mkdirSync(join(lang, 'server'))
+  const original = join(rootDir, 'node_modules/@sasjs/sas-language')
+  for (const file of ['NOTICE', 'LICENSE', 'provenance.json', 'server/LICENSE.txt', 'snippets/functions.json']) {
+    copyFileSync(join(original, file), join(lang, file))
+  }
+  const bytes = Buffer.from('{"proc fixture":{"prefix":"proc fixture","body":["proc fixture;"]}}\n')
+  writeFileSync(join(lang, 'snippets/proc-snippets.json'), bytes)
+  writeFileSync(join(lang, 'package.json'), JSON.stringify({ name: '@sasjs/sas-language', exports: {
+    './snippets/functions.json': './snippets/functions.json',
+    './snippets/proc-snippets.json': './snippets/proc-snippets.json'
+  } }))
+  return { root, lang, bytes }
+}
+
+function setup (root) {
+  return spawnSync('npm', ['run', 'setup'], { cwd: root, shell: process.platform === 'win32', encoding: 'utf8', timeout: 120000 })
+}
+
+test('real setup stages package proc snippets and attribution, and fails when the export is missing', () => {
+  const { root, lang, bytes } = fixture()
   try {
-    const bytes = readFileSync(source)
-    assert.equal(createHash('sha256').update(bytes).digest('hex'), sha256)
-    const ok = spawnSync(process.execPath, [stage, source, root], { encoding: 'utf8' })
-    assert.equal(ok.status, 0, ok.stderr)
+    const ok = setup(root)
+    assert.ifError(ok.error)
+    assert.equal(ok.status, 0, ok.stdout + ok.stderr)
     assert.deepEqual(readFileSync(join(root, 'snippets/proc-snippets.json')), bytes)
-    const tampered = join(root, 'tampered.json')
-    writeFileSync(tampered, Buffer.concat([bytes, Buffer.from(' ')]))
-    const refused = spawnSync(process.execPath, [stage, tampered, root], { encoding: 'utf8' })
-    assert.notEqual(refused.status, 0)
-    assert.match(refused.stderr, /integrity/i)
-    assert.deepEqual(readFileSync(join(root, 'snippets/proc-snippets.json')), bytes)
+    for (const [source, staged] of [
+      ['NOTICE', 'NOTICE.sas-language'],
+      ['LICENSE', 'LICENSE.sas-language'],
+      ['server/LICENSE.txt', 'LICENSE.sas-upstream.txt'],
+      ['provenance.json', 'provenance.sas-language.json']
+    ]) {
+      assert.deepEqual(readFileSync(join(root, 'snippets', staged)), readFileSync(join(lang, source)))
+    }
+    rmSync(join(lang, 'snippets/proc-snippets.json'))
+    const missing = setup(root)
+    assert.ifError(missing.error)
+    assert.notEqual(missing.status, 0, 'setup must fail even when a stale staged snippet exists')
+    assert.match(missing.stderr, /proc-snippets\.json/)
   } finally { rmSync(root, { recursive: true, force: true }) }
 })
