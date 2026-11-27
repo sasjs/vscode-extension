@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { copyFileSync, cpSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { cpSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { spawnSync } from 'node:child_process'
@@ -16,8 +16,8 @@ function fixture () {
   writeFileSync(join(root, 'package.json'), JSON.stringify({ scripts: pkg.scripts }))
   const modules = join(root, 'node_modules')
   mkdirSync(join(modules, '@sasjs'), { recursive: true })
-  // Use the real installed CLI and its dependencies, but an isolated unpublished
-  // language package whose exported files can be removed independently.
+  // Use the installed CLI and an isolated copy of the installed language package,
+  // so its exported file can be removed without changing the real installation.
   for (const entry of readdirSync('node_modules', { withFileTypes: true })) {
     if (entry.name === '@sasjs' || !entry.isDirectory()) continue
     symlinkSync(resolve('node_modules', entry.name), join(modules, entry.name), 'junction')
@@ -27,18 +27,9 @@ function fixture () {
     symlinkSync(resolve('node_modules/@sasjs', entry.name), join(modules, '@sasjs', entry.name), 'junction')
   }
   const lang = join(modules, '@sasjs', 'sas-language')
-  mkdirSync(join(lang, 'snippets'), { recursive: true })
-  mkdirSync(join(lang, 'server'))
   const original = join(rootDir, 'node_modules/@sasjs/sas-language')
-  for (const file of ['NOTICE', 'LICENSE', 'provenance.json', 'server/LICENSE.txt', 'snippets/functions.json']) {
-    copyFileSync(join(original, file), join(lang, file))
-  }
-  const bytes = Buffer.from('{"proc fixture":{"prefix":"proc fixture","body":["proc fixture;"]}}\n')
-  writeFileSync(join(lang, 'snippets/procedures.json'), bytes)
-  writeFileSync(join(lang, 'package.json'), JSON.stringify({ name: '@sasjs/sas-language', exports: {
-    './snippets/functions.json': './snippets/functions.json',
-    './snippets/procedures.json': './snippets/procedures.json'
-  } }))
+  cpSync(original, lang, { recursive: true })
+  const bytes = readFileSync(join(original, 'snippets/procedures.json'))
   return { root, lang, bytes }
 }
 
